@@ -49,7 +49,7 @@ A stable public IPv4 address owned by the Stack and assigned to a Host. It survi
 _Avoid_: Floating IP, static IP, elastic IP (when you mean this address resource)
 
 **Host Volume**:
-A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds (not Destroy — Destroy removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Routes and certs, and later other Prefect/Workload paths) is owned by the Prefect User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Prefect User’s home. Not per-Workload volumes.
+A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds (not Destroy — Destroy removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Routes, certificates, and ACME HTTP-01 webroot, and later other Prefect/Workload paths) is owned by the Prefect User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Prefect User’s home. Not per-Workload volumes.
 _Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Prefect resource)
 
 **Firewall**:
@@ -81,23 +81,39 @@ The idempotent, declarative Host-side application of one Component’s desired s
 _Avoid_: Setup (bare), install, deploy, provision, Workload Setup (when you mean this Component action)
 
 **Workload Setup**:
-The idempotent, declarative Host-side application of one Workload’s desired state, including registering that Workload’s Route with the Edge. Distinct from Component Setup; not part of ensuring Components.
-_Avoid_: Setup (bare), Component Setup, install, deploy (when you mean this Workload action)
+The idempotent, declarative Host-side application of one Workload’s desired state from its Manifest (Workload Desired State, Public Hostnames, Route). Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
+_Avoid_: Setup (bare), Component Setup, install, deploy, Purge (when you mean this Workload action)
 
 **Edge**:
-The mandatory public HTTP/HTTPS front door on a public Host. A Prefect Component (not optional). Sole publisher of Host ports 80/443; Workloads sit behind it.
+The mandatory public HTTP/HTTPS front door on a public Host. A Prefect Component (not optional). Sole publisher of Host ports 80/443; Workloads sit behind it. Terminates TLS for Public Hostnames and owns on-demand ACME (systemd user timer plus triggered runs when Public Hostnames change). On :80, only ACME challenges and HTTPS redirects — never Workload cleartext.
 _Avoid_: Reverse proxy, ingress, gateway, nginx (when you mean this Prefect role — nginx is today’s implementation)
 
 **Workload**:
 An optional containerized service that runs on a Host. Not part of Prefect’s mandatory Host shape, not a Component, and never installed during Initial Host Provisioning; typically reached only via the Edge, not by publishing 80/443 itself.
 _Avoid_: App, service, container, backend (when you mean this concept)
 
+**Workload Manifest**:
+A Workload-owned declaration that is the source of truth for that Workload’s desired state (**running**, **stopped**, or **trashed**), its Public Hostnames (one or more), and for producing its Route. First cut covers lifecycle and Edge reachability — not the Workload’s full runtime package beyond what Setup needs for those.
+_Avoid_: Manifest (bare), spec, compose file, workload config (when you mean this declaration)
+
+**Workload Desired State**:
+The Manifest value that selects whether a Workload should be **running** (Quadlets up, Public Hostnames claimed, certificates renewed, Edge proxies to the Workload when a certificate exists), **stopped** (no Quadlets; Public Hostnames still reserved; data and certificates kept; certificates not renewed; Edge answers 503 for those names while a certificate can terminate TLS, then goes dark after expiry), or **trashed** (eligible for Purge; Public Hostnames released; associated data retained until Purge).
+_Avoid_: active, disabled, remove, status, phase (when you mean this Manifest field)
+
+**Purge**:
+The operation that permanently removes every **trashed** Workload and its associated data (Routes, certificates, Host Volume Workload data, and related units). Does not affect **running** or **stopped** Workloads.
+_Avoid_: Destroy (Stack-level), delete, cleanup, gc (when you mean this Workload operation)
+
+**Public Hostname**:
+An enumerated FQDN pointed at a public Host’s Reserved IP for which the Edge terminates TLS. Declared on a Workload Manifest (one or more per Workload); unique among Workloads on that Host that still claim it (**running** or **stopped**); not a DNS zone and not an open-ended wildcard. DNS (A/AAAA → Reserved IP) is out of band — not a Component.
+_Avoid_: Domain, subdomain, vhost, server name, DNS name (when you mean this Prefect concept)
+
 **Service Network**:
 The private container network on a Host that the Edge and Workloads join so they can reach each other by name. Owned by Prefect as its own Component (not by the Edge). Distinct from the provider Firewall.
 _Avoid_: Podman network, bridge, CNI (implementation); network (bare — ambiguous with Firewall / provider networking)
 
 **Route**:
-A Workload-contributed config fragment the Edge loads so that Workload is reachable through the Edge. The Edge ships the shell (includes drop-ins) and Component Setup ensures only a stub so an empty routes dir stays valid; each Workload owns its Route (via Workload Setup) and must not be cleared by Component Setup.
+What the Edge loads for a Workload’s Public Hostnames. Produced by Workload Setup from the Workload Manifest: generated Edge shell (listen / Public Hostnames / TLS wiring) plus either a generated proxy body or an optional Workload-provided **interior** (proxy body only — must not declare Public Hostnames). For **running**, the HTTPS shell proxies to the Workload once a certificate exists; for **stopped**, the HTTPS shell returns 503 while a certificate lasts. The Edge’s own include shell and empty-routes stub remain Component-owned; Workload Routes must not be cleared by Component Setup.
 _Avoid_: Vhost, upstream, location block, snippet, server block (implementation)
 
 **Prefect User**:
