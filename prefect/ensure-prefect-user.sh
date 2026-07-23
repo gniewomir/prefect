@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Ensure the Prefect Host user for rootless Quadlets.
+# Ensure the Prefect User for rootless Quadlets.
 # Outside Initial Host Provisioning (not cloud-init): run after the Stack is applied.
-# Usage: ./prefect/ensure-host-user.sh
+# Usage: ./prefect/ensure-prefect-user.sh
 # Optional: VERIFY_SSH_IDENTITY=/path/to/private_key  PREFECT_USER=prefect
 set -euo pipefail
 
@@ -30,4 +30,4 @@ fi
 loginctl enable-linger "${USER_NAME}"
 REMOTE
 
-echo "Prefect user '${USER_NAME}' ensured on ${IP} (linger enabled)."
+echo "Prefect User '${USER_NAME}' ensured on ${IP} (linger enabled)."

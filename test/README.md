@@ -13,7 +13,7 @@ From the repo root:
 
 Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
-Prefect User (rootless Quadlets): after apply, once per Host run `./prefect/ensure-host-user.sh` before slices that need that account (not Initial Host Provisioning).
+Prefect User (rootless Quadlets): the runner invokes `./prefect/ensure-prefect-user.sh` before cases (idempotent; outside Initial Host Provisioning). You can also run that script alone after apply.
 
 ## Add a new Acceptance Test
 
