@@ -74,7 +74,7 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}" /tmp/prefect-components.tar' EXIT
 tar -C "${STAGE}" -xf /tmp/prefect-components.tar
 
-mkdir -p "${COMPONENTS_ROOT}" "${DATA_ROOT}/edge/routes" "${DATA_ROOT}/edge/certs"
+mkdir -p "${COMPONENTS_ROOT}" "${DATA_ROOT}"
 for component in "${COMPONENTS[@]}"; do
   rm -rf "${COMPONENTS_ROOT:?}/${component}"
   cp -a "${STAGE}/${component}" "${COMPONENTS_ROOT}/${component}"
@@ -84,10 +84,6 @@ done
 # Mount root stays root-owned; everything under it is Prefect User–owned.
 chown -R "${USER_NAME}:${USER_NAME}" "${COMPONENTS_ROOT}" "${DATA_ROOT}"
 
-[[ ${#COMPONENTS[@]} -gt 0 ]] || {
-  echo "no Components to ensure" >&2
-  exit 1
-}
 for component in "${COMPONENTS[@]}"; do
   echo "Running Component Setup: ${component}" >&2
   PREFECT_USER="${USER_NAME}" "${COMPONENTS_ROOT}/${component}/setup.sh"
