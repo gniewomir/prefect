@@ -7,5 +7,8 @@ resource "digitalocean_project" "prefect" {
   environment = "Production"
   is_default  = false
 
-  resources = [digitalocean_droplet.web.urn]
+  resources = [
+    digitalocean_droplet.web.urn,
+    digitalocean_reserved_ip.web.urn,
+  ]
 }
