@@ -212,10 +212,8 @@ Restart=on-failure
 WantedBy=default.target
 EOF
   chown "${USER_NAME}:${USER_NAME}" "${WL_UNIT}"
-elif [[ -f "${WL_UNIT}" ]]; then
-  # stopped/trashed: keep unit file for stopped (data retained); stop the service.
-  :
 fi
+# stopped/trashed: stop service below; unit file retained until Purge (trashed data retained).
 
 quadlet_user_session_reload
 quadlet_user systemctl --user reset-failed "${WL_UPSTREAM_HOST}.service" 2>/dev/null || true
