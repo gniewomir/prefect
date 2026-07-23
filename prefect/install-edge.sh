@@ -27,6 +27,25 @@ COPYFILE_DISABLE=1 tar --format=ustar -C "${REPO_ROOT}/prefect" -cf - network ed
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s -- "${USER_NAME}" <<'REMOTE'
 set -euo pipefail
 USER_NAME="$1"
+
+# Edge binds :80 rootless — wait until Initial Host Provisioning has finished and
+# the port floor is live (write_files lands before runcmd; mounts lengthen first boot).
+echo "Waiting for Initial Host Provisioning..." >&2
+set +e
+cloud-init status --wait >/dev/null 2>&1
+rc=$?
+set -e
+if [[ ${rc} -ne 0 && ${rc} -ne 2 ]]; then
+  echo "Initial Host Provisioning wait failed (exit ${rc})" >&2
+  exit 1
+fi
+sysctl --system >/dev/null 2>&1 || true
+floor="$(sysctl -n net.ipv4.ip_unprivileged_port_start 2>/dev/null || true)"
+if [[ "${floor}" != "80" ]]; then
+  echo "net.ipv4.ip_unprivileged_port_start is '${floor}', expected 80 (ADR-0006)" >&2
+  exit 1
+fi
+
 id "${USER_NAME}" >/dev/null
 
 HOME_DIR="$(getent passwd "${USER_NAME}" | cut -d: -f6)"
@@ -64,6 +83,8 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
 done
 runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
   systemctl --user daemon-reload
+runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
+  systemctl --user reset-failed edge-pod.service edge-nginx.service 2>/dev/null || true
 # Quadlet: edge.pod → edge-pod.service (pulls Service Network + edge-nginx).
 runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
   systemctl --user restart edge-pod.service

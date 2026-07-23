@@ -52,6 +52,9 @@ users:
   - name: prefect
     lock_passwd: true
     shell: /bin/bash
+# Apply port floor before packages/runcmd so early Edge install cannot race (ADR-0006).
+bootcmd:
+  - [ sysctl, -w, net.ipv4.ip_unprivileged_port_start=80 ]
 write_files:
   - path: /etc/sysctl.d/99-unprivileged-port-start.conf
     content: |
