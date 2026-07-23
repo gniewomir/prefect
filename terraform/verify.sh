@@ -118,13 +118,23 @@ else
   fail "outbound HTTPS smoke from Host failed"
 fi
 
-# Password auth must not work
-if ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 \
-    -o PreferredAuthentications=password -o PubkeyAuthentication=no \
-    "root@${IP}" "true" 2>/dev/null; then
-  fail "SSH password auth unexpectedly succeeded"
-else
-  pass "SSH password auth rejected"
+# Password auth must not be offered (BatchMode exit alone is a false positive).
+set +e
+SSH_PW_OUT="$(ssh -v -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+  -o ConnectTimeout=10 -o PreferredAuthentications=password \
+  -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=0 \
+  "root@${IP}" "true" 2>&1)"
+SSH_PW_RC=$?
+set -e
+
+echo "${SSH_PW_OUT}" | grep -q "Authentications that can continue" \
+  || fail "SSH password check did not reach auth negotiation"
+
+if echo "${SSH_PW_OUT}" | grep -E "Authentications that can continue:.*(password|keyboard-interactive)" >/dev/null; then
+  fail "SSH password auth unexpectedly offered by server"
 fi
+
+[[ ${SSH_PW_RC} -ne 0 ]] || fail "SSH password auth unexpectedly succeeded"
+pass "SSH password auth not offered"
 
 echo "All Applied Stack observability checks passed."
