@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: unprivileged port start allows rootless binds on 80/443
+# Acceptance Test: net.ipv4.ip_unprivileged_port_start is 80
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -8,11 +8,12 @@ require_ip
 acceptance_ssh_opts
 
 expected=80
-actual="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sysctl -n net.ipv4.ip_unprivileged_port_start" 2>/dev/null || true)"
-actual="$(echo "${actual}" | tr -d '[:space:]')"
+if ! actual="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sysctl -n net.ipv4.ip_unprivileged_port_start" 2>/dev/null)"; then
+  fail "sysctl read of net.ipv4.ip_unprivileged_port_start failed on Host"
+fi
 
 if [[ "${actual}" == "${expected}" ]]; then
   pass "net.ipv4.ip_unprivileged_port_start is ${expected}"
 else
-  fail "net.ipv4.ip_unprivileged_port_start: expected ${expected}, got '${actual:-<empty>}'"
+  fail "net.ipv4.ip_unprivileged_port_start: expected ${expected}, got '${actual}'"
 fi
