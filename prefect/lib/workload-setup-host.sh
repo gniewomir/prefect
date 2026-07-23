@@ -237,3 +237,10 @@ if quadlet_user systemctl --user --quiet is-active edge-pod.service; then
   quadlet_user systemctl --user restart edge-pod.service
   quadlet_user systemctl --user --quiet is-active edge-pod.service
 fi
+
+# Trigger on-demand ACME immediately when Public Hostnames are claimed/changed (ADR-0015).
+# Do not wait for issuance success — timer remains the periodic renewal path.
+if quadlet_user systemctl --user --quiet is-enabled edge-acme.timer 2>/dev/null \
+  || quadlet_user systemctl --user --quiet is-active edge-acme.timer 2>/dev/null; then
+  quadlet_user systemctl --user start edge-acme.service
+fi

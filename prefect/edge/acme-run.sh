@@ -11,6 +11,8 @@ mkdir -p "${DATA_ROOT}/acme" "${DATA_ROOT}/acme-www" "${DATA_ROOT}/certs"
 [[ -f "${WANT_LIST}" ]] || : >"${WANT_LIST}"
 
 mapfile -t names < <(grep -E -v '^[[:space:]]*(#|$)' "${WANT_LIST}" || true)
+# Stamp every oneshot invocation so Acceptance Tests can observe triggers without a live CA.
+date -u +%Y-%m-%dT%H:%M:%SZ >"${DATA_ROOT}/acme/last-run"
 if ((${#names[@]} == 0)); then
   exit 0
 fi
