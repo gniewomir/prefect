@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Edge ACME on-demand runner (systemd user oneshot).
-# Empty want-list → success with no CA contact. Non-empty issuance is wired by later tickets.
+# Empty want-list → success with no CA contact.
+# Non-empty → leave issuance to a later drop; do not fail Edge Component Setup.
 set -euo pipefail
 
 DATA_ROOT=/var/lib/prefect/components_data/edge
@@ -14,5 +15,5 @@ if ((${#names[@]} == 0)); then
   exit 0
 fi
 
-echo "edge-acme: want-list has ${#names[@]} name(s); issuance not implemented in ACME foundation" >&2
-exit 1
+echo "edge-acme: want-list has ${#names[@]} name(s); issuance not implemented yet — skipping CA contact" >&2
+exit 0

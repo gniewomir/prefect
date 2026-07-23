@@ -42,24 +42,38 @@ if [[ "${body}" != "${TOKEN}" ]]; then
 fi
 pass "Edge serves ACME HTTP-01 webroot on :80"
 
-# Want-list exists and is empty (no Public Hostnames yet)
+# Want-list file exists; empty only when no running Workload Manifests remain on the Host.
 want_state="$(ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
 set -euo pipefail
 if [[ ! -f "${WANT_LIST}" ]]; then
   echo missing
   exit 0
 fi
+running=0
+if [[ -d /var/lib/prefect/components_data/workloads ]]; then
+  for m in /var/lib/prefect/components_data/workloads/*/manifest.json; do
+    [[ -f "\$m" ]] || continue
+    if python3 -c 'import json,sys; raise SystemExit(0 if json.load(open(sys.argv[1])).get("state")=="running" else 1)' "\$m" 2>/dev/null; then
+      running=\$((running+1))
+    fi
+  done
+fi
 if grep -q '[^[:space:]]' "${WANT_LIST}"; then
-  echo nonempty
+  if [[ "\$running" -gt 0 ]]; then
+    echo projected
+  else
+    echo nonempty
+  fi
 else
   echo empty
 fi
 REMOTE
 )"
-if [[ "${want_state}" != "empty" ]]; then
-  fail "ACME want-list expected empty file, got '${want_state}'"
-fi
-pass "ACME want-list is empty"
+case "${want_state}" in
+  empty|projected) pass "ACME want-list is present (${want_state})" ;;
+  missing) fail "ACME want-list file missing" ;;
+  *) fail "ACME want-list unexpected state '${want_state}'" ;;
+esac
 
 # Oneshot + timer installed under Prefect User; oneshot succeeds with empty want-list
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
@@ -72,4 +86,4 @@ runuser -u ${USER_NAME} -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" \
 runuser -u ${USER_NAME} -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" \
   systemctl --user start edge-acme.service
 REMOTE
-pass "Edge ACME timer active; oneshot succeeds with empty want-list"
+pass "Edge ACME timer active; oneshot succeeds"

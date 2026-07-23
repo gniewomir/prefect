@@ -52,7 +52,7 @@ ssh "${SSH_OPTS[@]}" "root@${IP}" "PREFECT_USER=${USER_NAME} bash -s" <"${CARRIE
 
 # Stage Component trees plus shared Host-local lib (sourced by Component Setup).
 COPYFILE_DISABLE=1 tar --format=ustar -C "${REPO_ROOT}/prefect" -cf - \
-  lib/quadlet-user-session.sh "${COMPONENTS[@]}" \
+  lib "${COMPONENTS[@]}" \
   | ssh "${SSH_OPTS[@]}" "root@${IP}" "cat > /tmp/prefect-components.tar"
 
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s -- "${USER_NAME}" "${COMPONENTS[@]}" <<'REMOTE'
