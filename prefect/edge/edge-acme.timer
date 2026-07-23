@@ -1,0 +1,11 @@
+[Unit]
+Description=Prefect Edge ACME renewal timer
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+Unit=edge-acme.service
+
+[Install]
+WantedBy=timers.target

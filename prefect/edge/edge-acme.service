@@ -1,0 +1,10 @@
+[Unit]
+Description=Prefect Edge ACME (on-demand)
+After=edge-pod.service
+
+[Service]
+Type=oneshot
+ExecStart=/var/lib/prefect/components/edge/acme-run.sh
+
+[Install]
+WantedBy=default.target

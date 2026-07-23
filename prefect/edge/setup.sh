@@ -9,14 +9,24 @@ SRC="$(cd "$(dirname "$0")" && pwd)"
 DATA_ROOT=/var/lib/prefect/components_data/edge
 ROUTES_DIR="${DATA_ROOT}/routes"
 CERTS_DIR="${DATA_ROOT}/certs"
+ACME_WWW="${DATA_ROOT}/acme-www"
+ACME_DIR="${DATA_ROOT}/acme"
+WANT_LIST="${ACME_DIR}/want-list"
 # shellcheck source=../lib/quadlet-user-session.sh
 source "${SRC}/../lib/quadlet-user-session.sh"
 
 quadlet_user_session_begin
+SYSTEMD_USER_DIR="${HOME_DIR}/.config/systemd/user"
+mkdir -p "${SYSTEMD_USER_DIR}"
 
-mkdir -p "${ROUTES_DIR}" "${CERTS_DIR}"
+mkdir -p "${ROUTES_DIR}" "${CERTS_DIR}" "${ACME_WWW}" "${ACME_DIR}"
+[[ -f "${WANT_LIST}" ]] || : >"${WANT_LIST}"
+
 install -m 0644 "${SRC}/edge.pod" "${UNIT_DIR}/edge.pod"
 install -m 0644 "${SRC}/edge-nginx.container" "${UNIT_DIR}/edge-nginx.container"
+chmod a+x "${SRC}/acme-run.sh"
+install -m 0644 "${SRC}/edge-acme.service" "${SYSTEMD_USER_DIR}/edge-acme.service"
+install -m 0644 "${SRC}/edge-acme.timer" "${SYSTEMD_USER_DIR}/edge-acme.timer"
 
 # Ensure stub only — never wipe other Route files (Workload Setup owns those).
 if [[ -f "${SRC}/routes/00-empty.conf" ]]; then
@@ -33,12 +43,21 @@ chown -R "${USER_NAME}:${USER_NAME}" \
   echo "Edge nginx.conf missing at ${SRC}/nginx.conf" >&2
   exit 1
 }
+[[ -x "${SRC}/acme-run.sh" ]] || {
+  echo "Edge acme-run.sh missing or not executable at ${SRC}/acme-run.sh" >&2
+  exit 1
+}
 
 quadlet_user_session_reload
-quadlet_user systemctl --user reset-failed edge-pod.service edge-nginx.service 2>/dev/null || true
+quadlet_user systemctl --user reset-failed edge-pod.service edge-nginx.service edge-acme.service 2>/dev/null || true
 # Quadlet: edge.pod → edge-pod.service (pulls Service Network + edge-nginx).
 quadlet_user systemctl --user restart edge-pod.service
 quadlet_user systemctl --user --quiet is-active edge-pod.service
+
+# On-demand ACME capability: timer armed even with an empty want-list (ADR-0015).
+quadlet_user systemctl --user enable --now edge-acme.timer
+quadlet_user systemctl --user --quiet is-active edge-acme.timer
+quadlet_user systemctl --user start edge-acme.service
 
 # Wait until Host :80 returns an HTTP status (image pull + nginx start).
 for _ in $(seq 1 60); do

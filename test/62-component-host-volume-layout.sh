@@ -52,7 +52,12 @@ must_not_exist "${COMPONENTS_ROOT}/edge/certs"
 
 must_be_dir "${DATA_ROOT}/edge/routes"
 must_be_dir "${DATA_ROOT}/edge/certs"
+must_be_dir "${DATA_ROOT}/edge/acme-www"
+must_be_dir "${DATA_ROOT}/edge/acme"
 must_be_file "${DATA_ROOT}/edge/routes/00-empty.conf"
+must_be_file "${DATA_ROOT}/edge/acme/want-list"
+must_not_exist "${COMPONENTS_ROOT}/edge/acme-www"
+must_not_exist "${COMPONENTS_ROOT}/edge/acme"
 
 for path in \
   "${COMPONENTS_ROOT}" \
@@ -62,7 +67,9 @@ for path in \
   "${DATA_ROOT}" \
   "${DATA_ROOT}/edge" \
   "${DATA_ROOT}/edge/routes" \
-  "${DATA_ROOT}/edge/certs"
+  "${DATA_ROOT}/edge/certs" \
+  "${DATA_ROOT}/edge/acme-www" \
+  "${DATA_ROOT}/edge/acme"
 do
   o="$(owner_of "${path}")"
   if [[ "${o}" != "${USER_NAME}:${USER_NAME}" ]]; then
