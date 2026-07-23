@@ -30,9 +30,17 @@ HOST_KEEP="keep.example.test"
 write_manifest "${FIX_DIR}/a-running.json" "trash-a" "running" "${HOST_A}"
 write_manifest "${FIX_DIR}/a-trashed.json" "trash-a" "trashed" "${HOST_A}"
 write_manifest "${FIX_DIR}/b-running.json" "reclaim-b" "running" "${HOST_A}"
+write_manifest "${FIX_DIR}/b-trashed.json" "reclaim-b" "trashed" "${HOST_A}"
 write_manifest "${FIX_DIR}/keep-stopped.json" "keep-me" "stopped" "${HOST_KEEP}"
+write_manifest "${FIX_DIR}/keep-trashed.json" "keep-me" "trashed" "${HOST_KEEP}"
 write_manifest "${FIX_DIR}/purge-target.json" "purge-me" "running" "${HOST_B}"
 write_manifest "${FIX_DIR}/purge-trashed.json" "purge-me" "trashed" "${HOST_B}"
+
+# Prior runs leave durable Host Volume state — reset these fixtures first.
+for m in a-trashed b-trashed keep-trashed purge-trashed; do
+  "${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/${m}.json" 2>/dev/null || true
+done
+"${REPO_ROOT}/prefect/purge-workloads.sh"
 
 "${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/a-running.json"
 "${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/a-trashed.json"

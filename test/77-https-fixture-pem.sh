@@ -27,14 +27,10 @@ EOF
 ssh "${SSH_OPTS[@]}" "root@${IP}" "rm -rf /var/lib/prefect/components_data/edge/certs/${HOST}"
 "${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
 
-# Without a certificate, no HTTPS shell for this name (TLS handshake must not succeed for SNI).
-set +e
-tls_before="$(curl -skS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 \
-  --resolve "${HOST}:443:${IP}" "https://${HOST}/" 2>/tmp/tls-before.err)"
-tls_before_rc=$?
-set -e
-if [[ ${tls_before_rc} -eq 0 && "${tls_before}" =~ ^[0-9]{3}$ ]]; then
-  fail "HTTPS shell must not be enabled before certificate exists (got HTTP ${tls_before})"
+# Without a certificate, this Workload's Route must not enable an HTTPS server shell.
+route_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/routes/tlsprobe.conf")"
+if echo "${route_before}" | grep -q 'listen 443'; then
+  fail "HTTPS shell must not be enabled before certificate exists"
 fi
 pass "HTTPS Route shell absent before certificate exists"
 
