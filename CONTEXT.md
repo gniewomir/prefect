@@ -40,6 +40,10 @@ _Avoid_: Droplet image, OS slug, AMI (when you mean this concept)
 One-shot Host setup applied when the Host is created (delivered via the provider’s user-data / cloud-init). Prepares the Host as a carrier for Components (engine, Prefect User, port floor, Host Volume mount) but does not run Component Setup and does not install Workloads. Not ongoing Host management and not Stack Bootstrap.
 _Avoid_: User Data, cloud-init, userdata (when you mean this concept); provisioning (bare — ambiguous with Stack apply)
 
+**Carrier ready**:
+Host-local gate: wait until Initial Host Provisioning outcomes required for Component Setup hold on a public Host (IHP finished, port floor 80, Prefect User present, Host Volume mounted at `/var/lib/prefect`). Used by ensure-components and Acceptance Tests before asserting finer capability slices. Delivery mechanics (cloud-init) stay inside the gate’s implementation.
+_Avoid_: cloud-init ready, provisioned (bare), ready (bare)
+
 **Reserved IP**:
 A stable public IPv4 address owned by the Stack and assigned to a Host. It survives Host rebuilds; the Host's own public IP does not.
 _Avoid_: Floating IP, static IP, elastic IP (when you mean this address resource)

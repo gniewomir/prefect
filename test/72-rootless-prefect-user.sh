@@ -7,7 +7,10 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 require_ip
 acceptance_ssh_opts
 
-USER_NAME=prefect
+USER_NAME="${PREFECT_USER:-prefect}"
+
+# Standalone runs may race IHP; gate then assert linger (beyond carrier id check).
+wait_until_carrier_ready
 
 if ! ssh "${SSH_OPTS[@]}" "root@${IP}" "id '${USER_NAME}'" >/dev/null 2>&1; then
   fail "Prefect user '${USER_NAME}' missing on Host"

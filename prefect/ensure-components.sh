@@ -25,6 +25,12 @@ if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
   SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
 fi
 
+CARRIER_READY="${REPO_ROOT}/prefect/lib/wait-until-carrier-ready.sh"
+[[ -f "${CARRIER_READY}" ]] || {
+  echo "missing ${CARRIER_READY}" >&2
+  exit 1
+}
+
 for component in "${COMPONENTS[@]}"; do
   [[ -d "${REPO_ROOT}/prefect/${component}" ]] || {
     echo "Component directory missing: prefect/${component}" >&2
@@ -35,6 +41,9 @@ for component in "${COMPONENTS[@]}"; do
     exit 1
   }
 done
+
+# Host-local carrier gate (IHP done, floor, Prefect User, Host Volume mount).
+ssh "${SSH_OPTS[@]}" "root@${IP}" "PREFECT_USER=${USER_NAME} bash -s" <"${CARRIER_READY}"
 
 COPYFILE_DISABLE=1 tar --format=ustar -C "${REPO_ROOT}/prefect" -cf - "${COMPONENTS[@]}" \
   | ssh "${SSH_OPTS[@]}" "root@${IP}" "cat > /tmp/prefect-components.tar"
@@ -47,28 +56,6 @@ COMPONENTS=("$@")
 
 COMPONENTS_ROOT=/var/lib/prefect/components
 DATA_ROOT=/var/lib/prefect/components_data
-
-echo "Waiting for Initial Host Provisioning..." >&2
-set +e
-cloud-init status --wait >/dev/null 2>&1
-rc=$?
-set -e
-if [[ ${rc} -ne 0 && ${rc} -ne 2 ]]; then
-  echo "Initial Host Provisioning wait failed (exit ${rc})" >&2
-  exit 1
-fi
-sysctl --system >/dev/null 2>&1 || true
-floor="$(sysctl -n net.ipv4.ip_unprivileged_port_start 2>/dev/null || true)"
-if [[ "${floor}" != "80" ]]; then
-  echo "net.ipv4.ip_unprivileged_port_start is '${floor}', expected 80 (ADR-0006)" >&2
-  exit 1
-fi
-
-id "${USER_NAME}" >/dev/null
-[[ -d /var/lib/prefect ]] || {
-  echo "Host Volume mount /var/lib/prefect missing" >&2
-  exit 1
-}
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}" /tmp/prefect-components.tar' EXIT

@@ -45,3 +45,16 @@ acceptance_ssh_opts() {
     SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
   fi
 }
+
+# Run the Host-local carrier-ready gate over SSH (IHP done, floor, Prefect User, mount).
+# Requires: IP, SSH_OPTS (acceptance_ssh_opts), REPO_ROOT. Optional: PREFECT_USER.
+wait_until_carrier_ready() {
+  require_ip
+  [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
+  local script="${REPO_ROOT}/prefect/lib/wait-until-carrier-ready.sh"
+  [[ -f "${script}" ]] || fail "missing ${script}"
+  local user="${PREFECT_USER:-prefect}"
+  if ! ssh "${SSH_OPTS[@]}" "root@${IP}" "PREFECT_USER=${user} bash -s" <"${script}"; then
+    fail "Host not ready for Component Setup (see Host output above)"
+  fi
+}
