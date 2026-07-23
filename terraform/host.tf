@@ -39,9 +39,9 @@ resource "digitalocean_droplet" "web" {
 
   # Left-aligned: <<- only strips tabs; leading spaces break cloud-init detection.
   # Initial Host Provisioning: apt update + distro podman only (no package_upgrade);
-  # unprivileged port floor for rootless 80/443 (ADR-0006); Prefect User + linger (ADR-0008).
-  # No Quadlet units (ADR-0004 / ADR-0006) — Host stays a carrier.
-  # Host Volume mount at /var/lib/prefect is deferred; attach only here (ADR-0009).
+  # unprivileged port floor for rootless 80/443 (ADR-0006); Prefect User + linger (ADR-0008);
+  # Host Volume mount at /var/lib/prefect (ADR-0009). No Quadlet units (ADR-0004 / ADR-0006).
+  # Changing user_data replaces the Host; Host Volume reattaches via volume_ids.
   user_data = <<-EOT
 #cloud-config
 ssh_pwauth: false
@@ -56,6 +56,8 @@ write_files:
   - path: /etc/sysctl.d/99-unprivileged-port-start.conf
     content: |
       net.ipv4.ip_unprivileged_port_start=80
+mounts:
+  - [ /dev/disk/by-id/scsi-0DO_Volume_prefect-web-data, /var/lib/prefect, ext4, "defaults,nofail,discard,noatime", "0", "2" ]
 runcmd:
   - sysctl --system
   - loginctl enable-linger prefect
