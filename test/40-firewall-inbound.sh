@@ -18,7 +18,7 @@ done
 
 # Denied TCP: Firewall should DROP (timeout), not allow through to a closed port (refused).
 set +e
-DENY_OUT="$(nc -z -w 5 -v "${IP}" 25 2>&1)"
+DENY_OUT="$(probe_tcp_nc 25)"
 DENY_RC=$?
 set -e
 if [[ ${DENY_RC} -eq 0 ]]; then

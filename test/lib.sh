@@ -8,15 +8,27 @@ require_ip() {
   [[ -n "${IP:-}" ]] || fail "fixture missing IP (run via ./test.sh)"
 }
 
+# Zero-I/O TCP probe to $IP:$1. Prints nc stdout+stderr; exit status is nc's.
+# Darwin: -w alone often does not bound connect to DROP'd ports; -G is the connect timeout.
+# Linux nc typically honors -w for connect and rejects unknown -G.
+probe_tcp_nc() {
+  local port="$1"
+  local -a args=(-z -w 5 -v)
+  require_ip
+  if [[ "$(uname -s)" == Darwin ]]; then
+    args=(-z -G 5 -w 5 -v)
+  fi
+  nc "${args[@]}" "${IP}" "${port}" 2>&1
+}
+
 # Allowed TCP: open or connection-refused both mean Firewall allowed the packet through.
 # Timeout/drop means filtered — fail for allow-listed ports.
 probe_allowed_tcp() {
   local port="$1"
   local out
   local rc
-  require_ip
   set +e
-  out="$(nc -z -w 5 -v "${IP}" "${port}" 2>&1)"
+  out="$(probe_tcp_nc "${port}")"
   rc=$?
   set -e
   if [[ ${rc} -eq 0 ]] || echo "${out}" | grep -qi "refused"; then
