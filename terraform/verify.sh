@@ -34,8 +34,9 @@ echo "${HOST_JSON}" | jq -e '.name == "prefect-web"' >/dev/null || fail "Host na
 echo "${HOST_JSON}" | jq -e '.region == "fra1"' >/dev/null || fail "Host region != fra1"
 echo "${HOST_JSON}" | jq -e '.size == "s-1vcpu-512mb-10gb"' >/dev/null || fail "Host size mismatch"
 echo "${HOST_JSON}" | jq -e '.image == "ubuntu-24-04-x64"' >/dev/null || fail "Host image mismatch"
-echo "${HOST_JSON}" | jq -e '.tags | index("prefect-public-web") != null' >/dev/null || fail "Host missing tag prefect-public-web"
-pass "Host metadata (name, region, size, image, tag)"
+echo "${HOST_JSON}" | jq -e '.tags | index("prefect") != null' >/dev/null || fail "Host missing Office Tag prefect"
+echo "${HOST_JSON}" | jq -e '.tags | index("prefect-public-web") != null' >/dev/null || fail "Host missing Role Tag prefect-public-web"
+pass "Host metadata (name, region, size, image, Office Tag, Role Tag)"
 
 ASSIGNED="$(echo "${STATE_JSON}" | jq -r '
   .values.root_module.resources[]
@@ -44,6 +45,20 @@ ASSIGNED="$(echo "${STATE_JSON}" | jq -r '
 ')"
 [[ "${ASSIGNED}" == "${IP}" ]] || fail "Reserved IP output ${IP} != State ${ASSIGNED}"
 pass "Reserved IP assigned and exported"
+
+PROJECT_JSON="$(echo "${STATE_JSON}" | jq -c '
+  .values.root_module.resources[]
+  | select(.type == "digitalocean_project" and .name == "prefect")
+  | .values
+')"
+[[ -n "${PROJECT_JSON}" && "${PROJECT_JSON}" != "null" ]] || fail "Cloud Project digitalocean_project.prefect not in State"
+echo "${PROJECT_JSON}" | jq -e '.name == "Prefect"' >/dev/null || fail "Cloud Project name != Prefect"
+echo "${PROJECT_JSON}" | jq -e '.environment == "Production"' >/dev/null || fail "Cloud Project environment != Production"
+echo "${PROJECT_JSON}" | jq -e '.is_default == false' >/dev/null || fail "Cloud Project must not be account default"
+HOST_URN="$(echo "${HOST_JSON}" | jq -r '.urn')"
+echo "${PROJECT_JSON}" | jq -e --arg urn "${HOST_URN}" '.resources | index($urn) != null' >/dev/null \
+  || fail "Host URN not assigned to Cloud Project Prefect"
+pass "Cloud Project Prefect owns Host"
 
 # ICMP allowed
 if ping -c 2 -W 5 "${IP}" >/dev/null 2>&1; then

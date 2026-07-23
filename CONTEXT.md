@@ -10,7 +10,11 @@ _Avoid_: Infra, platform repo, DevOps project (when you mean this office)
 
 **Stack**:
 A Terraform root module that owns a cohesive slice of infrastructure for one provider or concern. Today the only stack is DigitalOcean (past Bootstrap: it manages Hosts and related network resources).
-_Avoid_: Project, environment, workspace (those mean different things)
+_Avoid_: Project, environment, workspace (those mean different things — for the provider folder, see Cloud Project)
+
+**Cloud Project**:
+A provider-side folder that groups billable resources for UI and billing. Distinct from Prefect (the office) and from Stack (Terraform). The Stack creates the DigitalOcean Cloud Project named `Prefect` (purpose: shared projects infrastructure; environment: Production; not the account default) and assigns every assignable resource to it (today: the Host; a Reserved IP assigned to that Host follows automatically). Resources that cannot be assigned (Firewall, tags, SSH keys) stay Stack-managed only.
+_Avoid_: Project (bare), DO project (when speaking in domain language)
 
 **Bootstrap**:
 The initial content of a Stack: provider configuration, version pins, authentication wiring, and state backend — deliberately without managed cloud resources. Bootstrap for the DigitalOcean Stack is complete once Hosts (and their network companions) are managed in State.
@@ -33,5 +37,13 @@ A stable public IPv4 address owned by the Stack and assigned to a Host. It survi
 _Avoid_: Floating IP, static IP, elastic IP (when you mean this address resource)
 
 **Firewall**:
-A provider-enforced network filter attached to Hosts. Inbound default deny (only SSH, HTTP, HTTPS, and ICMP allowed); outbound unrestricted. The Stack does not manage a host-level firewall.
+A provider-enforced network filter attached to Hosts. Inbound default deny (only SSH, HTTP, HTTPS, and ICMP allowed); outbound unrestricted. The Stack does not manage a host-level firewall. Attachment is by Role Tag, not by Host ID alone.
 _Avoid_: Security group, ufw, iptables, cloud firewall (product name when you mean this concept)
+
+**Office Tag**:
+A provider tag that marks taggable resources as belonging to Prefect (name: `prefect`). Applied to every Prefect Host. Not all Stack resources are taggable (Firewall, Reserved IP, and SSH keys are not).
+_Avoid_: Shared tag, prefect tag (when you mean this concept)
+
+**Role Tag**:
+A provider tag that selects Hosts for a policy such as a Firewall (public web: `prefect-public-web`). Orthogonal to the Office Tag; a Host may carry both.
+_Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is not itself tagged)

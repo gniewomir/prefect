@@ -1,3 +1,7 @@
+resource "digitalocean_tag" "office" {
+  name = "prefect"
+}
+
 resource "digitalocean_tag" "public_web" {
   name = "prefect-public-web"
 }
@@ -17,7 +21,10 @@ resource "digitalocean_droplet" "web" {
   backups = false
 
   ssh_keys = [digitalocean_ssh_key.web.fingerprint]
-  tags     = [digitalocean_tag.public_web.id]
+  tags = [
+    digitalocean_tag.office.id,
+    digitalocean_tag.public_web.id,
+  ]
 
   # Left-aligned: <<- only strips tabs; leading spaces break cloud-init detection.
   user_data = <<-EOT
