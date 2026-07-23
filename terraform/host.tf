@@ -1,0 +1,32 @@
+resource "digitalocean_tag" "public_web" {
+  name = "prefect-public-web"
+}
+
+resource "digitalocean_ssh_key" "web" {
+  name       = "prefect-web"
+  public_key = var.DIGITALOCEAN_PUBLIC_KEY
+}
+
+resource "digitalocean_droplet" "web" {
+  name   = "prefect-web"
+  region = "fra1"
+  size   = "s-1vcpu-512mb-10gb"
+  image  = "ubuntu-24-04-x64"
+
+  ipv6    = false
+  backups = false
+
+  ssh_keys = [digitalocean_ssh_key.web.fingerprint]
+  tags     = [digitalocean_tag.public_web.id]
+
+  # Left-aligned: <<- only strips tabs; leading spaces break cloud-init detection.
+  user_data = <<-EOT
+#cloud-config
+ssh_pwauth: false
+EOT
+}
+
+resource "digitalocean_reserved_ip" "web" {
+  region     = digitalocean_droplet.web.region
+  droplet_id = digitalocean_droplet.web.id
+}
