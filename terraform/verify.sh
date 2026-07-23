@@ -111,11 +111,11 @@ else
   fail "SSH public-key auth to root@${IP} failed (set VERIFY_SSH_IDENTITY or load the matching key)"
 fi
 
-# Initial Host Provisioning must finish before package assertions (SSH can race cloud-init).
+# Initial Host Provisioning must finish before package assertions (SSH can race first-boot setup).
 if ssh "${SSH_OPTS[@]}" "root@${IP}" "cloud-init status --wait" 2>/dev/null; then
-  pass "cloud-init finished (Initial Host Provisioning)"
+  pass "Initial Host Provisioning finished"
 else
-  fail "cloud-init status --wait failed on Host"
+  fail "Initial Host Provisioning wait failed on Host"
 fi
 
 if ssh "${SSH_OPTS[@]}" "root@${IP}" "podman --version" 2>/dev/null; then
