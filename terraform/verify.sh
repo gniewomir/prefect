@@ -33,7 +33,7 @@ HOST_JSON="$(echo "${STATE_JSON}" | jq -c '
 echo "${HOST_JSON}" | jq -e '.name == "prefect-web"' >/dev/null || fail "Host name != prefect-web"
 echo "${HOST_JSON}" | jq -e '.region == "fra1"' >/dev/null || fail "Host region != fra1"
 echo "${HOST_JSON}" | jq -e '.size == "s-1vcpu-512mb-10gb"' >/dev/null || fail "Host size mismatch"
-echo "${HOST_JSON}" | jq -e '.image == "ubuntu-24-04-x64"' >/dev/null || fail "Host image mismatch"
+echo "${HOST_JSON}" | jq -e '.image == "ubuntu-26-04-x64"' >/dev/null || fail "Host image mismatch"
 echo "${HOST_JSON}" | jq -e '.tags | index("prefect") != null' >/dev/null || fail "Host missing Office Tag prefect"
 echo "${HOST_JSON}" | jq -e '.tags | index("prefect-public-web") != null' >/dev/null || fail "Host missing Role Tag prefect-public-web"
 pass "Host metadata (name, region, size, image, Office Tag, Role Tag)"
@@ -109,6 +109,19 @@ if ssh "${SSH_OPTS[@]}" "root@${IP}" "true" 2>/dev/null; then
   pass "SSH public-key auth to root@${IP}"
 else
   fail "SSH public-key auth to root@${IP} failed (set VERIFY_SSH_IDENTITY or load the matching key)"
+fi
+
+# Initial Host Provisioning must finish before package assertions (SSH can race cloud-init).
+if ssh "${SSH_OPTS[@]}" "root@${IP}" "cloud-init status --wait" 2>/dev/null; then
+  pass "cloud-init finished (Initial Host Provisioning)"
+else
+  fail "cloud-init status --wait failed on Host"
+fi
+
+if ssh "${SSH_OPTS[@]}" "root@${IP}" "podman --version" 2>/dev/null; then
+  pass "podman available on Host"
+else
+  fail "podman --version failed on Host"
 fi
 
 # Outbound smoke from the Host

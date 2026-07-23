@@ -32,6 +32,14 @@ _Avoid_: Key, secret, password (when you mean the provider API token)
 A virtual machine managed by a Stack. The first Host in this Stack is a public web host (HTTP/HTTPS plus SSH).
 _Avoid_: Droplet, instance, VM, box, server (when you mean this compute resource)
 
+**Host Image**:
+The provider distribution image the Stack pins for a Host (today: Ubuntu 26.04 x64). Changing it recreates the Host.
+_Avoid_: Droplet image, OS slug, AMI (when you mean this concept)
+
+**Initial Host Provisioning**:
+One-shot Host setup applied when the Host is created (delivered via the provider’s user-data / cloud-init). Not ongoing Host management and not Stack Bootstrap.
+_Avoid_: User Data, cloud-init, userdata (when you mean this concept); provisioning (bare — ambiguous with Stack apply)
+
 **Reserved IP**:
 A stable public IPv4 address owned by the Stack and assigned to a Host. It survives Host rebuilds; the Host's own public IP does not.
 _Avoid_: Floating IP, static IP, elastic IP (when you mean this address resource)

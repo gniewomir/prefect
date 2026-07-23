@@ -15,7 +15,7 @@ resource "digitalocean_droplet" "web" {
   name   = "prefect-web"
   region = "fra1"
   size   = "s-1vcpu-512mb-10gb"
-  image  = "ubuntu-24-04-x64"
+  image  = "ubuntu-26-04-x64"
 
   ipv6    = false
   backups = false
@@ -27,9 +27,13 @@ resource "digitalocean_droplet" "web" {
   ]
 
   # Left-aligned: <<- only strips tabs; leading spaces break cloud-init detection.
+  # Initial Host Provisioning: apt update + distro podman only (no package_upgrade).
   user_data = <<-EOT
 #cloud-config
 ssh_pwauth: false
+package_update: true
+packages:
+  - podman
 EOT
 }
 
