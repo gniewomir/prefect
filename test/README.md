@@ -13,6 +13,8 @@ From the repo root:
 
 Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
+Edge (empty → HTTP 404 on :80): the runner invokes `./prefect/install-edge.sh` before cases (idempotent; user Quadlets for the Prefect User, not Initial Host Provisioning).
+
 ## Add a new Acceptance Test
 
 1. Pick the next free numeric prefix (gaps of 10 are intentional so you can insert).

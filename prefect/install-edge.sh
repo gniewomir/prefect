@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Install Service Network + Edge user Quadlets for the Prefect User (not cloud-init).
+# Usage: ./prefect/install-edge.sh
+# Optional: VERIFY_SSH_IDENTITY=/path/to/private_key  PREFECT_USER=prefect
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+STACK_DIR="${REPO_ROOT}/terraform"
+USER_NAME="${PREFECT_USER:-prefect}"
+
+command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
+command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
+command -v tar >/dev/null || { echo "tar not found" >&2; exit 1; }
+
+cd "${STACK_DIR}"
+IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
+[[ -n "${IP}" ]] || { echo "no reserved_ip output (apply the Stack first)" >&2; exit 1; }
+
+SSH_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o PreferredAuthentications=publickey)
+if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
+  SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
+fi
+
+COPYFILE_DISABLE=1 tar --format=ustar -C "${REPO_ROOT}/prefect" -cf - network edge \
+  | ssh "${SSH_OPTS[@]}" "root@${IP}" "cat > /tmp/prefect-edge.tar"
+
+ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s -- "${USER_NAME}" <<'REMOTE'
+set -euo pipefail
+USER_NAME="$1"
+id "${USER_NAME}" >/dev/null
+
+HOME_DIR="$(getent passwd "${USER_NAME}" | cut -d: -f6)"
+UID_NUM="$(id -u "${USER_NAME}")"
+UNIT_DIR="${HOME_DIR}/.config/containers/systemd"
+DATA_DIR="${HOME_DIR}/.local/share/prefect/edge"
+STAGE="$(mktemp -d)"
+trap 'rm -rf "${STAGE}" /tmp/prefect-edge.tar' EXIT
+
+tar -C "${STAGE}" -xf /tmp/prefect-edge.tar
+mkdir -p "${UNIT_DIR}" "${DATA_DIR}/routes" "${DATA_DIR}/certs"
+install -m 0644 "${STAGE}/network/service-network.network" "${UNIT_DIR}/service-network.network"
+install -m 0644 "${STAGE}/edge/edge.pod" "${UNIT_DIR}/edge.pod"
+install -m 0644 "${STAGE}/edge/edge-nginx.container" "${UNIT_DIR}/edge-nginx.container"
+install -m 0644 "${STAGE}/edge/nginx.conf" "${DATA_DIR}/nginx.conf"
+if [[ -d "${STAGE}/edge/routes" ]]; then
+  find "${STAGE}/edge/routes" -maxdepth 1 -type f ! -name '.gitkeep' -exec \
+    install -m 0644 {} "${DATA_DIR}/routes/" \;
+fi
+chown -R "${USER_NAME}:${USER_NAME}" \
+  "${HOME_DIR}/.config" \
+  "${HOME_DIR}/.local"
+
+systemctl start "user@${UID_NUM}.service"
+export XDG_RUNTIME_DIR="/run/user/${UID_NUM}"
+# Give user manager a moment to create the runtime dir / bus.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  [[ -d "${XDG_RUNTIME_DIR}" ]] && break
+  sleep 0.5
+done
+runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
+  systemctl --user daemon-reload
+# Quadlet: edge.pod → edge-pod.service (pulls Service Network + edge-nginx).
+runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
+  systemctl --user restart edge-pod.service
+runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
+  systemctl --user --quiet is-active edge-pod.service
+# Wait until Host :80 answers (image pull + nginx start).
+for _ in $(seq 1 60); do
+  if curl -sS -o /dev/null -w '' --connect-timeout 2 --max-time 3 http://127.0.0.1/ 2>/dev/null; then
+    exit 0
+  fi
+  # Connection refused / empty reply still mean something is binding; wait for HTTP.
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 3 http://127.0.0.1/ 2>/dev/null || true)"
+  if [[ "${code}" =~ ^[0-9]{3}$ ]]; then
+    exit 0
+  fi
+  sleep 2
+done
+echo "Edge did not become reachable on :80 in time" >&2
+runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
+  systemctl --user status edge-pod.service edge-nginx.service --no-pager >&2 || true
+exit 1
+REMOTE
+
+echo "Edge installed for Prefect User '${USER_NAME}' on ${IP}."

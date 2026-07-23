@@ -1,0 +1,3 @@
+[Pod]
+PublishPort=80:80
+Network=service-network.network

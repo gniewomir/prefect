@@ -16,6 +16,7 @@ command -v jq >/dev/null || fail "jq not found"
 command -v nc >/dev/null || fail "nc not found"
 command -v ssh >/dev/null || fail "ssh not found"
 command -v ping >/dev/null || fail "ping not found"
+command -v curl >/dev/null || fail "curl not found"
 
 cd "${STACK_DIR}"
 
@@ -37,6 +38,9 @@ export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"
 ssh-keygen -R "${IP}" >/dev/null 2>&1 || true
 
 echo "Checking Reserved IP ${IP} ..."
+
+# Edge Quadlets for the Prefect User (idempotent; not Initial Host Provisioning).
+"${REPO_ROOT}/prefect/install-edge.sh"
 
 ALL_CASES=()
 while IFS= read -r case_path; do
