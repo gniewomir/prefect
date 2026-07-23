@@ -1,0 +1,21 @@
+#cloud-config
+ssh_pwauth: false
+package_update: true
+packages:
+  - podman
+users:
+  - name: prefect
+    lock_passwd: true
+    shell: /bin/bash
+# Apply port floor before packages/runcmd so early Edge install cannot race (ADR-0006).
+bootcmd:
+  - [ sysctl, -w, net.ipv4.ip_unprivileged_port_start=80 ]
+write_files:
+  - path: /etc/sysctl.d/99-unprivileged-port-start.conf
+    content: |
+      net.ipv4.ip_unprivileged_port_start=80
+mounts:
+  - [ /dev/disk/by-id/scsi-0DO_Volume_${volume_name}, /var/lib/prefect, ext4, "defaults,nofail,discard,noatime", "0", "2" ]
+runcmd:
+  - sysctl --system
+  - loginctl enable-linger prefect
