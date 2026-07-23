@@ -33,6 +33,9 @@ HOST_JSON="$(echo "${STATE_JSON}" | jq -c '
 export IP STATE_JSON HOST_JSON
 export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"
 
+# Reserved IP survives Host recreate; host keys do not — drop stale known_hosts before any SSH case.
+ssh-keygen -R "${IP}" >/dev/null 2>&1 || true
+
 echo "Checking Reserved IP ${IP} ..."
 
 ALL_CASES=()

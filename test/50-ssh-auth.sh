@@ -7,9 +7,6 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 require_ip
 acceptance_ssh_opts
 
-# Reserved IP survives Host recreate; host keys do not — drop stale known_hosts entry.
-ssh-keygen -R "${IP}" >/dev/null 2>&1 || true
-
 if ssh "${SSH_OPTS[@]}" "root@${IP}" "true" 2>/dev/null; then
   pass "SSH public-key auth to root@${IP}"
 else
