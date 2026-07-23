@@ -37,7 +37,7 @@ The provider distribution image the Stack pins for a Host (today: Ubuntu 26.04 x
 _Avoid_: Droplet image, OS slug, AMI (when you mean this concept)
 
 **Initial Host Provisioning**:
-One-shot Host setup applied when the Host is created (delivered via the provider’s user-data / cloud-init). Not ongoing Host management and not Stack Bootstrap.
+One-shot Host setup applied when the Host is created (delivered via the provider’s user-data / cloud-init). Prepares the Host as a carrier for Components (engine, Prefect User, port floor, Host Volume mount) but does not run Component Setup and does not install Workloads. Not ongoing Host management and not Stack Bootstrap.
 _Avoid_: User Data, cloud-init, userdata (when you mean this concept); provisioning (bare — ambiguous with Stack apply)
 
 **Reserved IP**:
@@ -45,7 +45,7 @@ A stable public IPv4 address owned by the Stack and assigned to a Host. It survi
 _Avoid_: Floating IP, static IP, elastic IP (when you mean this address resource)
 
 **Host Volume**:
-A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds (not Destroy — Destroy removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now); Edge and Workloads consume paths on it later, not their own volumes.
+A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds (not Destroy — Destroy removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Routes and certs, and later other Prefect/Workload paths) is owned by the Prefect User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Prefect User’s home. Not per-Workload volumes.
 _Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Prefect resource)
 
 **Firewall**:
@@ -68,20 +68,32 @@ _Avoid_: Verify script, observability check, smoke test, integration test (when 
 Permanently remove every resource the Stack currently manages, leaving State empty. Stack configuration stays in the repository and can be applied again. Used during development to iterate on the Stack quickly.
 _Avoid_: Delete resources, teardown, terraform destroy (when you mean this full removal)
 
+**Component**:
+An installable unit of Prefect’s mandatory Host shape, owned as a directory under `prefect/` with its own idempotent Component Setup. Today’s Components are the Service Network and the Edge. Workloads are not Components.
+_Avoid_: Package, unit, service, module (when you mean this installable Prefect piece)
+
+**Component Setup**:
+The idempotent, declarative Host-side application of one Component’s desired state. After a successful Component Setup, that Component is in the correct state. Reads that Component’s source tree from the Host Volume; runs on the Host only; does not discover the Stack, SSH, or copy itself onto the Host. Used for first bring-up after Initial Host Provisioning and for later re-runs without Host recreation.
+_Avoid_: Setup (bare), install, deploy, provision, Workload Setup (when you mean this Component action)
+
+**Workload Setup**:
+The idempotent, declarative Host-side application of one Workload’s desired state, including registering that Workload’s Route with the Edge. Distinct from Component Setup; not part of ensuring Components.
+_Avoid_: Setup (bare), Component Setup, install, deploy (when you mean this Workload action)
+
 **Edge**:
-The mandatory public HTTP/HTTPS front door on a public Host. Part of Prefect (not optional). Sole publisher of Host ports 80/443; Workloads sit behind it.
+The mandatory public HTTP/HTTPS front door on a public Host. A Prefect Component (not optional). Sole publisher of Host ports 80/443; Workloads sit behind it.
 _Avoid_: Reverse proxy, ingress, gateway, nginx (when you mean this Prefect role — nginx is today’s implementation)
 
 **Workload**:
-An optional containerized service that runs on a Host. Not part of Prefect’s mandatory Host shape; typically reached only via the Edge, not by publishing 80/443 itself.
+An optional containerized service that runs on a Host. Not part of Prefect’s mandatory Host shape, not a Component, and never installed during Initial Host Provisioning; typically reached only via the Edge, not by publishing 80/443 itself.
 _Avoid_: App, service, container, backend (when you mean this concept)
 
 **Service Network**:
-The private container network on a Host that the Edge and Workloads join so they can reach each other by name. Owned by Prefect as its own piece (not by the Edge package). Distinct from the provider Firewall.
+The private container network on a Host that the Edge and Workloads join so they can reach each other by name. Owned by Prefect as its own Component (not by the Edge). Distinct from the provider Firewall.
 _Avoid_: Podman network, bridge, CNI (implementation); network (bare — ambiguous with Firewall / provider networking)
 
 **Route**:
-A Workload-contributed config fragment the Edge loads so that Workload is reachable through the Edge. The Edge ships the shell (includes drop-ins); each Workload owns its Route.
+A Workload-contributed config fragment the Edge loads so that Workload is reachable through the Edge. The Edge ships the shell (includes drop-ins) and Component Setup ensures only a stub so an empty routes dir stays valid; each Workload owns its Route (via Workload Setup) and must not be cleared by Component Setup.
 _Avoid_: Vhost, upstream, location block, snippet, server block (implementation)
 
 **Prefect User**:

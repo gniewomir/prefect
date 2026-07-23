@@ -13,7 +13,7 @@ From the repo root:
 
 Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
-Edge (empty → HTTP 404 on :80): the runner invokes `./prefect/install-edge.sh` before cases (idempotent; user Quadlets for the Prefect User, not Initial Host Provisioning).
+Components (empty Edge → HTTP 404 on :80): the runner invokes `./prefect/ensure-components.sh` before cases (idempotent Component Setup on the Host Volume; not Initial Host Provisioning).
 
 ## Add a new Acceptance Test
 

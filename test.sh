@@ -31,7 +31,7 @@ HOST_JSON="$(echo "${STATE_JSON}" | jq -c '
 ')"
 [[ -n "${HOST_JSON}" && "${HOST_JSON}" != "null" ]] || fail "Host digitalocean_droplet.web not in State"
 
-export IP STATE_JSON HOST_JSON
+export IP STATE_JSON HOST_JSON REPO_ROOT
 export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"
 
 # Reserved IP survives Host recreate; host keys do not — drop stale known_hosts before any SSH case.
@@ -39,8 +39,8 @@ ssh-keygen -R "${IP}" >/dev/null 2>&1 || true
 
 echo "Checking Reserved IP ${IP} ..."
 
-# Edge Quadlets for the Prefect User (idempotent; not Initial Host Provisioning).
-"${REPO_ROOT}/prefect/install-edge.sh"
+# Prefect Components for the Prefect User (idempotent Component Setup; not Initial Host Provisioning).
+"${REPO_ROOT}/prefect/ensure-components.sh"
 
 ALL_CASES=()
 while IFS= read -r case_path; do
