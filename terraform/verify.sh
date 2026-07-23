@@ -105,6 +105,9 @@ if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
   SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
 fi
 
+# Reserved IP survives Host recreate; host keys do not — drop stale known_hosts entry.
+ssh-keygen -R "${IP}" >/dev/null 2>&1 || true
+
 if ssh "${SSH_OPTS[@]}" "root@${IP}" "true" 2>/dev/null; then
   pass "SSH public-key auth to root@${IP}"
 else
