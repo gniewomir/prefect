@@ -26,8 +26,13 @@ if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
 fi
 
 CARRIER_READY="${REPO_ROOT}/prefect/lib/wait-until-carrier-ready.sh"
+QUADLET_SESSION="${REPO_ROOT}/prefect/lib/quadlet-user-session.sh"
 [[ -f "${CARRIER_READY}" ]] || {
   echo "missing ${CARRIER_READY}" >&2
+  exit 1
+}
+[[ -f "${QUADLET_SESSION}" ]] || {
+  echo "missing ${QUADLET_SESSION}" >&2
   exit 1
 }
 
@@ -45,7 +50,9 @@ done
 # Host-local carrier gate (IHP done, floor, Prefect User, Host Volume mount).
 ssh "${SSH_OPTS[@]}" "root@${IP}" "PREFECT_USER=${USER_NAME} bash -s" <"${CARRIER_READY}"
 
-COPYFILE_DISABLE=1 tar --format=ustar -C "${REPO_ROOT}/prefect" -cf - "${COMPONENTS[@]}" \
+# Stage Component trees plus shared Host-local lib (sourced by Component Setup).
+COPYFILE_DISABLE=1 tar --format=ustar -C "${REPO_ROOT}/prefect" -cf - \
+  lib/quadlet-user-session.sh "${COMPONENTS[@]}" \
   | ssh "${SSH_OPTS[@]}" "root@${IP}" "cat > /tmp/prefect-components.tar"
 
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s -- "${USER_NAME}" "${COMPONENTS[@]}" <<'REMOTE'
@@ -62,6 +69,9 @@ trap 'rm -rf "${STAGE}" /tmp/prefect-components.tar' EXIT
 tar -C "${STAGE}" -xf /tmp/prefect-components.tar
 
 mkdir -p "${COMPONENTS_ROOT}" "${DATA_ROOT}"
+rm -rf "${COMPONENTS_ROOT}/lib"
+cp -a "${STAGE}/lib" "${COMPONENTS_ROOT}/lib"
+
 for component in "${COMPONENTS[@]}"; do
   rm -rf "${COMPONENTS_ROOT:?}/${component}"
   cp -a "${STAGE}/${component}" "${COMPONENTS_ROOT}/${component}"

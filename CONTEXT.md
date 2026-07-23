@@ -77,7 +77,7 @@ An installable unit of Prefect’s mandatory Host shape, owned as a directory un
 _Avoid_: Package, unit, service, module (when you mean this installable Prefect piece)
 
 **Component Setup**:
-The idempotent, declarative Host-side application of one Component’s desired state. After a successful Component Setup, that Component is in the correct state. Reads that Component’s source tree from the Host Volume; runs on the Host only; does not discover the Stack, SSH, or copy itself onto the Host. Used for first bring-up after Initial Host Provisioning and for later re-runs without Host recreation.
+The idempotent, declarative Host-side application of one Component’s desired state. After a successful Component Setup, that Component is in the correct state. Reads that Component’s source tree from the Host Volume (and may source shared Host-local helpers from `/var/lib/prefect/components/lib/`); runs on the Host only; does not discover the Stack, SSH, or copy itself onto the Host. Used for first bring-up after Initial Host Provisioning and for later re-runs without Host recreation.
 _Avoid_: Setup (bare), install, deploy, provision, Workload Setup (when you mean this Component action)
 
 **Workload Setup**:

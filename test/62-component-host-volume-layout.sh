@@ -43,9 +43,11 @@ fi
 
 must_be_dir "${COMPONENTS_ROOT}/network"
 must_be_dir "${COMPONENTS_ROOT}/edge"
+must_be_dir "${COMPONENTS_ROOT}/lib"
 must_be_file "${COMPONENTS_ROOT}/edge/nginx.conf"
 must_be_file "${COMPONENTS_ROOT}/network/setup.sh"
 must_be_file "${COMPONENTS_ROOT}/edge/setup.sh"
+must_be_file "${COMPONENTS_ROOT}/lib/quadlet-user-session.sh"
 must_not_exist "${COMPONENTS_ROOT}/edge/certs"
 
 must_be_dir "${DATA_ROOT}/edge/routes"
@@ -56,6 +58,7 @@ for path in \
   "${COMPONENTS_ROOT}" \
   "${COMPONENTS_ROOT}/network" \
   "${COMPONENTS_ROOT}/edge" \
+  "${COMPONENTS_ROOT}/lib" \
   "${DATA_ROOT}" \
   "${DATA_ROOT}/edge" \
   "${DATA_ROOT}/edge/routes" \

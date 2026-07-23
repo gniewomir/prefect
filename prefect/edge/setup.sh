@@ -9,13 +9,12 @@ SRC="$(cd "$(dirname "$0")" && pwd)"
 DATA_ROOT=/var/lib/prefect/components_data/edge
 ROUTES_DIR="${DATA_ROOT}/routes"
 CERTS_DIR="${DATA_ROOT}/certs"
+# shellcheck source=../lib/quadlet-user-session.sh
+source "${SRC}/../lib/quadlet-user-session.sh"
 
-id "${USER_NAME}" >/dev/null
-HOME_DIR="$(getent passwd "${USER_NAME}" | cut -d: -f6)"
-UID_NUM="$(id -u "${USER_NAME}")"
-UNIT_DIR="${HOME_DIR}/.config/containers/systemd"
+quadlet_user_session_begin
 
-mkdir -p "${UNIT_DIR}" "${ROUTES_DIR}" "${CERTS_DIR}"
+mkdir -p "${ROUTES_DIR}" "${CERTS_DIR}"
 install -m 0644 "${SRC}/edge.pod" "${UNIT_DIR}/edge.pod"
 install -m 0644 "${SRC}/edge-nginx.container" "${UNIT_DIR}/edge-nginx.container"
 
@@ -35,21 +34,11 @@ chown -R "${USER_NAME}:${USER_NAME}" \
   exit 1
 }
 
-systemctl start "user@${UID_NUM}.service"
-export XDG_RUNTIME_DIR="/run/user/${UID_NUM}"
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-  [[ -d "${XDG_RUNTIME_DIR}" ]] && break
-  sleep 0.5
-done
-runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
-  systemctl --user daemon-reload
-runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
-  systemctl --user reset-failed edge-pod.service edge-nginx.service 2>/dev/null || true
+quadlet_user_session_reload
+quadlet_user systemctl --user reset-failed edge-pod.service edge-nginx.service 2>/dev/null || true
 # Quadlet: edge.pod → edge-pod.service (pulls Service Network + edge-nginx).
-runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
-  systemctl --user restart edge-pod.service
-runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
-  systemctl --user --quiet is-active edge-pod.service
+quadlet_user systemctl --user restart edge-pod.service
+quadlet_user systemctl --user --quiet is-active edge-pod.service
 
 # Wait until Host :80 returns an HTTP status (image pull + nginx start).
 for _ in $(seq 1 60); do
@@ -60,6 +49,5 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 echo "Edge did not become reachable on :80 in time" >&2
-runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
-  systemctl --user status edge-pod.service edge-nginx.service --no-pager >&2 || true
+quadlet_user systemctl --user status edge-pod.service edge-nginx.service --no-pager >&2 || true
 exit 1
