@@ -106,6 +106,8 @@ fi
 
 ROUTE_FILE="${ROUTES_DIR}/${WL_NAME}.conf"
 CERTS_DIR="${EDGE_DATA}/certs"
+WL_UPSTREAM_HOST="${WL_UPSTREAM%%:*}"
+WL_INTERIOR="${WORKLOADS_ROOT}/${WL_NAME}/interior.conf"
 if [[ "${WL_STATE}" == "trashed" ]]; then
   rm -f "${ROUTE_FILE}"
 else
@@ -147,10 +149,20 @@ else
         echo "    ssl_certificate     /etc/nginx/certs/${host}/fullchain.pem;"
         echo "    ssl_certificate_key /etc/nginx/certs/${host}/privkey.pem;"
         echo
-        echo "    location / {"
-        echo "        # Proxy / stopped→503 land in later tickets; TLS shell only here."
-        echo "        return 404;"
-        echo "    }"
+        if [[ "${WL_STATE}" == "stopped" ]]; then
+          echo "    location / {"
+          echo "        return 503;"
+          echo "    }"
+        elif [[ -f "${WL_INTERIOR}" ]]; then
+          sed 's/^/    /' "${WL_INTERIOR}"
+        else
+          echo "    location / {"
+          echo "        proxy_pass http://${WL_UPSTREAM};"
+          echo "        proxy_set_header Host \$host;"
+          echo "        proxy_set_header X-Forwarded-Proto https;"
+          echo "        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;"
+          echo "    }"
+        fi
         echo "}"
       fi
     done
@@ -180,7 +192,48 @@ rm -f "${WANT_LIST}.tmp"
 chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}"
 
 quadlet_user_session_begin
+
+# Minimal Workload Quadlet on the Service Network (name matches upstream host).
+WL_UNIT="${UNIT_DIR}/${WL_UPSTREAM_HOST}.container"
+if [[ "${WL_STATE}" == "running" ]]; then
+  cat >"${WL_UNIT}" <<EOF
+[Unit]
+Description=Prefect Workload ${WL_NAME}
+
+[Container]
+Image=docker.io/library/nginx:alpine
+ContainerName=${WL_UPSTREAM_HOST}
+Network=service-network.network
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
+  chown "${USER_NAME}:${USER_NAME}" "${WL_UNIT}"
+elif [[ -f "${WL_UNIT}" ]]; then
+  # stopped/trashed: keep unit file for stopped (data retained); stop the service.
+  :
+fi
+
 quadlet_user_session_reload
+quadlet_user systemctl --user reset-failed "${WL_UPSTREAM_HOST}.service" 2>/dev/null || true
+
+if [[ "${WL_STATE}" == "running" ]]; then
+  quadlet_user systemctl --user restart "${WL_UPSTREAM_HOST}.service"
+  # Wait until the Workload answers on the Service Network from the Edge Pod's perspective.
+  for _ in $(seq 1 30); do
+    if quadlet_user systemctl --user --quiet is-active "${WL_UPSTREAM_HOST}.service"; then
+      break
+    fi
+    sleep 1
+  done
+  quadlet_user systemctl --user --quiet is-active "${WL_UPSTREAM_HOST}.service"
+else
+  quadlet_user systemctl --user stop "${WL_UPSTREAM_HOST}.service" 2>/dev/null || true
+fi
+
 # Pick up projected Routes from the bind-mounted routes dir; do not wait for ACME.
 if quadlet_user systemctl --user --quiet is-active edge-pod.service; then
   quadlet_user systemctl --user restart edge-pod.service
