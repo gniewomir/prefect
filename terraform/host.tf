@@ -35,8 +35,12 @@ ssh_pwauth: false
 package_update: true
 packages:
   - podman
-sysctl:
-  net.ipv4.ip_unprivileged_port_start: 80
+write_files:
+  - path: /etc/sysctl.d/99-unprivileged-port-start.conf
+    content: |
+      net.ipv4.ip_unprivileged_port_start=80
+runcmd:
+  - sysctl --system
 EOT
 }
 
