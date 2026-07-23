@@ -10,5 +10,6 @@ resource "digitalocean_project" "prefect" {
   resources = [
     digitalocean_droplet.web.urn,
     digitalocean_reserved_ip.web.urn,
+    digitalocean_volume.web.urn,
   ]
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Cloud Project Prefect owns the Host
+# Acceptance Test: Cloud Project Prefect owns the Host and Host Volume
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -19,4 +19,14 @@ echo "${PROJECT_JSON}" | jq -e '.is_default == false' >/dev/null || fail "Cloud 
 HOST_URN="$(echo "${HOST_JSON}" | jq -r '.urn')"
 echo "${PROJECT_JSON}" | jq -e --arg urn "${HOST_URN}" '.resources | index($urn) != null' >/dev/null \
   || fail "Host URN not assigned to Cloud Project Prefect"
-pass "Cloud Project Prefect owns Host"
+
+VOLUME_URN="$(echo "${STATE_JSON}" | jq -r '
+  .values.root_module.resources[]
+  | select(.type == "digitalocean_volume" and .name == "web")
+  | .values.urn
+')"
+[[ -n "${VOLUME_URN}" && "${VOLUME_URN}" != "null" ]] || fail "Host Volume URN not in State"
+echo "${PROJECT_JSON}" | jq -e --arg urn "${VOLUME_URN}" '.resources | index($urn) != null' >/dev/null \
+  || fail "Host Volume URN not assigned to Cloud Project Prefect"
+
+pass "Cloud Project Prefect owns Host and Host Volume"

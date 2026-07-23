@@ -13,7 +13,7 @@ A Terraform root module that owns a cohesive slice of infrastructure for one pro
 _Avoid_: Project, environment, workspace (those mean different things — for the provider folder, see Cloud Project)
 
 **Cloud Project**:
-A provider-side folder that groups billable resources for UI and billing. Distinct from Prefect (the office) and from Stack (Terraform). The Stack creates the DigitalOcean Cloud Project named `Prefect` (purpose: shared projects infrastructure; environment: Production; not the account default) and assigns every assignable resource to it (today: the Host; a Reserved IP assigned to that Host follows automatically). Resources that cannot be assigned (Firewall, tags, SSH keys) stay Stack-managed only.
+A provider-side folder that groups billable resources for UI and billing. Distinct from Prefect (the office) and from Stack (Terraform). The Stack creates the DigitalOcean Cloud Project named `Prefect` (purpose: shared projects infrastructure; environment: Production; not the account default) and assigns every assignable resource to it (today: the Host and its Host Volume; a Reserved IP assigned to that Host follows automatically). Resources that cannot be assigned (Firewall, tags, SSH keys) stay Stack-managed only.
 _Avoid_: Project (bare), DO project (when speaking in domain language)
 
 **Bootstrap**:
@@ -43,6 +43,10 @@ _Avoid_: User Data, cloud-init, userdata (when you mean this concept); provision
 **Reserved IP**:
 A stable public IPv4 address owned by the Stack and assigned to a Host. It survives Host rebuilds; the Host's own public IP does not.
 _Avoid_: Floating IP, static IP, elastic IP (when you mean this address resource)
+
+**Host Volume**:
+A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds (not Destroy — Destroy removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now); Edge and Workloads consume paths on it later, not their own volumes.
+_Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Prefect resource)
 
 **Firewall**:
 A provider-enforced network filter attached to Hosts. Inbound default deny (only SSH, HTTP, HTTPS, and ICMP allowed); outbound unrestricted. The Stack does not manage a host-level firewall. Attachment is by Role Tag, not by Host ID alone.
