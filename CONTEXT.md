@@ -63,3 +63,23 @@ _Avoid_: Verify script, observability check, smoke test, integration test (when 
 **Destroy**:
 Permanently remove every resource the Stack currently manages, leaving State empty. Stack configuration stays in the repository and can be applied again. Used during development to iterate on the Stack quickly.
 _Avoid_: Delete resources, teardown, terraform destroy (when you mean this full removal)
+
+**Edge**:
+The mandatory public HTTP/HTTPS front door on a public Host. Part of Prefect (not optional). Sole publisher of Host ports 80/443; Workloads sit behind it.
+_Avoid_: Reverse proxy, ingress, gateway, nginx (when you mean this Prefect role — nginx is today’s implementation)
+
+**Workload**:
+An optional containerized service that runs on a Host. Not part of Prefect’s mandatory Host shape; typically reached only via the Edge, not by publishing 80/443 itself.
+_Avoid_: App, service, container, backend (when you mean this concept)
+
+**Service Network**:
+The private container network on a Host that the Edge and Workloads join so they can reach each other by name. Owned by Prefect as its own piece (not by the Edge package). Distinct from the provider Firewall.
+_Avoid_: Podman network, bridge, CNI (implementation); network (bare — ambiguous with Firewall / provider networking)
+
+**Route**:
+A Workload-contributed config fragment the Edge loads so that Workload is reachable through the Edge. The Edge ships the shell (includes drop-ins); each Workload owns its Route.
+_Avoid_: Vhost, upstream, location block, snippet, server block (implementation)
+
+**Prefect User**:
+The Host login account that runs Prefect’s rootless user Quadlets (linger enabled so user systemd stays up without an interactive session). Created outside Initial Host Provisioning when deploy needs it — not a cloud-init Quadlet payload.
+_Avoid_: edge user, podman user, service account (when you mean this Host account)

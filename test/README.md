@@ -13,6 +13,8 @@ From the repo root:
 
 Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
+Prefect User (rootless Quadlets): after apply, once per Host run `./prefect/ensure-host-user.sh` before slices that need that account (not Initial Host Provisioning).
+
 ## Add a new Acceptance Test
 
 1. Pick the next free numeric prefix (gaps of 10 are intentional so you can insert).

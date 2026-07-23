@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Acceptance Test: rootless Prefect user exists with linger
+set -euo pipefail
+# shellcheck source=lib.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
+
+require_ip
+acceptance_ssh_opts
+
+USER_NAME=prefect
+
+if ! ssh "${SSH_OPTS[@]}" "root@${IP}" "id '${USER_NAME}'" >/dev/null 2>&1; then
+  fail "Prefect user '${USER_NAME}' missing on Host"
+fi
+
+if ! linger="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "loginctl show-user '${USER_NAME}' -p Linger --value" 2>/dev/null)"; then
+  fail "loginctl show-user ${USER_NAME} failed on Host"
+fi
+
+if [[ "${linger}" == "yes" ]]; then
+  pass "Prefect user ${USER_NAME} exists with linger"
+else
+  fail "Prefect user ${USER_NAME} linger: expected yes, got '${linger}'"
+fi
