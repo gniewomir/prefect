@@ -59,3 +59,7 @@ _Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is no
 **Acceptance Test**:
 An executable check of Applied Stack external behavior (does the live Stack match the intended contract?). Requires an applied Stack and asserts observable outcomes only — not Terraform internals or provider API shape.
 _Avoid_: Verify script, observability check, smoke test, integration test (when you mean this concept)
+
+**Destroy**:
+Permanently remove every resource the Stack currently manages, leaving State empty. Stack configuration stays in the repository and can be applied again. Used during development to iterate on the Stack quickly.
+_Avoid_: Delete resources, teardown, terraform destroy (when you mean this full removal)
