@@ -43,8 +43,13 @@ install -m 0644 "${STAGE}/edge/edge.pod" "${UNIT_DIR}/edge.pod"
 install -m 0644 "${STAGE}/edge/edge-nginx.container" "${UNIT_DIR}/edge-nginx.container"
 install -m 0644 "${STAGE}/edge/nginx.conf" "${DATA_DIR}/nginx.conf"
 if [[ -d "${STAGE}/edge/routes" ]]; then
-  find "${STAGE}/edge/routes" -maxdepth 1 -type f ! -name '.gitkeep' -exec \
+  find "${STAGE}/edge/routes" -maxdepth 1 -type f -name '*.conf' -exec \
     install -m 0644 {} "${DATA_DIR}/routes/" \;
+fi
+# nginx rejects wildcard includes with zero matches; keep a comment-only stub when empty.
+if ! compgen -G "${DATA_DIR}/routes/"*.conf >/dev/null; then
+  printf '%s\n' '# no Workload Routes yet' >"${DATA_DIR}/routes/00-empty.conf"
+  chown "${USER_NAME}:${USER_NAME}" "${DATA_DIR}/routes/00-empty.conf"
 fi
 chown -R "${USER_NAME}:${USER_NAME}" \
   "${HOME_DIR}/.config" \
@@ -64,12 +69,8 @@ runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
   systemctl --user restart edge-pod.service
 runuser -u "${USER_NAME}" -- env "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" \
   systemctl --user --quiet is-active edge-pod.service
-# Wait until Host :80 answers (image pull + nginx start).
+# Wait until Host :80 returns an HTTP status (image pull + nginx start).
 for _ in $(seq 1 60); do
-  if curl -sS -o /dev/null -w '' --connect-timeout 2 --max-time 3 http://127.0.0.1/ 2>/dev/null; then
-    exit 0
-  fi
-  # Connection refused / empty reply still mean something is binding; wait for HTTP.
   code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 3 http://127.0.0.1/ 2>/dev/null || true)"
   if [[ "${code}" =~ ^[0-9]{3}$ ]]; then
     exit 0
