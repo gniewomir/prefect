@@ -81,5 +81,5 @@ A Workload-contributed config fragment the Edge loads so that Workload is reacha
 _Avoid_: Vhost, upstream, location block, snippet, server block (implementation)
 
 **Prefect User**:
-The Host login account that runs Prefect’s rootless user Quadlets (linger enabled so user systemd stays up without an interactive session). Created outside Initial Host Provisioning when deploy needs it — not a cloud-init Quadlet payload.
+The Host login account that runs Prefect’s rootless user Quadlets (linger enabled so user systemd stays up without an interactive session). Created by Initial Host Provisioning on public Hosts — account and linger only, not Quadlet units.
 _Avoid_: edge user, podman user, service account (when you mean this Host account)

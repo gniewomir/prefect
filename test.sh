@@ -38,9 +38,6 @@ ssh-keygen -R "${IP}" >/dev/null 2>&1 || true
 
 echo "Checking Reserved IP ${IP} ..."
 
-# Prefect User for rootless Quadlets (idempotent; not Initial Host Provisioning).
-"${REPO_ROOT}/prefect/ensure-prefect-user.sh"
-
 ALL_CASES=()
 while IFS= read -r case_path; do
   [[ -n "${case_path}" ]] || continue

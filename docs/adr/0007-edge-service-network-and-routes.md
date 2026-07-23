@@ -10,4 +10,4 @@ Public Hosts get a mandatory **Edge** (Prefect-owned HTTP/HTTPS front door) and 
 
 **Workload-owned Routes over a monolithic Edge config or dynamic discovery:** each Workload ships its fragment; the Edge is a shell. Reload-on-Route-change is a future deploy contract, not part of the first units. Alpine-family nginx image; Host bind mounts for Routes (and later certs).
 
-**Unchanged from ADR-0004 / ADR-0006:** user Quadlets / rootless only; no Quadlet install in Initial Host Provisioning; Host stays a carrier.
+**Unchanged from ADR-0004 / ADR-0006:** user Quadlets / rootless only; no Quadlet install in Initial Host Provisioning; Host stays a carrier. Prefect User + linger are Initial Host Provisioning (ADR-0008).

@@ -13,8 +13,6 @@ From the repo root:
 
 Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
-Prefect User (rootless Quadlets): the runner invokes `./prefect/ensure-prefect-user.sh` before cases (idempotent; outside Initial Host Provisioning). You can also run that script alone after apply.
-
 ## Add a new Acceptance Test
 
 1. Pick the next free numeric prefix (gaps of 10 are intentional so you can insert).
