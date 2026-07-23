@@ -5,7 +5,7 @@ Infrastructure-as-code for the Prefect platform office. This repository holds Te
 ## Language
 
 **Prefect**:
-The standing office responsible for the platform domain (Hosts, networks, environments) so other projects can exist there — without deciding what those projects are. From Latin *praefectus*: an appointed authority placed over a defined sphere under delegated power, not ownership of the work’s purpose. Prefect-specific environment inputs use the `PREFECT_` prefix; provider-conventional Credential names and Terraform `TF_VAR_` inputs stay as those tools expect them.
+The standing office responsible for the platform domain (Hosts, networks, environments) so other projects can exist there — without deciding what those projects are. From Latin *praefectus*: an appointed authority placed over a defined sphere under delegated power, not ownership of the work’s purpose.
 _Avoid_: Infra, platform repo, DevOps project (when you mean this office)
 
 **Stack**:
@@ -55,3 +55,7 @@ _Avoid_: Shared tag, prefect tag (when you mean this concept)
 **Role Tag**:
 A provider tag that selects Hosts for a policy such as a Firewall (public web: `prefect-public-web`). Orthogonal to the Office Tag; a Host may carry both.
 _Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is not itself tagged)
+
+**Acceptance Test**:
+An executable check of Applied Stack external behavior (does the live Stack match the intended contract?). Requires an applied Stack and asserts observable outcomes only — not Terraform internals or provider API shape.
+_Avoid_: Verify script, observability check, smoke test, integration test (when you mean this concept)
