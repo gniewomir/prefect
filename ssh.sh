@@ -5,8 +5,9 @@
 # Extra args are forwarded to ssh (e.g. ./ssh.sh uptime).
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
-cd "$ROOT"
+REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+STACK_DIR="${REPO_ROOT}/terraform"
+cd "${STACK_DIR}"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
