@@ -27,13 +27,16 @@ resource "digitalocean_droplet" "web" {
   ]
 
   # Left-aligned: <<- only strips tabs; leading spaces break cloud-init detection.
-  # Initial Host Provisioning: apt update + distro podman only (no package_upgrade).
+  # Initial Host Provisioning: apt update + distro podman only (no package_upgrade);
+  # unprivileged port floor for rootless 80/443 (ADR-0006).
   user_data = <<-EOT
 #cloud-config
 ssh_pwauth: false
 package_update: true
 packages:
   - podman
+sysctl:
+  net.ipv4.ip_unprivileged_port_start: 80
 EOT
 }
 
