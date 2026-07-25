@@ -1,0 +1,28 @@
+---
+description: Prefact is in development — prefer clean breaks over compatibility shims
+alwaysApply: true
+---
+
+# No backwards compatibility by default
+
+Prefect is **pre-stability / in development**. Prefer the clean shape over compatibility layers. See ADR-0018.
+
+## Default
+
+- Breaking renames, interface changes, Manifest/State/schema churn, and Host-side path moves are **OK** unless something is explicitly marked stable or external.
+- Do **not** add dual-read, dual-write, migration shims, deprecation aliases, or "just in case" compat code.
+- When changing a contract, update callers, tests, docs, and glossary in the same change. Leave no transitional half-life.
+
+## Exceptions (rare)
+
+Maintain compatibility only when the user says so, or when the surface is clearly external (e.g. a published operator contract already relied on outside this repo). If unsure, ask — do not invent a compatibility path.
+
+## Examples
+
+```text
+❌ Keep old Manifest key `state` and also read `intent`
+✅ Rename to `intent`; update every Manifest and reader in one change
+
+❌ Wrapper that accepts both old and new Host Volume paths
+✅ Move to the new path; update Setup and tests together
+```

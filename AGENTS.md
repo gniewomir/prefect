@@ -11,3 +11,7 @@ Canonical roles mapped 1:1 (`needs-triage`, `needs-info`, `ready-for-agent`, `re
 ### Domain docs
 
 Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+### Development posture
+
+Pre-stability: no backwards compatibility by default (ADR-0018; always-apply rule `.cursor/rules/no-backwards-compat-in-development.mdc`).
