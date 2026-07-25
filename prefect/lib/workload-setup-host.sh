@@ -37,8 +37,6 @@ name = m.get("name")
 intent = m.get("intent")
 upstream = m.get("upstream")
 hosts = m.get("public_hostnames") or []
-if "state" in m:
-    raise SystemExit("manifest.state is retired; use manifest.intent (run|stop|trash)")
 if not name or not isinstance(name, str):
     raise SystemExit("manifest.name must be a non-empty string")
 if intent not in ("run", "stop", "trash"):

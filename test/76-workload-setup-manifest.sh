@@ -108,25 +108,6 @@ if [[ ${bad_rc} -eq 0 ]]; then
 fi
 pass "Workload Setup rejects interior that declares Public Hostnames"
 
-cat >"${FIX_DIR}/legacy-state.json" <<'EOF'
-{
-  "name": "legacy",
-  "state": "running",
-  "public_hostnames": ["legacy.example.test"],
-  "upstream": "legacy:8080"
-}
-EOF
-set +e
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/legacy-state.json" >/tmp/legacy-state.out 2>&1
-legacy_rc=$?
-set -e
-if [[ ${legacy_rc} -eq 0 ]]; then
-  fail "expected failure when Manifest uses retired state field"
-fi
-grep -qi 'intent' /tmp/legacy-state.out \
-  || fail "legacy state rejection did not mention intent (output: $(cat /tmp/legacy-state.out))"
-pass "Workload Setup rejects Manifests that use retired state instead of intent"
-
 # Setup must not block on issuance — alpha applied with no cert / no live CA
 code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 15 \
   -H 'Host: alpha.example.test' "http://${IP}/" || true)"
