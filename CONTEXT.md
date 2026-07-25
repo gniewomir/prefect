@@ -89,11 +89,11 @@ A Stack-managed cloud resource that Park keeps and Apply reattaches: today only 
 _Avoid_: persistent resource, stateful resource (when you mean this Park/Apply set)
 
 **Park**:
-Remove the Host and other non-durable Stack resources while keeping Durables Stack-managed for a later Apply. The everyday iteration teardown during development. Durables continue to bill while Parked.
+Remove the Host and other non-durable Stack resources while keeping Durables Stack-managed for a later Apply. A cost convenience for development and other non-production Environments when the Host is not in active use; Durables continue to bill while Parked. Not the normal path for production.
 _Avoid_: soft destroy, soft teardown, down, halt, suspend, Destroy (ambiguous — say Park or Teardown)
 
 **Teardown**:
-Permanently remove every resource the Stack currently manages, including Durables, leaving State empty. Stack configuration stays in the repository and can be Applied again. Explicit full wipe — not the default iteration path.
+Permanently remove every resource the Stack currently manages, including Durables, leaving State empty. Stack configuration stays in the repository and can be Applied again. Explicit full wipe when Durable billing should stop — not the idle path for non-production (that is Park).
 _Avoid_: Destroy, wipe, delete resources, terraform destroy (when you mean this full removal); Purge (Workload-only)
 
 **Component**:
