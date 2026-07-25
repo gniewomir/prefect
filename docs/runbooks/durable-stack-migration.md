@@ -2,9 +2,15 @@
 
 ADR-0016 / issue #24. Reserved IP is a Durable address plus a separate Host assignment; Host Volume and the address refuse destroy unless Teardown unlocks them.
 
+**Environment (ADR-0019):** `./apply.sh`, `./park.sh`, and `./teardown.sh` are safe by default — no `--env` selects the **test** Environment (Terraform workspace `default`). `--env test` and `--env default` mean the same Environment; any other slug (e.g. `--env prod`) must be passed explicitly. Scripts always select that workspace for the invocation (they do not trust a leftover current workspace).
+
 ## Park
 
-`./park.sh` destroys every address in State **except** a preserve whitelist (Durables + Cloud Project `Prefect` + the Durable unlock gate). New non-durables are Parked automatically without updating the script. Durables also carry `lifecycle.prevent_destroy` — that is the Durable source of truth if the whitelist drifts. Config is unchanged; the next `./apply.sh` recreates non-durables. Already Parked: exits 0 when State is only preserved addresses.
+`./park.sh [--env <slug>]` destroys every address in State **except** a preserve whitelist (Durables + Cloud Project + the Durable unlock gate). New non-durables are Parked automatically without updating the script. Durables also carry `lifecycle.prevent_destroy` — that is the Durable source of truth if the whitelist drifts. Config is unchanged; the next `./apply.sh` recreates non-durables. Already Parked: exits 0 when State is only preserved addresses.
+
+## Apply
+
+`./apply.sh [--yes] [--env <slug>]` brings the Stack to desired managed presence. Interactive Terraform confirm by default; `--yes` for automation. Specialist Stack surgery stays raw `terraform` in the Stack dir (raw CLI lands on workspace `default` = test unless you `terraform workspace select` yourself).
 
 ## Durable destroy unlock
 
@@ -15,7 +21,7 @@ Terraform requires `lifecycle.prevent_destroy` to be a **literal** (it cannot re
 
 A `terraform_data` precondition requires the variable and the override file to agree, so a bare `-var=allow_durable_destroy=true` without the override fails closed, and a leftover override with the default var also fails closed.
 
-`./teardown.sh` owns this sequence: it copies `durable_destroy_override.tf.example` to `durable_destroy_override.tf`, runs destroy with `-var=allow_durable_destroy=true`, and removes the override on exit (success or failure). Do not leave `durable_destroy_override.tf` in the tree after Teardown.
+`./teardown.sh [--env <slug>]` owns this sequence: it copies `durable_destroy_override.tf.example` to `durable_destroy_override.tf`, runs destroy with `-var=allow_durable_destroy=true`, and removes the override on exit (success or failure). Do not leave `durable_destroy_override.tf` in the tree after Teardown.
 
 Manual equivalent (prefer `./teardown.sh`):
 

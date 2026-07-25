@@ -9,13 +9,17 @@ Executable checks of Applied Stack external behavior. Requires an applied Stack 
 From the repo root:
 
 ```bash
-./test.sh              # all Acceptance Tests, numeric order, fail-fast
-./test.sh 70-podman    # one slice (substring match on the filename)
+./test.sh                 # all Acceptance Tests on the test Environment (default)
+./test.sh 70-podman       # one slice (substring match on the filename)
+./test.sh --env test      # same Environment as omitting --env (`default` also aliases here)
+./test.sh --env prod      # Acceptance against a non-test Applied Environment (explicit)
 ```
+
+**Environment (ADR-0019):** every operator entrypoint is safe by default — no `--env` selects the **test** Environment (Terraform workspace `default`). `--env test` and `--env default` are the same alias; any other slug selects that Environment’s workspace. Targeting prod (or any non-test Environment) always requires an explicit `--env <slug>`.
 
 Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
-Components (empty Edge → HTTP 404 on :80): the runner invokes `./prefect/ensure-components.sh` before cases (idempotent Component Setup on the Host Volume; not Initial Host Provisioning).
+Components (empty Edge → HTTP 404 on :80): the runner invokes `./prefect/ensure-components.sh` (same Environment) before cases (idempotent Component Setup on the Host Volume; not Initial Host Provisioning).
 
 ## Add a new Acceptance Test
 

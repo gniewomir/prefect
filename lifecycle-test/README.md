@@ -16,10 +16,14 @@ Apply fail-fast when Durable assumptions do not hold is not automated here — n
 Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY` — same as `./apply.sh` / `./park.sh` / `./teardown.sh`).
 
 ```bash
-./lifecycle-test.sh              # all Lifecycle Tests, fail-fast
-./lifecycle-test.sh park-apply   # one slice (substring match on the filename)
-./lifecycle-test.sh teardown     # Teardown wipe (prompts for exact 'teardown')
+./lifecycle-test.sh                 # all Lifecycle Tests on the test Environment (default)
+./lifecycle-test.sh park-apply      # one slice (substring match on the filename)
+./lifecycle-test.sh teardown        # Teardown wipe (prompts for exact 'teardown')
+./lifecycle-test.sh --env test      # same Environment as omitting --env (`default` also aliases)
+./lifecycle-test.sh --env prod      # Lifecycle against another Environment (explicit)
 ```
+
+**Environment (ADR-0019):** same default-safe rule as Acceptance and other operator entrypoints — no `--env` → **test** (workspace `default`); `--env test` / `--env default` are aliases; any other slug requires explicit `--env <slug>`. The runner propagates the resolved Environment into nested `./park.sh` / `./apply.sh` / `./teardown.sh` so child calls cannot flip Environment.
 
 Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
