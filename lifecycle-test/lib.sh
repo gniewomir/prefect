@@ -1,11 +1,18 @@
 # Shared helpers for Lifecycle Tests. Sourced by case scripts (not executed by the runner).
 # Requires fixture env from lifecycle-test.sh: REPO_ROOT. Optional: VERIFY_SSH_IDENTITY.
 # Reuses Acceptance Test helpers for pass/fail / SSH / carrier-ready.
+# Resolve siblings via REPO_ROOT — not BASH_SOURCE — so sourcing from zsh (operator
+# shells) works the same as bash (Lifecycle cases run under bash).
+
+[[ -n "${REPO_ROOT:-}" ]] || {
+  echo "FAIL: fixture missing REPO_ROOT (run via ./lifecycle-test.sh)" >&2
+  return 1 2>/dev/null || exit 1
+}
 
 # shellcheck source=../test/lib.sh
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../test/lib.sh"
+source "${REPO_ROOT}/test/lib.sh"
 # shellcheck source=../lib/environment.sh
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/environment.sh"
+source "${REPO_ROOT}/lib/environment.sh"
 
 STACK_DIR="${REPO_ROOT}/terraform"
 
