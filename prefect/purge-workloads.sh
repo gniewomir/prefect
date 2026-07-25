@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Purge — permanently remove every trashed Workload and its associated data.
-# Does not affect running or stopped Workloads.
+# Purge — permanently remove every Workload whose Intent is trash and its associated data.
+# Does not affect Workloads whose Intent is run or stop.
 # Usage: ./prefect/purge-workloads.sh
 # Optional: VERIFY_SSH_IDENTITY=/path/to/private_key  PREFECT_USER=prefect
 set -euo pipefail

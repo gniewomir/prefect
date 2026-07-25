@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Host-local Purge. Invoked by prefect/purge-workloads.sh.
-# Removes every trashed Workload and associated Routes, certificates, units, and Host Volume data.
+# Removes every Workload whose Intent is trash and associated Routes, certificates, units, and Host Volume data.
 set -euo pipefail
 
 USER_NAME="${PREFECT_USER:-prefect}"
@@ -30,16 +30,16 @@ if [[ -d "${WORKLOADS_ROOT}" ]]; then
 import json, shlex, sys
 m = json.load(open(sys.argv[1]))
 name = m.get("name") or ""
-state = m.get("state") or ""
+intent = m.get("intent") or ""
 upstream = m.get("upstream") or ""
 hosts = m.get("public_hostnames") or []
 print(f"P_NAME={shlex.quote(name)}")
-print(f"P_STATE={shlex.quote(state)}")
+print(f"P_INTENT={shlex.quote(intent)}")
 print(f"P_UPSTREAM={shlex.quote(upstream)}")
 print(f"P_HOSTS={shlex.quote(' '.join(hosts) if isinstance(hosts, list) else '')}")
 PY
 )"
-    [[ "${P_STATE}" == "trashed" ]] || continue
+    [[ "${P_INTENT}" == "trash" ]] || continue
 
     upstream_host="${P_UPSTREAM%%:*}"
     if [[ -n "${upstream_host}" ]]; then
@@ -50,7 +50,7 @@ PY
     rm -f "${ROUTES_DIR}/${P_NAME}.conf"
     for host in ${P_HOSTS}; do
       rm -rf "${CERTS_DIR}/${host}"
-      # Claims should already be released on trash; clear any stale file.
+      # Claims should already be released on Intent trash; clear any stale file.
       if [[ -f "${CLAIMS_DIR}/${host}" ]] && [[ "$(cat "${CLAIMS_DIR}/${host}")" == "${P_NAME}" ]]; then
         rm -f "${CLAIMS_DIR}/${host}"
       fi
@@ -59,7 +59,7 @@ PY
   done
 fi
 
-# Rebuild want-list from remaining running Workloads.
+# Rebuild want-list from remaining Workloads whose Intent is run.
 mkdir -p "${ACME_DIR}"
 : >"${WANT_LIST}.tmp"
 if [[ -d "${WORKLOADS_ROOT}" ]]; then
@@ -68,7 +68,7 @@ if [[ -d "${WORKLOADS_ROOT}" ]]; then
     python3 - "${wl_dir}/manifest.json" "${WANT_LIST}.tmp" <<'PY'
 import json, sys
 m = json.load(open(sys.argv[1]))
-if m.get("state") != "running":
+if m.get("intent") != "run":
     raise SystemExit(0)
 with open(sys.argv[2], "a") as f:
     for h in m.get("public_hostnames") or []:
