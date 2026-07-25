@@ -49,6 +49,42 @@ assert_volume_present() {
   pass "Host Volume ${name} present at provider"
 }
 
+# Assert Reserved IP is gone at the provider (after Teardown).
+assert_reserved_ip_absent() {
+  local ip="$1"
+  [[ -n "${ip}" ]] || fail "assert_reserved_ip_absent: empty IP"
+  require_do_token
+  local http_code
+  http_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+    -H "Authorization: Bearer ${DIGITALOCEAN_TOKEN}" \
+    -H "Content-Type: application/json" \
+    "https://api.digitalocean.com/v2/reserved_ips/${ip}")" \
+    || fail "Reserved IP lookup request failed for ${ip}"
+  [[ "${http_code}" == "404" ]] \
+    || fail "Reserved IP ${ip} still present at provider (HTTP ${http_code})"
+  pass "Reserved IP ${ip} gone from provider"
+}
+
+# Assert Host Volume is gone at the provider (after Teardown).
+assert_volume_absent() {
+  local name="${1:-${DURABLE_VOLUME_NAME}}"
+  local region="${2:-${DURABLE_VOLUME_REGION}}"
+  local body
+  body="$(do_api_get "/v2/volumes?name=${name}&region=${region}")" \
+    || fail "volume list request failed for ${name}"
+  echo "${body}" | jq -e '.volumes | length == 0' >/dev/null \
+    || fail "Host Volume ${name} still present at provider in ${region}"
+  pass "Host Volume ${name} gone from provider"
+}
+
+# Assert Stack State has no managed addresses (Teardown leftover: empty).
+assert_stack_empty() {
+  local addrs
+  addrs="$(cd "${STACK_DIR}" && terraform state list)"
+  [[ -z "${addrs}" ]] || fail "Stack State not empty after Teardown: ${addrs}"
+  pass "Stack State empty"
+}
+
 stack_reserved_ip() {
   (cd "${STACK_DIR}" && terraform output -raw reserved_ip)
 }

@@ -6,7 +6,8 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
 
 ## Status
 
-Park → Apply round-trip is covered (`10-park-apply.sh`). Teardown Lifecycle cases land with #28.
+- Park → Apply round-trip: `10-park-apply.sh`
+- Teardown (Durables wiped, State empty): `20-teardown.sh`
 
 Apply fail-fast when Durable assumptions do not hold is not automated here — no safe reproduction without stranding billing or State.
 
@@ -17,16 +18,17 @@ Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DI
 ```bash
 ./lifecycle-test.sh              # all Lifecycle Tests, fail-fast
 ./lifecycle-test.sh park-apply   # one slice (substring match on the filename)
+./lifecycle-test.sh teardown     # Teardown wipe (prompts for exact 'teardown')
 ```
 
 Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
-Expect explicit confirmation before Teardown cases (#28). Do not wire this into CI that assumes a standing Applied Stack.
+The runner asks for exact `teardown` before any Teardown case; the case also confirms into `./teardown.sh`. Do not wire this into CI that assumes a standing Applied Stack. After Teardown, leftover State is empty — Apply again before `./test.sh`.
 
 ## Add a case
 
 1. Add `lifecycle-test/NN-short-name.sh`.
-2. Use observable outcomes (provider presence, Reserved IP value, volume marker bytes, SSH reachability) — not Terraform internals.
+2. Use observable outcomes (provider presence/absence, Reserved IP value, volume marker bytes, SSH reachability) — not Terraform internals. Exception: Teardown leftover emptiness may be asserted via empty State (glossary Teardown).
 3. Document leftover Stack state in the case header (Parked vs Applied vs empty).
 4. Source `lib.sh` for `pass` / `fail`, provider Durable checks, and SSH helpers.
 

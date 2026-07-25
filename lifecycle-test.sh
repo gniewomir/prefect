@@ -57,6 +57,24 @@ echo "Lifecycle Tests (destructive; may leave Stack Parked or empty)."
 echo "Cases: ${#CASES[@]} — see ${CASE_DIR}/README.md"
 echo
 
+needs_teardown_confirm=false
+for case_path in "${CASES[@]}"; do
+  if [[ "$(basename "${case_path}")" == *teardown* ]]; then
+    needs_teardown_confirm=true
+    break
+  fi
+done
+
+if [[ "${needs_teardown_confirm}" == true ]]; then
+  echo "WARNING: selected cases include Teardown — full wipe including Durables."
+  echo "         Billing for Reserved IP and Host Volume stops only after this wipe."
+  echo
+  printf "Type exactly 'teardown' to run Teardown Lifecycle cases: "
+  read -r confirm
+  [[ "${confirm}" == "teardown" ]] || fail "aborted (expected exact 'teardown')"
+  echo
+fi
+
 for case_path in "${CASES[@]}"; do
   echo "--- $(basename "${case_path}") ---"
   bash "${case_path}" || fail "Lifecycle Test failed: $(basename "${case_path}")"
