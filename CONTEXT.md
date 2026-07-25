@@ -48,6 +48,10 @@ _Avoid_: User Data, cloud-init, userdata (when you mean this concept); provision
 Host-local gate: wait until Initial Host Provisioning outcomes required for Component Setup hold on a public Host (IHP finished, port floor 80, Prefect User present, Host Volume mounted at `/var/lib/prefect`). Used by ensure-components and Acceptance Tests before asserting finer capability slices. Delivery mechanics (cloud-init) stay inside the gate’s implementation.
 _Avoid_: cloud-init ready, provisioned (bare), ready (bare)
 
+**Host diagnostics**:
+An operator pull of Host-local diagnostic artifacts for an Environment (named bundles of files and small command snapshots) for local inspection. Not Carrier ready, not an Acceptance Test, and not ongoing Host management.
+_Avoid_: logs (bare), cloud-init logs (when you mean this operator capability); debug dump, support bundle (when you mean this Prefect operation)
+
 **Reserved IP**:
 A stable public IPv4 address owned by the Stack and assigned to a Host. It survives Host rebuilds and Park; Teardown removes it with the rest of the Stack. The Host's own public IP does not survive rebuilds.
 _Avoid_: Floating IP, static IP, elastic IP (when you mean this address resource)
