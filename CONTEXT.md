@@ -97,7 +97,7 @@ The idempotent, declarative Host-side application of one Component’s desired s
 _Avoid_: Setup (bare), install, deploy, provision, Workload Setup (when you mean this Component action)
 
 **Workload Setup**:
-The idempotent, declarative Host-side application of one Workload’s desired state from its Manifest (Workload Desired State, Public Hostnames, Route). Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
+The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest (Workload Intent, Public Hostnames, Route). Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
 _Avoid_: Setup (bare), Component Setup, install, deploy, Purge (when you mean this Workload action)
 
 **Edge**:
@@ -109,19 +109,19 @@ An optional containerized service that runs on a Host. Not part of Prefect’s m
 _Avoid_: App, service, container, backend (when you mean this concept)
 
 **Workload Manifest**:
-A Workload-owned declaration that is the source of truth for that Workload’s desired state (**running**, **stopped**, or **trashed**), its Public Hostnames (one or more), and for producing its Route. First cut covers lifecycle and Edge reachability — not the Workload’s full runtime package beyond what Setup needs for those.
+A Workload-owned declaration that is the source of truth for that Workload’s Intent (**run**, **stop**, or **trash**), its Public Hostnames (one or more), and for producing its Route. First cut covers lifecycle and Edge reachability — not the Workload’s full runtime package beyond what Setup needs for those.
 _Avoid_: Manifest (bare), spec, compose file, workload config (when you mean this declaration)
 
-**Workload Desired State**:
-The Manifest value that selects whether a Workload should be **running** (Quadlets up, Public Hostnames claimed, certificates renewed, Edge proxies to the Workload when a certificate exists), **stopped** (no Quadlets; Public Hostnames still reserved; data and certificates kept; certificates not renewed; Edge answers 503 for those names while a certificate can terminate TLS, then goes dark after expiry), or **trashed** (eligible for Purge; Public Hostnames released; associated data retained until Purge).
-_Avoid_: active, disabled, remove, status, phase (when you mean this Manifest field)
+**Workload Intent**:
+The Manifest’s post–Workload Setup expectation — what must be true after Setup succeeds; never Host status or a report of what is currently on the server. **run** (Quadlets up, Public Hostnames claimed, certificates renewed, Edge proxies to the Workload when a certificate exists), **stop** (no Quadlets; Public Hostnames still reserved; data and certificates kept; certificates not renewed; Edge answers 503 for those names while a certificate can terminate TLS, then goes dark after expiry), or **trash** (eligible for Purge; Public Hostnames released; associated data retained until Purge).
+_Avoid_: Workload Desired State, desired state, running, stopped, trashed, active, disabled, remove, status, phase, current state (when you mean this Manifest field)
 
 **Purge**:
-The operation that permanently removes every **trashed** Workload and its associated data (Routes, certificates, Host Volume Workload data, and related units). Does not affect **running** or **stopped** Workloads.
+The operation that permanently removes every Workload whose Intent is **trash** and its associated data (Routes, certificates, Host Volume Workload data, and related units). Does not affect Workloads whose Intent is **run** or **stop**.
 _Avoid_: Teardown (Stack-level), Destroy, delete, cleanup, gc (when you mean this Workload operation)
 
 **Public Hostname**:
-An enumerated FQDN pointed at a public Host’s Reserved IP for which the Edge terminates TLS. Declared on a Workload Manifest (one or more per Workload); unique among Workloads on that Host that still claim it (**running** or **stopped**); not a DNS zone and not an open-ended wildcard. DNS (A/AAAA → Reserved IP) is out of band — not a Component.
+An enumerated FQDN pointed at a public Host’s Reserved IP for which the Edge terminates TLS. Declared on a Workload Manifest (one or more per Workload); unique among Workloads on that Host that still claim it (Intent **run** or **stop**); not a DNS zone and not an open-ended wildcard. DNS (A/AAAA → Reserved IP) is out of band — not a Component.
 _Avoid_: Domain, subdomain, vhost, server name, DNS name (when you mean this Prefect concept)
 
 **Service Network**:
@@ -129,7 +129,7 @@ The private container network on a Host that the Edge and Workloads join so they
 _Avoid_: Podman network, bridge, CNI (implementation); network (bare — ambiguous with Firewall / provider networking)
 
 **Route**:
-What the Edge loads for a Workload’s Public Hostnames. Produced by Workload Setup from the Workload Manifest: generated Edge shell (listen / Public Hostnames / TLS wiring) plus either a generated proxy body or an optional Workload-provided **interior** (proxy body only — must not declare Public Hostnames). For **running**, the HTTPS shell proxies to the Workload once a certificate exists; for **stopped**, the HTTPS shell returns 503 while a certificate lasts. The Edge’s own include shell and empty-routes stub remain Component-owned; Workload Routes must not be cleared by Component Setup.
+What the Edge loads for a Workload’s Public Hostnames. Produced by Workload Setup from the Workload Manifest: generated Edge shell (listen / Public Hostnames / TLS wiring) plus either a generated proxy body or an optional Workload-provided **interior** (proxy body only — must not declare Public Hostnames). For Intent **run**, the HTTPS shell proxies to the Workload once a certificate exists; for Intent **stop**, the HTTPS shell returns 503 while a certificate lasts. The Edge’s own include shell and empty-routes stub remain Component-owned; Workload Routes must not be cleared by Component Setup.
 _Avoid_: Vhost, upstream, location block, snippet, server block (implementation)
 
 **Prefect User**:
