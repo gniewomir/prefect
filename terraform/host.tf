@@ -42,7 +42,7 @@ resource "digitalocean_droplet" "web" {
   ]
   volume_ids = [digitalocean_volume.web.id] # first apply may replace Host to attach at create
 
-  # Initial Host Provisioning: apt update + distro podman only (no package_upgrade);
+  # Initial Host Provisioning: distro podman only (no package_update / package_upgrade);
   # unprivileged port floor for rootless 80/443 (ADR-0006); Prefect User + linger (ADR-0008);
   # Host Volume mount at /var/lib/prefect (ADR-0009). No Quadlet units (ADR-0004 / ADR-0006).
   # cloud-config must stay left-aligned (#cloud-config at column 0).

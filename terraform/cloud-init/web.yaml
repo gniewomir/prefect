@@ -1,6 +1,8 @@
 #cloud-config
 ssh_pwauth: false
-package_update: true
+# Host Image apt indexes are enough to install podman; skip apt-get update on
+# create (faster Park→Apply). Revisit when Prefect leaves dev-only.
+package_update: false
 packages:
   - podman
 users:
