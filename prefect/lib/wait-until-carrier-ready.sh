@@ -12,9 +12,10 @@ USER_NAME="${PREFECT_USER:-prefect}"
 echo "Waiting for Initial Host Provisioning..." >&2
 # cloud-init ≥23.4: 0 = clean success, 2 = finished with recoverable errors
 # (still "status: done"); 1 = crashed / not finished. Delivery detail — not part
-# of this module's public interface.
+# of this module's public interface. Leave stdout alone so --wait progress dots
+# (and the final status line) show the wait is live.
 set +e
-cloud-init status --wait >/dev/null 2>&1
+cloud-init status --wait
 rc=$?
 set -e
 if [[ ${rc} -ne 0 && ${rc} -ne 2 ]]; then
