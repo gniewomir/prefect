@@ -18,13 +18,26 @@ assert_eq() {
 }
 
 # --- resolve bundle ---
-assert_eq "$(diagnostics_bundle_or_default "")" "ihp" "bundle: empty → ihp"
-assert_eq "$(diagnostics_bundle_or_default ihp)" "ihp" "bundle: ihp → ihp"
+if diagnostics_resolve_bundle "" >/dev/null 2>&1; then
+  fail "expected failure for empty bundle id"
+fi
+pass "bundle: rejects empty id"
 
-if diagnostics_bundle_or_default cloud-init >/dev/null 2>&1; then
+assert_eq "$(diagnostics_resolve_bundle ihp)" "ihp" "bundle: ihp → ihp"
+
+if diagnostics_resolve_bundle cloud-init >/dev/null 2>&1; then
   fail "expected failure for unknown bundle cloud-init"
 fi
 pass "bundle: rejects unknown id"
+
+assert_eq "$(diagnostics_known_bundles)" "ihp" "known bundles list"
+
+# --- usage mentions required --bundle ---
+usage="$(diagnostics_usage 2>&1)"
+printf '%s' "${usage}" | grep -q -- '--bundle <id>' || fail "usage missing --bundle <id>"
+printf '%s' "${usage}" | grep -q 'Required' || fail "usage should mark --bundle required"
+printf '%s' "${usage}" | grep -q '^  ihp' || fail "usage missing ihp bundle line"
+pass "usage: required --bundle and ihp listed"
 
 # --- ihp artifact set ---
 assert_eq "$(diagnostics_bundle_log_files ihp | tr '\n' ' ')" \
@@ -42,7 +55,7 @@ parse_ok() {
 
 got="$(parse_ok)"
 [[ "${got}" == $'\t' ]] || fail "no flags should leave bundle and out empty; got '${got}'"
-pass "parse: no flags"
+pass "parse: no flags leaves bundle empty (caller requires it)"
 
 got="$(parse_ok --bundle=ihp)"
 [[ "${got}" == $'ihp\t' ]] || fail "want ihp + empty out; got '${got}'"
@@ -54,7 +67,7 @@ pass "parse: --bundle ihp --out /tmp/diag-out"
 
 got="$(parse_ok --out=/tmp/x)"
 [[ "${got}" == $'\t/tmp/x' ]] || fail "want empty bundle + /tmp/x; got '${got}'"
-pass "parse: --out=/tmp/x"
+pass "parse: --out alone leaves bundle empty"
 
 if diagnostics_parse_args --bundle 2>/dev/null; then
   fail "expected failure for --bundle without value"

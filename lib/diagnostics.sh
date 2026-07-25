@@ -2,17 +2,43 @@
 # Host diagnostics helpers: bundle registry + closed argv for diagnostics.sh.
 # Sourced by diagnostics.sh and lib/diagnostics_test.sh.
 
-# Resolve a bundle id (or empty) to a registered id. Fails closed on unknown.
-diagnostics_bundle_or_default() {
-  local raw="${1-}"
-  local id="${raw:-ihp}"
+# Print known bundle ids (one per line). Keep in sync with resolve / artifact helpers.
+diagnostics_known_bundles() {
+  printf '%s\n' "ihp"
+}
+
+# Usage / help for the diagnostics operator entrypoint (stderr).
+diagnostics_usage() {
+  cat <<'EOF' >&2
+Usage: ./diagnostics.sh [--env <slug>] --bundle <id> [--out <dir>]
+
+Pull Host diagnostics (named artifact bundles) for local inspection.
+
+  --env <slug>     Environment (omitted / default / test → test)
+  --bundle <id>    Required. Artifact bundle to pull
+  --out <dir>      Output directory (default: $TMPDIR/prefect-diagnostics-<env>-<bundle>-<timestamp>/)
+
+Bundles:
+  ihp    Initial Host Provisioning evidence (cloud-init logs + status --long)
+
+Optional: SSH_IDENTITY=/path/to/private_key
+EOF
+}
+
+# Resolve a required bundle id. Fails closed on empty or unknown.
+diagnostics_resolve_bundle() {
+  local id="${1-}"
+  if [[ -z "${id}" ]]; then
+    echo "FAIL: --bundle is required" >&2
+    return 1
+  fi
   case "${id}" in
     ihp)
       printf '%s\n' "ihp"
       return 0
       ;;
     *)
-      echo "FAIL: unknown Host diagnostics bundle '${id}' (known: ihp)" >&2
+      echo "FAIL: unknown Host diagnostics bundle '${id}' (known: $(diagnostics_known_bundles | tr '\n' ' ' | sed 's/[[:space:]]*$//'))" >&2
       return 1
       ;;
   esac
@@ -21,7 +47,7 @@ diagnostics_bundle_or_default() {
 # Remote log file paths for a registered bundle (one path per line).
 diagnostics_bundle_log_files() {
   local id
-  id="$(diagnostics_bundle_or_default "${1-}")" || return 1
+  id="$(diagnostics_resolve_bundle "${1-}")" || return 1
   case "${id}" in
     ihp)
       printf '%s\n' "/var/log/cloud-init-output.log"
@@ -34,7 +60,7 @@ diagnostics_bundle_log_files() {
 # Empty stdout means no snapshot for that bundle.
 diagnostics_bundle_status_snapshot() {
   local id
-  id="$(diagnostics_bundle_or_default "${1-}")" || return 1
+  id="$(diagnostics_resolve_bundle "${1-}")" || return 1
   case "${id}" in
     ihp)
       printf '%s\n' "cloud-init-status-long.txt"
@@ -42,8 +68,9 @@ diagnostics_bundle_status_snapshot() {
   esac
 }
 
-# Parse argv for optional --bundle / --out (closed surface).
+# Parse argv for required --bundle and optional --out (closed surface).
 # Sets DIAGNOSTICS_BUNDLE_RAW and DIAGNOSTICS_OUT.
+# Does not require --bundle by itself — caller checks and prints usage.
 diagnostics_parse_args() {
   DIAGNOSTICS_BUNDLE_RAW=""
   DIAGNOSTICS_OUT=""
@@ -104,7 +131,7 @@ diagnostics_parse_args() {
         shift
         ;;
       *)
-        echo "FAIL: unknown argument: $1 (only optional --env, --bundle, and --out are accepted)" >&2
+        echo "FAIL: unknown argument: $1 (only optional --env, required --bundle, and optional --out are accepted)" >&2
         return 1
         ;;
     esac
