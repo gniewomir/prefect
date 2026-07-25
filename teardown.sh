@@ -2,8 +2,9 @@
 # Teardown the Stack — full wipe including Durables (Reserved IP + Host Volume).
 # Writes durable_destroy_override.tf and passes -var=allow_durable_destroy=true
 # so prevent_destroy lifts; removes the override afterward (ADR-0016).
+# Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Requires: terraform; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
-# Usage: ./teardown.sh
+# Usage: ./teardown.sh [--env <slug>]
 # Confirm with exact: teardown
 set -euo pipefail
 
@@ -12,12 +13,20 @@ STACK_DIR="${REPO_ROOT}/terraform"
 OVERRIDE="${STACK_DIR}/durable_destroy_override.tf"
 OVERRIDE_EXAMPLE="${STACK_DIR}/durable_destroy_override.tf.example"
 UNLOCK_VAR=(-var=allow_durable_destroy=true)
+# shellcheck source=lib/environment.sh
+source "${REPO_ROOT}/lib/environment.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 remove_override() {
   rm -f "${OVERRIDE}"
 }
+
+environment_parse_args "$@" || exit 1
+for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
+  fail "unknown argument: ${arg} (only optional --env is accepted)"
+done
+WORKSPACE="$(environment_workspace_for "${ENVIRONMENT_RAW}")" || exit 1
 
 command -v terraform >/dev/null || fail "terraform not found"
 [[ -f "${OVERRIDE_EXAMPLE}" ]] || fail "missing ${OVERRIDE_EXAMPLE}"
@@ -27,6 +36,8 @@ command -v terraform >/dev/null || fail "terraform not found"
 
 cd "${STACK_DIR}"
 rm -f parked.auto.tfvars # leftover from sticky-parked experiment; no longer used
+
+environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
 
 # Never leave the Durable unlock armed after this script exits.
 trap remove_override EXIT

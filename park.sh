@@ -3,13 +3,16 @@
 # Durables (Reserved IP + Host Volume) carry prevent_destroy; that is the Durable
 # backstop. Config stays Applied; the next ./apply.sh recreates non-durables.
 # Guards protect Durables, not operator Apply (ADR-0016).
+# Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Requires: terraform; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
-# Usage: ./park.sh
+# Usage: ./park.sh [--env <slug>]
 # Confirm with exact: park
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
+# shellcheck source=lib/environment.sh
+source "${REPO_ROOT}/lib/environment.sh"
 
 # Keep these; destroy every other address currently in State.
 # Durables must also have lifecycle.prevent_destroy — that is the source of truth
@@ -32,6 +35,12 @@ is_preserved() {
   return 1
 }
 
+environment_parse_args "$@" || exit 1
+for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
+  fail "unknown argument: ${arg} (only optional --env is accepted)"
+done
+WORKSPACE="$(environment_workspace_for "${ENVIRONMENT_RAW}")" || exit 1
+
 command -v terraform >/dev/null || fail "terraform not found"
 
 [[ -n "${DIGITALOCEAN_TOKEN:-}" ]] || fail "DIGITALOCEAN_TOKEN is not set"
@@ -39,6 +48,8 @@ command -v terraform >/dev/null || fail "terraform not found"
 
 cd "${STACK_DIR}"
 rm -f parked.auto.tfvars # leftover from sticky-parked experiment; no longer used
+
+environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
 
 target_args=()
 while IFS= read -r addr; do
