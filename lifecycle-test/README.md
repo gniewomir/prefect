@@ -13,7 +13,7 @@ Apply fail-fast when Durable assumptions do not hold is not automated here — n
 
 ## Run
 
-Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY` — same as `park.sh` / `teardown.sh`).
+Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY` — same as `./apply.sh` / `./park.sh` / `./teardown.sh`).
 
 ```bash
 ./lifecycle-test.sh              # all Lifecycle Tests, fail-fast
@@ -23,7 +23,7 @@ Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DI
 
 Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
-The runner asks for exact `teardown` before any Teardown case; the case also confirms into `./teardown.sh`. Do not wire this into CI that assumes a standing Applied Stack. After Teardown, leftover State is empty — Apply again before `./test.sh`.
+The runner asks for exact `teardown` before any Teardown case; the case also confirms into `./teardown.sh`. Do not wire this into CI that assumes a standing Applied Stack. After Teardown, leftover State is empty — `./apply.sh` again before `./test.sh`.
 
 ## Add a case
 

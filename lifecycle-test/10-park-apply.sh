@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lifecycle Test: Park → Apply preserves Durables (Reserved IP + Host Volume marker).
 # Leftover Stack state on success: Applied (Host + Durables restored).
-# On failure: may leave Parked or mid-Apply — restore with: (cd terraform && terraform apply)
+# On failure: may leave Parked or mid-Apply — restore with: ./apply.sh
 set -euo pipefail
 
 # shellcheck source=lib.sh
@@ -32,10 +32,7 @@ assert_reserved_ip_present "${IP}"
 assert_volume_present
 
 echo "Applying Stack after Park ..."
-(
-  cd "${STACK_DIR}"
-  terraform apply -input=false -auto-approve
-)
+"${REPO_ROOT}/apply.sh" --yes
 
 AFTER_IP="$(stack_reserved_ip)"
 [[ "${AFTER_IP}" == "${IP}" ]] || fail "Reserved IP changed across Park→Apply: before=${IP} after=${AFTER_IP}"

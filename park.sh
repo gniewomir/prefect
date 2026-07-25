@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Park the Stack — destroy everything in State except the preserve whitelist.
 # Durables (Reserved IP + Host Volume) carry prevent_destroy; that is the Durable
-# backstop. Config stays Applied; the next ordinary terraform apply recreates
-# non-durables. Guards protect Durables, not operator Apply (ADR-0016).
+# backstop. Config stays Applied; the next ./apply.sh recreates non-durables.
+# Guards protect Durables, not operator Apply (ADR-0016).
 # Requires: terraform; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
 # Usage: ./park.sh
 # Confirm with exact: park
@@ -101,4 +101,4 @@ terraform destroy -input=false -auto-approve "${target_args[@]}"
 
 echo
 echo "Park complete. Durables remain in State/provider and still bill."
-echo "To Apply again: (cd ${STACK_DIR} && terraform apply)"
+echo "To Apply again: ./apply.sh"

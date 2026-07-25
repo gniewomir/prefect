@@ -2,7 +2,7 @@
 # Lifecycle Test: Teardown wipes Durables (Reserved IP + Host Volume) and empties State.
 # Leftover Stack state on success: empty (no managed addresses; Durables gone at provider).
 # On failure: may leave Applied, Parked, or mid-Teardown — restore with:
-#   Prefer Park if Durables remain; full wipe: ./teardown.sh; then (cd terraform && terraform apply).
+#   Prefer Park if Durables remain; full wipe: ./teardown.sh; then ./apply.sh.
 set -euo pipefail
 
 # shellcheck source=lib.sh

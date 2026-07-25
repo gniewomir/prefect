@@ -24,7 +24,7 @@ Components (empty Edge → HTTP 404 on :80): the runner invokes `./prefect/ensur
 3. Start from `set -euo pipefail`, source `lib.sh`, and use `pass` / `fail`.
 4. Assume fixture env from the runner (`IP`, and when needed `STATE_JSON` / `HOST_JSON`). Do not re-run `terraform show` in the case.
 5. Keep the script focused on external behavior. The runner discovers `test/[0-9]*.sh` automatically — no registry edit.
-6. Do not call `park.sh`, `teardown.sh`, or otherwise remove the Host / Durables.
+6. Do not call `./park.sh`, `./teardown.sh`, or otherwise remove the Host / Durables.
 
 Non-case files in this directory (`lib.sh`, this README) are not executed.
 

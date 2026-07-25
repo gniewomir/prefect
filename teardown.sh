@@ -86,4 +86,4 @@ terraform destroy -input=false -auto-approve "${UNLOCK_VAR[@]}"
 
 echo
 echo "Teardown complete. State should be empty; Durables are gone from the provider."
-echo "To Apply again: (cd ${STACK_DIR} && terraform apply)"
+echo "To Apply again: ./apply.sh"

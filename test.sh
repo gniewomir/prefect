@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test runner — Applied Stack external behavior after terraform apply.
+# Acceptance Test runner — Applied Stack external behavior after Apply (./apply.sh).
 # Builds fixture once, runs test/[0-9]*.sh as subprocesses in sort order (fail-fast).
 # Usage: ./test.sh [selector]   e.g. ./test.sh 70-podman
 # Optional: VERIFY_SSH_IDENTITY=/path/to/private_key
