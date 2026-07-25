@@ -45,11 +45,11 @@ Host-local gate: wait until Initial Host Provisioning outcomes required for Comp
 _Avoid_: cloud-init ready, provisioned (bare), ready (bare)
 
 **Reserved IP**:
-A stable public IPv4 address owned by the Stack and assigned to a Host. It survives Host rebuilds; the Host's own public IP does not.
+A stable public IPv4 address owned by the Stack and assigned to a Host. It survives Host rebuilds and Park; Teardown removes it with the rest of the Stack. The Host's own public IP does not survive rebuilds.
 _Avoid_: Floating IP, static IP, elastic IP (when you mean this address resource)
 
 **Host Volume**:
-A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds (not Destroy — Destroy removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Routes, certificates, and ACME HTTP-01 webroot, and later other Prefect/Workload paths) is owned by the Prefect User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Prefect User’s home. Not per-Workload volumes.
+A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds and Park (Teardown removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Routes, certificates, and ACME HTTP-01 webroot, and later other Prefect/Workload paths) is owned by the Prefect User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Prefect User’s home. Not per-Workload volumes.
 _Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Prefect resource)
 
 **Firewall**:
@@ -65,12 +65,28 @@ A provider tag that selects Hosts for a policy such as a Firewall (public web: `
 _Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is not itself tagged)
 
 **Acceptance Test**:
-An executable check of Applied Stack external behavior (does the live Stack match the intended contract?). Requires an applied Stack and asserts observable outcomes only — not Terraform internals or provider API shape.
-_Avoid_: Verify script, observability check, smoke test, integration test (when you mean this concept)
+An executable check of Applied Stack external behavior (does the live Stack match the intended contract?). Requires an applied Stack (Host present) and asserts observable outcomes only — not Terraform internals or provider API shape. Non-destructive to Stack lifecycle: must not Park or Teardown.
+_Avoid_: Verify script, observability check, smoke test, integration test, Lifecycle Test (when you mean this concept)
 
-**Destroy**:
-Permanently remove every resource the Stack currently manages, leaving State empty. Stack configuration stays in the repository and can be applied again. Used during development to iterate on the Stack quickly.
-_Avoid_: Delete resources, teardown, terraform destroy (when you mean this full removal)
+**Lifecycle Test**:
+An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Separate from Acceptance Tests; opt-in; may leave the Stack Parked or empty. Not part of `./test.sh`.
+_Avoid_: Acceptance Test, destroy test, integration test (when you mean this concept)
+
+**Apply**:
+Bring the Stack to its desired managed presence: create any missing resources and reattach existing Durables when they are already Stack-managed. Used after Park or Teardown, and for ordinary convergence. Fails fast if Durable assumptions do not hold (for example Durables missing from State or not reattachable as expected).
+_Avoid_: up, provision, terraform apply (when you mean this operation)
+
+**Durable**:
+A Stack-managed cloud resource that Park keeps and Apply reattaches: today only the Reserved IP and the Host Volume. Not Hosts, Firewalls, tags, SSH keys, or the Cloud Project.
+_Avoid_: persistent resource, stateful resource (when you mean this Park/Apply set)
+
+**Park**:
+Remove the Host and other non-durable Stack resources while keeping Durables Stack-managed for a later Apply. The everyday iteration teardown during development. Durables continue to bill while Parked.
+_Avoid_: soft destroy, soft teardown, down, halt, suspend, Destroy (ambiguous — say Park or Teardown)
+
+**Teardown**:
+Permanently remove every resource the Stack currently manages, including Durables, leaving State empty. Stack configuration stays in the repository and can be Applied again. Explicit full wipe — not the default iteration path.
+_Avoid_: Destroy, wipe, delete resources, terraform destroy (when you mean this full removal); Purge (Workload-only)
 
 **Component**:
 An installable unit of Prefect’s mandatory Host shape, owned as a directory under `prefect/` with its own idempotent Component Setup. Today’s Components are the Service Network and the Edge. Workloads are not Components.
@@ -102,7 +118,7 @@ _Avoid_: active, disabled, remove, status, phase (when you mean this Manifest fi
 
 **Purge**:
 The operation that permanently removes every **trashed** Workload and its associated data (Routes, certificates, Host Volume Workload data, and related units). Does not affect **running** or **stopped** Workloads.
-_Avoid_: Destroy (Stack-level), delete, cleanup, gc (when you mean this Workload operation)
+_Avoid_: Teardown (Stack-level), Destroy, delete, cleanup, gc (when you mean this Workload operation)
 
 **Public Hostname**:
 An enumerated FQDN pointed at a public Host’s Reserved IP for which the Edge terminates TLS. Declared on a Workload Manifest (one or more per Workload); unique among Workloads on that Host that still claim it (**running** or **stopped**); not a DNS zone and not an open-ended wildcard. DNS (A/AAAA → Reserved IP) is out of band — not a Component.

@@ -1,5 +1,10 @@
-# Reserved IP follows the Host into this Cloud Project; do not list its URN
-# (DigitalOcean Projects API still treats assigned Reserved IPs as floatingip and drifts).
+# Cloud Project Prefect owns assignable Stack resources.
+# - Host + Host Volume: always listed when present in config.
+# - Reserved IP: listed explicitly so an unassigned (Parked) address stays in Prefect
+#   and does not drift to the account default (ADR-0003 / ADR-0016). When the IP is
+#   assigned to the Host, the provider may also attach it via the Host; listing the
+#   URN can show as floatingip in the Projects API — prefer refreshing/applying
+#   rather than removing the URN (Parked membership is the priority).
 resource "digitalocean_project" "prefect" {
   name        = "Prefect"
   description = "Prefect-managed projects infrastructure"

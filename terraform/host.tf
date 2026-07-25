@@ -12,13 +12,18 @@ resource "digitalocean_ssh_key" "web" {
 }
 
 # Host Volume before Host: volume_ids on the droplet must not create a region cycle
-# (volume.region must not reference the droplet).
+# (volume.region must not reference the droplet). Durable — Park keeps it; Teardown
+# unlocks destroy via allow_durable_destroy + durable_destroy_override.tf (ADR-0016).
 resource "digitalocean_volume" "web" {
   region                  = "fra1"
   name                    = "prefect-web-data"
   size                    = 1
   initial_filesystem_type = "ext4"
   description             = "Host Volume for durable data surviving Host rebuilds (ADR-0009)"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "digitalocean_droplet" "web" {
@@ -47,7 +52,20 @@ resource "digitalocean_droplet" "web" {
   })
 }
 
+# Reserved IP address (Durable): region only — not bound to Host lifecycle. Park keeps
+# this object; assignment below is non-durable (ADR-0016). Region is a literal so the
+# address does not depend on the Host (Park destroys the Host).
 resource "digitalocean_reserved_ip" "web" {
-  region     = digitalocean_droplet.web.region
+  region = "fra1"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Non-durable: destroyed on Park, recreated on Apply. Do not also set droplet_id on
+# digitalocean_reserved_ip.web.
+resource "digitalocean_reserved_ip_assignment" "web" {
+  ip_address = digitalocean_reserved_ip.web.ip_address
   droplet_id = digitalocean_droplet.web.id
 }
