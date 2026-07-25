@@ -9,11 +9,15 @@ The name of this project: infrastructure-as-code for the platform other projects
 _Avoid_: Infra, platform repo, DevOps project (when you mean this project)
 
 **Stack**:
-A Terraform root module that owns a cohesive slice of infrastructure for one provider or concern. Today the only stack is DigitalOcean (past Bootstrap: it manages Hosts and related network resources).
-_Avoid_: Project, environment, workspace (those mean different things — for the provider folder, see Cloud Project)
+A Terraform root module that owns a cohesive slice of infrastructure for one provider or concern. Today the only stack is DigitalOcean (past Bootstrap: it manages Hosts and related network resources). One Stack definition is Applied separately per Environment.
+_Avoid_: Project, workspace (Terraform State slices are an implementation detail — see Environment); Environment (when you mean the module itself rather than an instance)
+
+**Environment**:
+A namespaced instance of a Stack under one provider account: its own State and its own account-unique cloud names (including Cloud Project, Host, Host Volume, tags, Firewall, SSH key). Identified by an open-ended operator-chosen slug (e.g. `test`, `prod`, `dev`, `staging` — no fixed enum). When no Environment is explicitly selected, the operator is on the **test** Environment. In operator tooling, `test` and `default` refer to that same Environment (`default` is the only alias). Prefect operator CLI is safe by default: every operator entrypoint accepts an Environment parameter and affects **test** unless another Environment is explicitly specified. A `prod` Environment is optional — created only when needed. Distinct from the provider Cloud Project’s metadata `environment` field (Production / Staging / …), which is billing/UI labeling only.
+_Avoid_: Workspace, stage, stack instance, Terraform workspace (when you mean this concept); environment variable / process environment (shell); Cloud Project `environment` field
 
 **Cloud Project**:
-A provider-side folder that groups billable resources for UI and billing. Distinct from Prefect and from Stack (Terraform). The Stack creates the DigitalOcean Cloud Project named `Prefect` (purpose: shared projects infrastructure; environment: Production; not the account default) and assigns every assignable resource to it (today: the Host and its Host Volume; a Reserved IP assigned to that Host follows automatically). Resources that cannot be assigned (Firewall, tags, SSH keys) stay Stack-managed only.
+A provider-side folder that groups billable resources for UI and billing. Distinct from Prefect, Stack, and Environment. Each Environment gets its own Cloud Project (namespaced by Environment slug). Resources that cannot be assigned (Firewall, tags, SSH keys) stay Stack-managed only.
 _Avoid_: Project (bare), DO project (when speaking in domain language)
 
 **Bootstrap**:
@@ -65,11 +69,11 @@ A provider tag that selects Hosts for a policy such as a Firewall (public web: `
 _Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is not itself tagged)
 
 **Acceptance Test**:
-An executable check of Applied Stack external behavior (does the live Stack match the intended contract?). Requires an applied Stack (Host present) and asserts observable outcomes only — not Terraform internals or provider API shape. Non-destructive to Stack lifecycle: must not Park or Teardown.
+An executable check of Applied Stack external behavior (does the live Stack match the intended contract?). Requires an applied Stack (Host present) and asserts observable outcomes only — not Terraform internals or provider API shape. Non-destructive to Stack lifecycle: must not Park or Teardown. Follows the default-safe operator CLI Environment rule (ADR-0019).
 _Avoid_: Verify script, observability check, smoke test, integration test, Lifecycle Test (when you mean this concept)
 
 **Lifecycle Test**:
-An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Separate from Acceptance Tests; opt-in; may leave the Stack Parked or empty. Not part of `./test.sh`.
+An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Separate from Acceptance Tests; opt-in; may leave the Stack Parked or empty. Not part of `./test.sh`. Follows the same default-safe operator CLI Environment rule as other entrypoints (ADR-0019) — defaults to **test**; other Environments only with explicit `--env`.
 _Avoid_: Acceptance Test, destroy test, integration test (when you mean this concept)
 
 **Apply**:
