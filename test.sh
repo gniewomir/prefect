@@ -11,6 +11,8 @@ TEST_DIR="${REPO_ROOT}/test"
 # shellcheck source=test/lib.sh
 source "${TEST_DIR}/lib.sh"
 
+"${REPO_ROOT}/lib/check-stack-names.sh"
+
 command -v terraform >/dev/null || fail "terraform not found"
 command -v jq >/dev/null || fail "jq not found"
 command -v nc >/dev/null || fail "nc not found"
