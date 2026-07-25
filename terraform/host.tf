@@ -1,20 +1,12 @@
-# Non-durables use count = local.non_durable_count (0 when Parked). Durables stay.
-locals {
-  non_durable_count = var.parked ? 0 : 1
-}
-
 resource "digitalocean_tag" "office" {
-  count = local.non_durable_count
-  name  = "prefect"
+  name = "prefect"
 }
 
 resource "digitalocean_tag" "public_web" {
-  count = local.non_durable_count
-  name  = "prefect-public-web"
+  name = "prefect-public-web"
 }
 
 resource "digitalocean_ssh_key" "web" {
-  count      = local.non_durable_count
   name       = "prefect-web"
   public_key = var.DIGITALOCEAN_PUBLIC_KEY
 }
@@ -35,7 +27,6 @@ resource "digitalocean_volume" "web" {
 }
 
 resource "digitalocean_droplet" "web" {
-  count  = local.non_durable_count
   name   = "prefect-web"
   region = "fra1"
   size   = "s-1vcpu-512mb-10gb"
@@ -44,10 +35,10 @@ resource "digitalocean_droplet" "web" {
   ipv6    = false
   backups = false
 
-  ssh_keys = [digitalocean_ssh_key.web[0].fingerprint]
+  ssh_keys = [digitalocean_ssh_key.web.fingerprint]
   tags = [
-    digitalocean_tag.office[0].id,
-    digitalocean_tag.public_web[0].id,
+    digitalocean_tag.office.id,
+    digitalocean_tag.public_web.id,
   ]
   volume_ids = [digitalocean_volume.web.id] # first apply may replace Host to attach at create
 
@@ -75,7 +66,6 @@ resource "digitalocean_reserved_ip" "web" {
 # Non-durable: destroyed on Park, recreated on Apply. Do not also set droplet_id on
 # digitalocean_reserved_ip.web.
 resource "digitalocean_reserved_ip_assignment" "web" {
-  count      = local.non_durable_count
   ip_address = digitalocean_reserved_ip.web.ip_address
-  droplet_id = digitalocean_droplet.web[0].id
+  droplet_id = digitalocean_droplet.web.id
 }
