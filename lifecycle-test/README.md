@@ -6,19 +6,28 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
 
 ## Status
 
-Scaffold only until Park / Teardown / Apply-after-Park are implemented. Cases will land with that work (marker bytes on Host Volume, same Reserved IP across Park→Apply, Durables gone after Teardown, fail-fast when Durable assumptions do not hold).
+Park → Apply round-trip is covered (`10-park-apply.sh`). Teardown Lifecycle cases land with #28.
 
-## Run (planned)
+Apply fail-fast when Durable assumptions do not hold is not automated here — no safe reproduction without stranding billing or State.
+
+## Run
+
+Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY` — same as `park.sh` / `teardown.sh`).
 
 ```bash
 ./lifecycle-test.sh              # all Lifecycle Tests, fail-fast
 ./lifecycle-test.sh park-apply   # one slice (substring match on the filename)
 ```
 
-Expect explicit confirmation before Teardown cases. Do not wire this into CI that assumes a standing Applied Stack.
+Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
-## Add a case (when implementing)
+Expect explicit confirmation before Teardown cases (#28). Do not wire this into CI that assumes a standing Applied Stack.
+
+## Add a case
 
 1. Add `lifecycle-test/NN-short-name.sh`.
 2. Use observable outcomes (provider presence, Reserved IP value, volume marker bytes, SSH reachability) — not Terraform internals.
 3. Document leftover Stack state in the case header (Parked vs Applied vs empty).
+4. Source `lib.sh` for `pass` / `fail`, provider Durable checks, and SSH helpers.
+
+Non-case files in this directory (`lib.sh`, this README) are not executed.

@@ -14,6 +14,11 @@ write_files:
   - path: /etc/sysctl.d/99-unprivileged-port-start.conf
     content: |
       net.ipv4.ip_unprivileged_port_start=80
+  # Linger file in config stage so Prefect User linger holds even if DigitalOcean
+  # vendor scripts fail in final and skip scripts_user / runcmd (ADR-0008).
+  - path: /var/lib/systemd/linger/prefect
+    content: ""
+    permissions: "0644"
 mounts:
   - [ /dev/disk/by-id/scsi-0DO_Volume_${volume_name}, /var/lib/prefect, ext4, "defaults,nofail,discard,noatime", "0", "2" ]
 runcmd:

@@ -1,22 +1,65 @@
 #!/usr/bin/env bash
 # Lifecycle Test runner — Park / Apply-after-Park / Teardown (destructive; opt-in).
 # Not Acceptance Tests (./test.sh). See lifecycle-test/README.md.
-# Cases land when Park and Teardown are implemented.
+# Usage: ./lifecycle-test.sh [selector]   e.g. ./lifecycle-test.sh park-apply
+# Optional: VERIFY_SSH_IDENTITY=/path/to/private_key
+# Requires: terraform; curl; jq; ssh; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 CASE_DIR="${REPO_ROOT}/lifecycle-test"
+STACK_DIR="${REPO_ROOT}/terraform"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-echo "Lifecycle Tests are scaffolded; no cases yet."
-echo "See ${CASE_DIR}/README.md — use ./test.sh for non-destructive Acceptance Tests."
+command -v terraform >/dev/null || fail "terraform not found"
+command -v curl >/dev/null || fail "curl not found"
+command -v jq >/dev/null || fail "jq not found"
+command -v ssh >/dev/null || fail "ssh not found"
 
-shopt -s nullglob
-cases=("${CASE_DIR}"/[0-9]*.sh)
-if [[ ${#cases[@]} -eq 0 ]]; then
-  echo "No Lifecycle Test cases found — nothing to run."
-  exit 0
+[[ -n "${DIGITALOCEAN_TOKEN:-}" ]] || fail "DIGITALOCEAN_TOKEN is not set"
+[[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY is not set"
+[[ -d "${STACK_DIR}" ]] || fail "missing Stack dir ${STACK_DIR}"
+
+export REPO_ROOT STACK_DIR
+export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"
+
+ALL_CASES=()
+while IFS= read -r case_path; do
+  [[ -n "${case_path}" ]] || continue
+  ALL_CASES+=("${case_path}")
+done < <(find "${CASE_DIR}" -maxdepth 1 -type f -name '[0-9]*.sh' | sort)
+
+[[ ${#ALL_CASES[@]} -gt 0 ]] || fail "no Lifecycle Test cases found in ${CASE_DIR}"
+
+CASES=()
+if [[ $# -eq 0 ]]; then
+  CASES=("${ALL_CASES[@]}")
+else
+  SELECTOR="$1"
+  for case_path in "${ALL_CASES[@]}"; do
+    base="$(basename "${case_path}")"
+    if [[ "${base}" == *"${SELECTOR}"* ]]; then
+      CASES+=("${case_path}")
+    fi
+  done
+  [[ ${#CASES[@]} -gt 0 ]] || fail "no Lifecycle Test matches selector: ${SELECTOR}"
+  if [[ ${#CASES[@]} -ne 1 ]]; then
+    matched=""
+    for case_path in "${CASES[@]}"; do
+      matched+=" $(basename "${case_path}")"
+    done
+    fail "selector ${SELECTOR} matched multiple cases:${matched}"
+  fi
 fi
 
-fail "Lifecycle Test cases exist but the runner is not implemented yet"
+echo "Lifecycle Tests (destructive; may leave Stack Parked or empty)."
+echo "Cases: ${#CASES[@]} — see ${CASE_DIR}/README.md"
+echo
+
+for case_path in "${CASES[@]}"; do
+  echo "--- $(basename "${case_path}") ---"
+  bash "${case_path}" || fail "Lifecycle Test failed: $(basename "${case_path}")"
+done
+
+echo "All Lifecycle Tests passed."
