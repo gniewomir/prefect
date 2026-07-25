@@ -1,13 +1,13 @@
 resource "digitalocean_tag" "prefect" {
-  name = "prefect"
+  name = local.names.prefect_tag
 }
 
 resource "digitalocean_tag" "public_web" {
-  name = "prefect-public-web"
+  name = local.names.role_tag
 }
 
 resource "digitalocean_ssh_key" "web" {
-  name       = "prefect-web"
+  name       = local.names.ssh_key
   public_key = var.DIGITALOCEAN_PUBLIC_KEY
 }
 
@@ -16,7 +16,7 @@ resource "digitalocean_ssh_key" "web" {
 # unlocks destroy via allow_durable_destroy + durable_destroy_override.tf (ADR-0016).
 resource "digitalocean_volume" "web" {
   region                  = "fra1"
-  name                    = "prefect-web-data"
+  name                    = local.names.volume
   size                    = 1
   initial_filesystem_type = "ext4"
   description             = "Host Volume for durable data surviving Host rebuilds (ADR-0009)"
@@ -27,7 +27,7 @@ resource "digitalocean_volume" "web" {
 }
 
 resource "digitalocean_droplet" "web" {
-  name   = "prefect-web"
+  name   = local.names.host
   region = "fra1"
   size   = "s-1vcpu-512mb-10gb"
   image  = "ubuntu-26-04-x64"

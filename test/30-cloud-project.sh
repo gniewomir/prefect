@@ -13,7 +13,7 @@ PROJECT_JSON="$(echo "${STATE_JSON}" | jq -c '
   | .values
 ')"
 [[ -n "${PROJECT_JSON}" && "${PROJECT_JSON}" != "null" ]] || fail "Cloud Project digitalocean_project.prefect not in State"
-echo "${PROJECT_JSON}" | jq -e '.name == "Prefect"' >/dev/null || fail "Cloud Project name != Prefect"
+echo "${PROJECT_JSON}" | jq -e '.name == "prefect-test"' >/dev/null || fail "Cloud Project name != prefect-test"
 echo "${PROJECT_JSON}" | jq -e '.environment == "Production"' >/dev/null || fail "Cloud Project environment != Production"
 echo "${PROJECT_JSON}" | jq -e '.is_default == false' >/dev/null || fail "Cloud Project must not be account default"
 

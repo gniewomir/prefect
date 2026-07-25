@@ -1,5 +1,5 @@
 resource "digitalocean_firewall" "public_web" {
-  name = "prefect-public-web"
+  name = local.names.firewall
   tags = [digitalocean_tag.public_web.name]
 
   inbound_rule {

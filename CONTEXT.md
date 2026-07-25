@@ -61,11 +61,11 @@ A provider-enforced network filter attached to Hosts. Inbound default deny (only
 _Avoid_: Security group, ufw, iptables, cloud firewall (product name when you mean this concept)
 
 **Prefect Tag**:
-A provider tag that marks taggable resources as belonging to Prefect (name: `prefect`). Applied to every Prefect Host. Not all Stack resources are taggable (Firewall, Reserved IP, and SSH keys are not).
+A provider tag that marks taggable resources as belonging to Prefect (name derived per Environment, e.g. test: `prefect-test`). Applied to every Prefect Host. Not all Stack resources are taggable (Firewall, Reserved IP, and SSH keys are not).
 _Avoid_: Office Tag, Shared tag, prefect tag (when you mean this concept); Role Tag
 
 **Role Tag**:
-A provider tag that selects Hosts for a policy such as a Firewall (public web: `prefect-public-web`). Orthogonal to the Prefect Tag; a Host may carry both.
+A provider tag that selects Hosts for a policy such as a Firewall (public web for test: `prefect-test-public-web`). Orthogonal to the Prefect Tag; a Host may carry both.
 _Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is not itself tagged)
 
 **Acceptance Test**:

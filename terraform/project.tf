@@ -8,7 +8,7 @@
 # Host without pulling Cloud Project (and Durables) into the destroy graph. Apply
 # recreates the Host assignment. Cloud Project itself is not a Durable.
 resource "digitalocean_project" "prefect" {
-  name        = "Prefect"
+  name        = local.names.project
   description = "Prefect-managed projects infrastructure"
   purpose     = "Shared projects infrastructure"
   environment = "Production"
