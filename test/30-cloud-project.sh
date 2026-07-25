@@ -16,9 +16,19 @@ PROJECT_JSON="$(echo "${STATE_JSON}" | jq -c '
 echo "${PROJECT_JSON}" | jq -e '.name == "Prefect"' >/dev/null || fail "Cloud Project name != Prefect"
 echo "${PROJECT_JSON}" | jq -e '.environment == "Production"' >/dev/null || fail "Cloud Project environment != Production"
 echo "${PROJECT_JSON}" | jq -e '.is_default == false' >/dev/null || fail "Cloud Project must not be account default"
+
+# Host membership is a separate project_resources so Park can destroy the Host without
+# pulling Cloud Project (and Durables) into the destroy graph (ADR-0016 / park design).
+HOST_ASSIGN_JSON="$(echo "${STATE_JSON}" | jq -c '
+  .values.root_module.resources[]
+  | select(.type == "digitalocean_project_resources" and .name == "web_host")
+  | .values
+')"
+[[ -n "${HOST_ASSIGN_JSON}" && "${HOST_ASSIGN_JSON}" != "null" ]] \
+  || fail "Host Cloud Project assignment digitalocean_project_resources.web_host not in State"
 HOST_URN="$(echo "${HOST_JSON}" | jq -r '.urn')"
-echo "${PROJECT_JSON}" | jq -e --arg urn "${HOST_URN}" '.resources | index($urn) != null' >/dev/null \
-  || fail "Host URN not assigned to Cloud Project Prefect"
+echo "${HOST_ASSIGN_JSON}" | jq -e --arg urn "${HOST_URN}" '.resources | index($urn) != null' >/dev/null \
+  || fail "Host URN not assigned to Cloud Project Prefect via web_host"
 
 VOLUME_URN="$(echo "${STATE_JSON}" | jq -r '
   .values.root_module.resources[]

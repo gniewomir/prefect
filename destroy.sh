@@ -9,8 +9,7 @@ FAIL: destroy.sh no longer full-wipes the Stack.
   Park (everyday; keep Reserved IP + Host Volume):  ./park.sh
   Teardown (explicit full wipe including Durables): ./teardown.sh
 
-Until teardown.sh lands, see docs/runbooks/durable-stack-migration.md for the
-Durable unlock sequence (override file + allow_durable_destroy). Do not use a
-bare terraform destroy against Durables.
+Do not use a bare terraform destroy against Durables — without the unlock
+(teardown.sh writes the override and passes allow_durable_destroy) it fails closed.
 EOF
 exit 1

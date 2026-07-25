@@ -17,6 +17,10 @@ Terraform requires `lifecycle.prevent_destroy` to be a **literal** (it cannot re
 
 A `terraform_data` precondition requires the variable and the override file to agree, so a bare `-var=allow_durable_destroy=true` without the override fails closed, and a leftover override with the default var also fails closed.
 
+`./teardown.sh` owns this sequence: it copies `durable_destroy_override.tf.example` to `durable_destroy_override.tf`, runs destroy with `-var=allow_durable_destroy=true`, and removes the override on exit (success or failure). Do not leave `durable_destroy_override.tf` in the tree after Teardown.
+
+Manual equivalent (prefer `./teardown.sh`):
+
 ```bash
 cd terraform
 cp durable_destroy_override.tf.example durable_destroy_override.tf
@@ -24,7 +28,6 @@ terraform destroy -var=allow_durable_destroy=true
 rm -f durable_destroy_override.tf
 ```
 
-`teardown.sh` (#26) will own this sequence. Do not leave `durable_destroy_override.tf` in the tree after Teardown.
 
 ## One-time State migration (Reserved IP split)
 
