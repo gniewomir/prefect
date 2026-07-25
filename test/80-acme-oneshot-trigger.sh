@@ -28,8 +28,16 @@ sleep 2
 
 "${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
 
-after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
-  "cat /var/lib/prefect/components_data/edge/acme/last-run 2>/dev/null || echo missing")"
+# Setup starts ACME --no-block (non-blocking on issuance); poll for the oneshot stamp.
+after="missing"
+for _ in $(seq 1 30); do
+  after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+    "cat /var/lib/prefect/components_data/edge/acme/last-run 2>/dev/null || echo missing")"
+  if [[ "${after}" != "missing" && "${after}" != "${before}" ]]; then
+    break
+  fi
+  sleep 1
+done
 [[ "${after}" != "missing" ]] || fail "ACME oneshot did not write last-run stamp"
 [[ "${after}" != "${before}" ]] || fail "ACME oneshot was not triggered (last-run unchanged: ${after})"
 pass "Workload Setup starts Edge ACME oneshot when Public Hostnames are claimed"

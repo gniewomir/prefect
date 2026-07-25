@@ -129,7 +129,7 @@ The private container network on a Host that the Edge and Workloads join so they
 _Avoid_: Podman network, bridge, CNI (implementation); network (bare — ambiguous with Firewall / provider networking)
 
 **Route**:
-What the Edge loads for a Workload’s Public Hostnames. Produced by Workload Setup from the Workload Manifest: generated Edge shell (listen / Public Hostnames / TLS wiring) plus either a generated proxy body or an optional Workload-provided **interior** (proxy body only — must not declare Public Hostnames). For Intent **run**, the HTTPS shell proxies to the Workload once a certificate exists; for Intent **stop**, the HTTPS shell returns 503 while a certificate lasts. The Edge’s own include shell and empty-routes stub remain Component-owned; Workload Routes must not be cleared by Component Setup.
+What the Edge loads for a Workload’s Public Hostnames. Projected from the stored Workload Manifest (Workload Intent, Public Hostnames, TLS wiring, optional **interior**) by Workload Setup and again by Edge ACME after successful issue/renew so HTTPS can go live without a second Setup: generated Edge shell plus either a generated proxy body or an optional Workload-provided interior (proxy body only — must not declare Public Hostnames). For Intent **run**, the HTTPS shell proxies to the Workload once a certificate exists; for Intent **stop**, the HTTPS shell returns 503 while a certificate lasts. The Edge’s own include shell and empty-routes stub remain Component-owned; Workload Routes must not be cleared by Component Setup.
 _Avoid_: Vhost, upstream, location block, snippet, server block (implementation)
 
 **Prefect User**:

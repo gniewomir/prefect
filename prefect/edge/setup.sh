@@ -48,6 +48,36 @@ chown -R "${USER_NAME}:${USER_NAME}" \
   exit 1
 }
 
+# Install lego under Edge ACME data (survives Component tree refresh).
+LEGO_VERSION="v5.3.1"
+LEGO_DIR="${ACME_DIR}/bin"
+LEGO_BIN="${LEGO_DIR}/lego"
+if [[ ! -x "${LEGO_BIN}" ]] || ! "${LEGO_BIN}" --version 2>/dev/null | grep -Fq "${LEGO_VERSION#v}"; then
+  arch="$(uname -m)"
+  case "${arch}" in
+    x86_64 | amd64) lego_arch="amd64" ;;
+    aarch64 | arm64) lego_arch="arm64" ;;
+    *)
+      echo "Edge ACME: unsupported architecture for lego: ${arch}" >&2
+      exit 1
+      ;;
+  esac
+  tmp="$(mktemp -d)"
+  url="https://github.com/go-acme/lego/releases/download/${LEGO_VERSION}/lego_${LEGO_VERSION}_linux_${lego_arch}.tar.gz"
+  echo "Edge ACME: installing lego ${LEGO_VERSION} (${lego_arch})" >&2
+  curl -fsSL "${url}" -o "${tmp}/lego.tgz"
+  tar -xzf "${tmp}/lego.tgz" -C "${tmp}" lego
+  mkdir -p "${LEGO_DIR}"
+  install -m 0755 "${tmp}/lego" "${LEGO_BIN}"
+  rm -rf "${tmp}"
+fi
+[[ -x "${LEGO_BIN}" ]] || {
+  echo "Edge ACME: lego not installed at ${LEGO_BIN}" >&2
+  exit 1
+}
+
+chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}"
+
 quadlet_user_session_reload
 quadlet_user systemctl --user reset-failed edge-pod.service edge-nginx.service edge-acme.service 2>/dev/null || true
 # Quadlet: edge.pod → edge-pod.service (pulls Service Network + edge-nginx).
@@ -57,7 +87,8 @@ quadlet_user systemctl --user --quiet is-active edge-pod.service
 # On-demand ACME capability: timer armed even with an empty want-list (ADR-0015).
 quadlet_user systemctl --user enable --now edge-acme.timer
 quadlet_user systemctl --user --quiet is-active edge-acme.timer
-quadlet_user systemctl --user start edge-acme.service
+# Do not block Component Setup on CA contact when the want-list is non-empty.
+quadlet_user systemctl --user --no-block start edge-acme.service
 
 # Wait until Host :80 returns an HTTP status (image pull + nginx start).
 for _ in $(seq 1 60); do
