@@ -42,24 +42,24 @@ if [[ "${body}" != "${TOKEN}" ]]; then
 fi
 pass "Edge serves ACME HTTP-01 webroot on :80"
 
-# Want-list file exists; empty only when no running Workload Manifests remain on the Host.
+# Want-list file exists; empty only when no Workload Manifests with Intent run remain on the Host.
 want_state="$(ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
 set -euo pipefail
 if [[ ! -f "${WANT_LIST}" ]]; then
   echo missing
   exit 0
 fi
-running=0
+run_claimants=0
 if [[ -d /var/lib/prefect/components_data/workloads ]]; then
   for m in /var/lib/prefect/components_data/workloads/*/manifest.json; do
     [[ -f "\$m" ]] || continue
-    if python3 -c 'import json,sys; raise SystemExit(0 if json.load(open(sys.argv[1])).get("state")=="running" else 1)' "\$m" 2>/dev/null; then
-      running=\$((running+1))
+    if python3 -c 'import json,sys; raise SystemExit(0 if json.load(open(sys.argv[1])).get("intent")=="run" else 1)' "\$m" 2>/dev/null; then
+      run_claimants=\$((run_claimants+1))
     fi
   done
 fi
 if grep -q '[^[:space:]]' "${WANT_LIST}"; then
-  if [[ "\$running" -gt 0 ]]; then
+  if [[ "\$run_claimants" -gt 0 ]]; then
     echo projected
   else
     echo nonempty

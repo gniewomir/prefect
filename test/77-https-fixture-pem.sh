@@ -15,7 +15,7 @@ trap 'rm -rf "${FIX_DIR}"' EXIT
 cat >"${FIX_DIR}/manifest.json" <<EOF
 {
   "name": "tlsprobe",
-  "state": "running",
+  "intent": "run",
   "public_hostnames": ["${HOST}"],
   "upstream": "tlsprobe:8080"
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: running proxies over HTTPS; stopped returns 503 (fixture PEM)
+# Acceptance Test: Intent run proxies over HTTPS; Intent stop returns 503 (fixture PEM)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -14,11 +14,11 @@ FIX_DIR="$(mktemp -d)"
 trap 'rm -rf "${FIX_DIR}"' EXIT
 
 write_manifest() {
-  local state="$1"
+  local intent="$1"
   cat >"${FIX_DIR}/manifest.json" <<EOF
 {
   "name": "${WL}",
-  "state": "${state}",
+  "intent": "${intent}",
   "public_hostnames": ["${HOST}"],
   "upstream": "${WL}:80"
 }
@@ -26,7 +26,7 @@ EOF
 }
 
 ssh "${SSH_OPTS[@]}" "root@${IP}" "rm -rf /var/lib/prefect/components_data/edge/certs/${HOST}"
-write_manifest running
+write_manifest run
 "${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
 
 # Fixture PEM then re-apply so HTTPS shell + proxy are live
@@ -53,16 +53,16 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 echo "${body}" | grep -qi 'nginx\|welcome\|html' \
-  || fail "running+cert: expected proxied Workload body over HTTPS, got '${body:0:200}'"
-pass "running + cert: Edge proxies to Workload over HTTPS"
+  || fail "Intent run+cert: expected proxied Workload body over HTTPS, got '${body:0:200}'"
+pass "Intent run + cert: Edge proxies to Workload over HTTPS"
 
-# Stopped: claim retained, Quadlet down, HTTPS 503, not in want-list
-write_manifest stopped
+# Intent stop: claim retained, Quadlet down, HTTPS 503, not in want-list
+write_manifest stop
 "${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
 
 claim="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/claims/${HOST}")"
-[[ "${claim}" == "${WL}" ]] || fail "stopped should retain claim (got '${claim}')"
-pass "stopped retains Public Hostname claim"
+[[ "${claim}" == "${WL}" ]] || fail "Intent stop should retain claim (got '${claim}')"
+pass "Intent stop retains Public Hostname claim"
 
 active="$(ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
 UID_NUM=\$(id -u prefect)
@@ -75,16 +75,16 @@ else
 fi
 REMOTE
 )"
-[[ "${active}" == "inactive" ]] || fail "stopped: Workload Quadlet should not be active"
-pass "stopped: Workload Quadlets are not running"
+[[ "${active}" == "inactive" ]] || fail "Intent stop: Workload Quadlet should not be active"
+pass "Intent stop: Workload Quadlets are inactive"
 
 code="$(curl -skS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 15 \
   --resolve "${HOST}:443:${IP}" "https://${HOST}/")"
-[[ "${code}" == "503" ]] || fail "stopped+cert: expected HTTPS 503, got '${code}'"
-pass "stopped + usable cert: HTTPS returns 503"
+[[ "${code}" == "503" ]] || fail "Intent stop+cert: expected HTTPS 503, got '${code}'"
+pass "Intent stop + usable cert: HTTPS returns 503"
 
 want="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/acme/want-list")"
 if echo "${want}" | grep -qx "${HOST}"; then
-  fail "stopped must not renew certificates (hostname still in ACME want-list)"
+  fail "Intent stop must not renew certificates (hostname still in ACME want-list)"
 fi
-pass "stopped does not renew certificates (absent from ACME want-list)"
+pass "Intent stop does not renew certificates (absent from ACME want-list)"

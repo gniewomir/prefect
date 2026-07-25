@@ -15,7 +15,7 @@ trap 'rm -rf "${FIX_DIR}"' EXIT
 cat >"${FIX_DIR}/manifest.json" <<EOF
 {
   "name": "acme-trigger",
-  "state": "running",
+  "intent": "run",
   "public_hostnames": ["${HOST}"],
   "upstream": "acme-trigger:80"
 }

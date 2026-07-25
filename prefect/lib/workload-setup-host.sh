@@ -34,13 +34,15 @@ eval "$(python3 - "${MANIFEST}" <<'PY'
 import json, shlex, sys
 m = json.load(open(sys.argv[1]))
 name = m.get("name")
-state = m.get("state")
+intent = m.get("intent")
 upstream = m.get("upstream")
 hosts = m.get("public_hostnames") or []
+if "state" in m:
+    raise SystemExit("manifest.state is retired; use manifest.intent (run|stop|trash)")
 if not name or not isinstance(name, str):
     raise SystemExit("manifest.name must be a non-empty string")
-if state not in ("running", "stopped", "trashed"):
-    raise SystemExit("manifest.state must be running|stopped|trashed")
+if intent not in ("run", "stop", "trash"):
+    raise SystemExit("manifest.intent must be run|stop|trash")
 if not upstream or not isinstance(upstream, str):
     raise SystemExit("manifest.upstream must be a non-empty string (host:port)")
 if not isinstance(hosts, list) or not hosts or not all(isinstance(h, str) and h for h in hosts):
@@ -48,7 +50,7 @@ if not isinstance(hosts, list) or not hosts or not all(isinstance(h, str) and h 
 if any(c in name for c in "/ \t\n"):
     raise SystemExit("manifest.name must be a single path segment")
 print(f"WL_NAME={shlex.quote(name)}")
-print(f"WL_STATE={shlex.quote(state)}")
+print(f"WL_INTENT={shlex.quote(intent)}")
 print(f"WL_UPSTREAM={shlex.quote(upstream)}")
 print(f"WL_HOSTS={shlex.quote(' '.join(hosts))}")
 PY
@@ -65,8 +67,8 @@ if [[ -f "${INTERIOR_SRC}" ]]; then
   fi
 fi
 
-# Uniqueness among running/stopped claimants (trashed releases names).
-if [[ "${WL_STATE}" == "trashed" ]]; then
+# Uniqueness among Intent run/stop claimants (Intent trash releases names).
+if [[ "${WL_INTENT}" == "trash" ]]; then
   :
 else
   for host in ${WL_HOSTS}; do
@@ -91,7 +93,7 @@ if [[ -d "${CLAIMS_DIR}" ]]; then
   done
 fi
 
-if [[ "${WL_STATE}" != "trashed" ]]; then
+if [[ "${WL_INTENT}" != "trash" ]]; then
   for host in ${WL_HOSTS}; do
     printf '%s\n' "${WL_NAME}" >"${CLAIMS_DIR}/${host}"
   done
@@ -108,7 +110,7 @@ ROUTE_FILE="${ROUTES_DIR}/${WL_NAME}.conf"
 CERTS_DIR="${EDGE_DATA}/certs"
 WL_UPSTREAM_HOST="${WL_UPSTREAM%%:*}"
 WL_INTERIOR="${WORKLOADS_ROOT}/${WL_NAME}/interior.conf"
-if [[ "${WL_STATE}" == "trashed" ]]; then
+if [[ "${WL_INTENT}" == "trash" ]]; then
   rm -f "${ROUTE_FILE}"
 else
   {
@@ -149,7 +151,7 @@ else
         echo "    ssl_certificate     /etc/nginx/certs/${host}/fullchain.pem;"
         echo "    ssl_certificate_key /etc/nginx/certs/${host}/privkey.pem;"
         echo
-        if [[ "${WL_STATE}" == "stopped" ]]; then
+        if [[ "${WL_INTENT}" == "stop" ]]; then
           echo "    location / {"
           echo "        return 503;"
           echo "    }"
@@ -169,7 +171,7 @@ else
   } >"${ROUTE_FILE}"
 fi
 
-# Rebuild ACME want-list from running claimants only (ADR-0014 / ADR-0015).
+# Rebuild ACME want-list from Intent run claimants only (ADR-0014 / ADR-0015).
 : >"${WANT_LIST}.tmp"
 if [[ -d "${WORKLOADS_ROOT}" ]]; then
   for wl_dir in "${WORKLOADS_ROOT}"/*; do
@@ -177,7 +179,7 @@ if [[ -d "${WORKLOADS_ROOT}" ]]; then
     python3 - "${wl_dir}/manifest.json" "${WANT_LIST}.tmp" <<'PY'
 import json, sys
 m = json.load(open(sys.argv[1]))
-if m.get("state") != "running":
+if m.get("intent") != "run":
     raise SystemExit(0)
 path = sys.argv[2]
 with open(path, "a") as f:
@@ -195,7 +197,7 @@ quadlet_user_session_begin
 
 # Minimal Workload Quadlet on the Service Network (name matches upstream host).
 WL_UNIT="${UNIT_DIR}/${WL_UPSTREAM_HOST}.container"
-if [[ "${WL_STATE}" == "running" ]]; then
+if [[ "${WL_INTENT}" == "run" ]]; then
   cat >"${WL_UNIT}" <<EOF
 [Unit]
 Description=Prefect Workload ${WL_NAME}
@@ -213,12 +215,12 @@ WantedBy=default.target
 EOF
   chown "${USER_NAME}:${USER_NAME}" "${WL_UNIT}"
 fi
-# stopped/trashed: stop service below; unit file retained until Purge (trashed data retained).
+# Intent stop/trash: stop service below; unit file retained until Purge (trash data retained).
 
 quadlet_user_session_reload
 quadlet_user systemctl --user reset-failed "${WL_UPSTREAM_HOST}.service" 2>/dev/null || true
 
-if [[ "${WL_STATE}" == "running" ]]; then
+if [[ "${WL_INTENT}" == "run" ]]; then
   quadlet_user systemctl --user restart "${WL_UPSTREAM_HOST}.service"
   # Wait until the Workload answers on the Service Network from the Edge Pod's perspective.
   for _ in $(seq 1 30); do
