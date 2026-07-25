@@ -1,4 +1,4 @@
-resource "digitalocean_tag" "office" {
+resource "digitalocean_tag" "prefect" {
   name = "prefect"
 }
 
@@ -37,7 +37,7 @@ resource "digitalocean_droplet" "web" {
 
   ssh_keys = [digitalocean_ssh_key.web.fingerprint]
   tags = [
-    digitalocean_tag.office.id,
+    digitalocean_tag.prefect.id,
     digitalocean_tag.public_web.id,
   ]
   volume_ids = [digitalocean_volume.web.id] # first apply may replace Host to attach at create

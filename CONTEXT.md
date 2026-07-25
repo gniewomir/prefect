@@ -1,19 +1,19 @@
 # Prefect
 
-Infrastructure-as-code for the Prefect platform office. This repository holds Terraform stacks that provision and manage the cloud resources other projects run on.
+Infrastructure-as-code for Prefect. This repository holds Terraform stacks that provision and manage the cloud resources other projects run on.
 
 ## Language
 
 **Prefect**:
-The standing office responsible for the platform domain (Hosts, networks, environments) so other projects can exist there — without deciding what those projects are. From Latin *praefectus*: an appointed authority placed over a defined sphere under delegated power, not ownership of the work’s purpose.
-_Avoid_: Infra, platform repo, DevOps project (when you mean this office)
+The name of this project: infrastructure-as-code for the platform other projects run on (Hosts, networks, environments) — without deciding what those projects are. From Latin *praefectus*: an appointed authority placed over a defined sphere under delegated power, not ownership of the work’s purpose.
+_Avoid_: Infra, platform repo, DevOps project (when you mean this project)
 
 **Stack**:
 A Terraform root module that owns a cohesive slice of infrastructure for one provider or concern. Today the only stack is DigitalOcean (past Bootstrap: it manages Hosts and related network resources).
 _Avoid_: Project, environment, workspace (those mean different things — for the provider folder, see Cloud Project)
 
 **Cloud Project**:
-A provider-side folder that groups billable resources for UI and billing. Distinct from Prefect (the office) and from Stack (Terraform). The Stack creates the DigitalOcean Cloud Project named `Prefect` (purpose: shared projects infrastructure; environment: Production; not the account default) and assigns every assignable resource to it (today: the Host and its Host Volume; a Reserved IP assigned to that Host follows automatically). Resources that cannot be assigned (Firewall, tags, SSH keys) stay Stack-managed only.
+A provider-side folder that groups billable resources for UI and billing. Distinct from Prefect and from Stack (Terraform). The Stack creates the DigitalOcean Cloud Project named `Prefect` (purpose: shared projects infrastructure; environment: Production; not the account default) and assigns every assignable resource to it (today: the Host and its Host Volume; a Reserved IP assigned to that Host follows automatically). Resources that cannot be assigned (Firewall, tags, SSH keys) stay Stack-managed only.
 _Avoid_: Project (bare), DO project (when speaking in domain language)
 
 **Bootstrap**:
@@ -56,12 +56,12 @@ _Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when 
 A provider-enforced network filter attached to Hosts. Inbound default deny (only SSH, HTTP, HTTPS, and ICMP allowed); outbound unrestricted. The Stack does not manage a host-level firewall. Attachment is by Role Tag, not by Host ID alone.
 _Avoid_: Security group, ufw, iptables, cloud firewall (product name when you mean this concept)
 
-**Office Tag**:
+**Prefect Tag**:
 A provider tag that marks taggable resources as belonging to Prefect (name: `prefect`). Applied to every Prefect Host. Not all Stack resources are taggable (Firewall, Reserved IP, and SSH keys are not).
-_Avoid_: Shared tag, prefect tag (when you mean this concept)
+_Avoid_: Office Tag, Shared tag, prefect tag (when you mean this concept); Role Tag
 
 **Role Tag**:
-A provider tag that selects Hosts for a policy such as a Firewall (public web: `prefect-public-web`). Orthogonal to the Office Tag; a Host may carry both.
+A provider tag that selects Hosts for a policy such as a Firewall (public web: `prefect-public-web`). Orthogonal to the Prefect Tag; a Host may carry both.
 _Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is not itself tagged)
 
 **Acceptance Test**:
