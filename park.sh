@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Park the Stack — destroy non-durables; keep Durables (Reserved IP + Host Volume)
-# in State for a later Apply (ADR-0016). Config stays Applied; the next ordinary
-# terraform apply recreates the Host. Guards protect Durables, not operator Apply.
+# Park the Stack — destroy everything in State except the preserve whitelist.
+# Durables (Reserved IP + Host Volume) carry prevent_destroy; that is the Durable
+# backstop. Config stays Applied; the next ordinary terraform apply recreates
+# non-durables. Guards protect Durables, not operator Apply (ADR-0016).
 # Requires: terraform; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
 # Usage: ./park.sh
 # Confirm with exact: park
@@ -10,18 +11,26 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
 
-# Non-durables only. Never target Durables or Cloud Project Prefect.
-PARK_TARGETS=(
-  digitalocean_reserved_ip_assignment.web
-  digitalocean_project_resources.web_host
-  digitalocean_firewall.public_web
-  digitalocean_droplet.web
-  digitalocean_ssh_key.web
-  digitalocean_tag.office
-  digitalocean_tag.public_web
+# Keep these; destroy every other address currently in State.
+# Durables must also have lifecycle.prevent_destroy — that is the source of truth
+# if this list drifts. Cloud Project stays so Durables do not leave Prefect.
+PRESERVE=(
+  digitalocean_reserved_ip.web
+  digitalocean_volume.web
+  digitalocean_project.prefect
+  terraform_data.durable_destroy_unlock_gate
 )
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+is_preserved() {
+  local addr="$1"
+  local p
+  for p in "${PRESERVE[@]}"; do
+    [[ "${addr}" == "${p}" ]] && return 0
+  done
+  return 1
+}
 
 command -v terraform >/dev/null || fail "terraform not found"
 
@@ -32,15 +41,34 @@ cd "${STACK_DIR}"
 rm -f parked.auto.tfvars # leftover from sticky-parked experiment; no longer used
 
 target_args=()
-for addr in "${PARK_TARGETS[@]}"; do
+while IFS= read -r addr; do
+  [[ -z "${addr}" ]] && continue
+  if is_preserved "${addr}"; then
+    continue
+  fi
   target_args+=(-target="${addr}")
-done
+done < <(terraform state list)
+
+if [[ ${#target_args[@]} -eq 0 ]]; then
+  echo
+  echo "Already Parked (State has only preserved addresses). Durables still bill if present."
+  exit 0
+fi
 
 echo "WARNING: Park keeps Durables (Reserved IP and Host Volume)."
 echo "         They remain in the provider and continue to bill while Parked."
 echo "         Teardown (./teardown.sh) is the full wipe when you intend to stop billing."
 echo
-echo "Park plan (destroy non-durables only; Durables + Cloud Project kept):"
+echo "Park plan (destroy State except preserve whitelist; Durables use prevent_destroy):"
+echo
+echo "Preserved:"
+printf '  %s\n' "${PRESERVE[@]}"
+echo
+echo "Destroy targets:"
+for ((i = 0; i < ${#target_args[@]}; i += 1)); do
+  # target_args entries are -target=ADDR
+  printf '  %s\n' "${target_args[$i]#-target=}"
+done
 echo
 
 set +e
@@ -51,7 +79,7 @@ set -e
 case "${plan_rc}" in
   0)
     echo
-    echo "Already Parked (no targeted non-durables in State). Durables still bill if present."
+    echo "Already Parked (destroy plan empty). Durables still bill if present."
     exit 0
     ;;
   1)

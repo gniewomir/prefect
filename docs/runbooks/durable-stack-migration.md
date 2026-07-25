@@ -4,7 +4,7 @@ ADR-0016 / issue #24. Reserved IP is a Durable address plus a separate Host assi
 
 ## Park
 
-`./park.sh` destroys non-durables only (Host, Reserved IP assignment, Host Cloud Project membership, Firewall, tags, SSH key) via `terraform destroy -target`. Durables and Cloud Project `Prefect` stay in State; Durables continue to bill. Config is unchanged — the next ordinary `terraform apply` recreates the Host (Apply-after-Park). Already Parked / empty non-durable set: exits 0 after a no-op destroy plan.
+`./park.sh` destroys every address in State **except** a preserve whitelist (Durables + Cloud Project `Prefect` + the Durable unlock gate). New non-durables are Parked automatically without updating the script. Durables also carry `lifecycle.prevent_destroy` — that is the Durable source of truth if the whitelist drifts. Config is unchanged; the next ordinary `terraform apply` recreates non-durables. Already Parked: exits 0 when State is only preserved addresses.
 
 `destroy.sh` no longer full-wipes; it points at Park vs Teardown.
 
