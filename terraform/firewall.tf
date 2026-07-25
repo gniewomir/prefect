@@ -1,6 +1,7 @@
 resource "digitalocean_firewall" "public_web" {
-  name = "prefect-public-web"
-  tags = [digitalocean_tag.public_web.name]
+  count = local.non_durable_count
+  name  = "prefect-public-web"
+  tags  = [digitalocean_tag.public_web[0].name]
 
   inbound_rule {
     protocol         = "tcp"

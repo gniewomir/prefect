@@ -3,6 +3,16 @@ variable "DIGITALOCEAN_PUBLIC_KEY" {
   description = "SSH public key for Host access. Set via TF_VAR_DIGITALOCEAN_PUBLIC_KEY."
 }
 
+variable "parked" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    When true, Stack is Parked: non-durables (Host, assignment, Firewall, tags, SSH key)
+    are absent; Durables (Reserved IP, Host Volume) and Cloud Project Prefect remain.
+    park.sh writes parked.auto.tfvars; remove that file and Apply to restore the Host.
+  EOT
+}
+
 variable "allow_durable_destroy" {
   type        = bool
   default     = false

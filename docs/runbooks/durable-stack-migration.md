@@ -2,6 +2,21 @@
 
 ADR-0016 / issue #24. Reserved IP is a Durable address plus a separate Host assignment; Host Volume and the address refuse destroy unless Teardown unlocks them.
 
+## Park
+
+`./park.sh` sets `parked = true` (writes gitignored `terraform/parked.auto.tfvars`), removes non-durables (Host, Reserved IP assignment, Firewall, tags, SSH key), and keeps Durables plus Cloud Project `Prefect` (Reserved IP + Host Volume stay listed so they do not drift to the account default; the Host URN is dropped while Parked). Durables continue to bill while Parked.
+
+Already Parked / empty non-durable set: the script exits 0 after a no-op plan.
+
+To Apply after Park:
+
+```bash
+rm -f terraform/parked.auto.tfvars
+cd terraform && terraform apply
+```
+
+`destroy.sh` no longer full-wipes; it points at Park vs Teardown.
+
 ## Durable destroy unlock
 
 Terraform requires `lifecycle.prevent_destroy` to be a **literal** (it cannot read `var.allow_durable_destroy`). The Stack therefore uses both:
