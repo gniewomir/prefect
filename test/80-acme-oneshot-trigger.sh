@@ -26,7 +26,7 @@ before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
 # Ensure a detectable gap if a prior run left the same second.
 sleep 2
 
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
 # Setup starts ACME --no-block (non-blocking on issuance); poll for the oneshot stamp.
 after="missing"

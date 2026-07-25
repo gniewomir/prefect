@@ -61,7 +61,7 @@ location / {
 }
 EOF
 
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/alpha.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/alpha.json"
 
 route="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/routes/alpha.conf")"
 echo "${route}" | grep -q 'server_name alpha.example.test' \
@@ -76,7 +76,7 @@ echo "${want}" | grep -qx 'alpha.example.test' \
 pass "Workload Setup projects Route shell, claim, and ACME want-list"
 
 set +e
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/beta.json" >/tmp/beta-setup.out 2>&1
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/beta.json" >/tmp/beta-setup.out 2>&1
 beta_rc=$?
 set -e
 if [[ ${beta_rc} -eq 0 ]]; then
@@ -86,7 +86,7 @@ grep -qi 'already claimed\|conflict\|unique' /tmp/beta-setup.out \
   || fail "uniqueness failure did not mention claim conflict (output: $(cat /tmp/beta-setup.out))"
 pass "Workload Setup fails when Public Hostname is already claimed"
 
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/gamma/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/gamma/manifest.json"
 gamma_route="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/routes/gamma.conf")"
 echo "${gamma_route}" | grep -q 'server_name gamma.example.test' \
   || fail "gamma Route shell missing Public Hostname"
@@ -100,7 +100,7 @@ echo "${interior_stored}" | grep -q 'proxy_pass http://gamma:8080' \
 pass "Workload Setup accepts optional Route interior (proxy body only; stored, not cleartext)"
 
 set +e
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/gamma-bad/manifest.json" >/tmp/gamma-bad.out 2>&1
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/gamma-bad/manifest.json" >/tmp/gamma-bad.out 2>&1
 bad_rc=$?
 set -e
 if [[ ${bad_rc} -eq 0 ]]; then

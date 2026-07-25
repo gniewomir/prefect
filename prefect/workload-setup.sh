@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Workload Setup — apply one Workload Manifest on the Host (after Components are ensured).
 # Idempotent for the same Manifest. Does not wait for ACME issuance.
-# Usage: ./prefect/workload-setup.sh /path/to/manifest.json
+# Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
+# Usage: ./prefect/workload-setup.sh [--env <slug>] /path/to/manifest.json
 # Optional: VERIFY_SSH_IDENTITY=/path/to/private_key  PREFECT_USER=prefect
 set -euo pipefail
 
@@ -9,9 +10,14 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
 USER_NAME="${PREFECT_USER:-prefect}"
 HOST_SCRIPT="${REPO_ROOT}/prefect/lib/workload-setup-host.sh"
+# shellcheck source=../lib/environment.sh
+source "${REPO_ROOT}/lib/environment.sh"
+
+environment_activate "${STACK_DIR}" "$@" || exit 1
+set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
 
 [[ $# -eq 1 ]] || {
-  echo "Usage: $0 /path/to/manifest.json" >&2
+  echo "Usage: $0 [--env <slug>] /path/to/manifest.json" >&2
   exit 1
 }
 MANIFEST_PATH="$1"

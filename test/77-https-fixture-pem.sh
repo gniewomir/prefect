@@ -21,11 +21,11 @@ cat >"${FIX_DIR}/manifest.json" <<EOF
 }
 EOF
 
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
 # Ensure no leftover fixture PEM from a prior run (Host Volume is durable).
 ssh "${SSH_OPTS[@]}" "root@${IP}" "rm -rf /var/lib/prefect/components_data/edge/certs/${HOST}"
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
 # Without a certificate, this Workload's Route must not enable an HTTPS server shell.
 route_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/routes/tlsprobe.conf")"
@@ -47,7 +47,7 @@ chown -R prefect:prefect /var/lib/prefect/components_data/edge/certs
 REMOTE
 
 # Re-apply Workload Setup so Routes pick up the cert (Setup does not wait on ACME).
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
 tls_code="$(curl -skS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 15 \
   --resolve "${HOST}:443:${IP}" "https://${HOST}/")"

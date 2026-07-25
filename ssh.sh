@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
 # Open an interactive SSH session to the Host (root @ Reserved IP).
+# Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Requires: terraform, ssh; applied State.
 # Optional: SSH_IDENTITY=/path/to/private_key (defaults to ssh agent / default identities).
-# Extra args are forwarded to ssh (e.g. ./ssh.sh uptime).
+# Extra args after --env are forwarded to ssh (e.g. ./ssh.sh uptime).
+# Usage: ./ssh.sh [--env <slug>] [ssh args...]
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
-cd "${STACK_DIR}"
+# shellcheck source=lib/environment.sh
+source "${REPO_ROOT}/lib/environment.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+environment_activate "${STACK_DIR}" "$@" || exit 1
+set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
+
+cd "${STACK_DIR}"
 
 command -v terraform >/dev/null || fail "terraform not found"
 command -v ssh >/dev/null || fail "ssh not found"

@@ -7,7 +7,7 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 require_ip
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
-"${REPO_ROOT}/prefect/ensure-components.sh"
+"${REPO_ROOT}/prefect/ensure-components.sh" --env "${PREFECT_ENV:-test}"
 
 expected=404
 if ! actual="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 15 "http://${IP}/")"; then

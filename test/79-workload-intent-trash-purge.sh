@@ -38,12 +38,12 @@ write_manifest "${FIX_DIR}/purge-trash.json" "purge-me" "trash" "${HOST_B}"
 
 # Prior runs leave durable Host Volume state — reset these fixtures first.
 for m in a-trash b-trash keep-trash purge-trash; do
-  "${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/${m}.json" 2>/dev/null || true
+  "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${m}.json" 2>/dev/null || true
 done
-"${REPO_ROOT}/prefect/purge-workloads.sh"
+"${REPO_ROOT}/prefect/purge-workloads.sh" --env "${PREFECT_ENV:-test}"
 
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/a-run.json"
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/a-trash.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/a-run.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/a-trash.json"
 
 # Claims released; data retained; want-list without HOST_A
 if ssh "${SSH_OPTS[@]}" "root@${IP}" "test -e /var/lib/prefect/components_data/edge/claims/${HOST_A}"; then
@@ -56,17 +56,17 @@ echo "${want}" | grep -qx "${HOST_A}" && fail "Intent trash name must not stay i
 pass "Intent trash releases claims and ACME wants; data retained"
 
 # Reclaim by another Workload
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/b-run.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/b-run.json"
 claim="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/claims/${HOST_A}")"
 [[ "${claim}" == "reclaim-b" ]] || fail "reclaim expected reclaim-b, got '${claim}'"
 pass "released Public Hostname can be claimed by another Workload Setup"
 
 # Keep Intent stop; trash another; Purge should only remove Intent trash
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/keep-stop.json"
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/purge-target.json"
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/purge-trash.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/keep-stop.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/purge-target.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/purge-trash.json"
 # Also trash-a is still Intent trash from earlier
-"${REPO_ROOT}/prefect/purge-workloads.sh"
+"${REPO_ROOT}/prefect/purge-workloads.sh" --env "${PREFECT_ENV:-test}"
 
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test ! -e /var/lib/prefect/components_data/workloads/purge-me" \
   || fail "Purge should remove Intent trash purge-me data"

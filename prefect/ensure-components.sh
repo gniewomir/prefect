@@ -2,7 +2,8 @@
 # Ensure Prefect Components on the Host (after Initial Host Provisioning).
 # Copies Component source onto the Host Volume, then runs each Component Setup
 # in order. Component Setups are idempotent — this entrypoint may be re-run freely.
-# Usage: ./prefect/ensure-components.sh
+# Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
+# Usage: ./prefect/ensure-components.sh [--env <slug>]
 # Optional: VERIFY_SSH_IDENTITY=/path/to/private_key  PREFECT_USER=prefect
 set -euo pipefail
 
@@ -11,6 +12,14 @@ STACK_DIR="${REPO_ROOT}/terraform"
 USER_NAME="${PREFECT_USER:-prefect}"
 # Hardcoded order: Service Network before Edge (ADR-0010).
 COMPONENTS=(network edge)
+# shellcheck source=../lib/environment.sh
+source "${REPO_ROOT}/lib/environment.sh"
+
+environment_activate "${STACK_DIR}" "$@" || exit 1
+for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
+  echo "unknown argument: ${arg} (only optional --env is accepted)" >&2
+  exit 1
+done
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }

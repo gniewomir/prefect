@@ -30,7 +30,7 @@ ssh "${SSH_OPTS[@]}" "root@${IP}" \
           /var/lib/prefect/components_data/edge/routes/${WL}.conf \
           /var/lib/prefect/components_data/workloads/${WL}"
 
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
 route_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "cat /var/lib/prefect/components_data/edge/routes/${WL}.conf")"

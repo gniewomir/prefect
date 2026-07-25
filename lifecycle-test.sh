@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Lifecycle Test runner — Park / Apply-after-Park / Teardown (destructive; opt-in).
 # Not Acceptance Tests (./test.sh). See lifecycle-test/README.md.
-# Usage: ./lifecycle-test.sh [selector]   e.g. ./lifecycle-test.sh park-apply
+# Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
+# Usage: ./lifecycle-test.sh [--env <slug>] [selector]   e.g. ./lifecycle-test.sh park-apply
 # Optional: VERIFY_SSH_IDENTITY=/path/to/private_key
 # Requires: terraform; curl; jq; ssh; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
 set -euo pipefail
@@ -9,8 +10,13 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 CASE_DIR="${REPO_ROOT}/lifecycle-test"
 STACK_DIR="${REPO_ROOT}/terraform"
+# shellcheck source=lib/environment.sh
+source "${REPO_ROOT}/lib/environment.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+environment_activate "${STACK_DIR}" "$@" || exit 1
+set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
 
 command -v terraform >/dev/null || fail "terraform not found"
 command -v curl >/dev/null || fail "curl not found"
@@ -21,7 +27,7 @@ command -v ssh >/dev/null || fail "ssh not found"
 [[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY is not set"
 [[ -d "${STACK_DIR}" ]] || fail "missing Stack dir ${STACK_DIR}"
 
-export REPO_ROOT STACK_DIR
+export REPO_ROOT STACK_DIR PREFECT_ENV
 export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"
 
 ALL_CASES=()
@@ -54,6 +60,7 @@ else
 fi
 
 echo "Lifecycle Tests (destructive; may leave Stack Parked or empty)."
+echo "Environment: ${PREFECT_ENV}"
 echo "Cases: ${#CASES[@]} — see ${CASE_DIR}/README.md"
 echo
 

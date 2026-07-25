@@ -36,13 +36,13 @@ rm -f /var/lib/prefect/components_data/edge/claims/${HOST} \
 REMOTE
 
 write_manifest run
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
 claim="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/claims/${HOST}")"
 [[ "${claim}" == "${WL}" ]] || fail "Intent run should claim ${HOST} (got '${claim}')"
 
 write_manifest trash
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
 if ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/edge/claims/${HOST}"; then
   fail "Intent trash should release Public Hostname claim for ${HOST}"
@@ -65,7 +65,7 @@ cat >"${FIX_DIR}/reclaim.json" <<EOF
   "upstream": "reclaim-intent:80"
 }
 EOF
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/reclaim.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/reclaim.json"
 claim="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/claims/${HOST}")"
 [[ "${claim}" == "reclaim-intent" ]] || fail "released name should be claimable (got '${claim}')"
 pass "released Public Hostname can be claimed by another Workload Setup"

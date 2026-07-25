@@ -27,7 +27,7 @@ EOF
 
 ssh "${SSH_OPTS[@]}" "root@${IP}" "rm -rf /var/lib/prefect/components_data/edge/certs/${HOST}"
 write_manifest run
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
 # Fixture PEM then re-apply so HTTPS shell + proxy are live
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
@@ -40,7 +40,7 @@ openssl req -x509 -newkey rsa:2048 -nodes \
   -days 2 -subj "/CN=${HOST}" >/dev/null 2>&1
 chown -R prefect:prefect /var/lib/prefect/components_data/edge/certs
 REMOTE
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
 # Wait for Workload + Edge
 body=""
@@ -58,7 +58,7 @@ pass "Intent run + cert: Edge proxies to Workload over HTTPS"
 
 # Intent stop: claim retained, Quadlet down, HTTPS 503, not in want-list
 write_manifest stop
-"${REPO_ROOT}/prefect/workload-setup.sh" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
 claim="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/claims/${HOST}")"
 [[ "${claim}" == "${WL}" ]] || fail "Intent stop should retain claim (got '${claim}')"

@@ -26,13 +26,13 @@ got="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat '${MARKER_PATH}'")"
 pass "marker written on Host Volume"
 
 echo "Parking Stack (confirming via stdin) ..."
-printf 'park\n' | "${REPO_ROOT}/park.sh"
+printf 'park\n' | "${REPO_ROOT}/park.sh" --env "${PREFECT_ENV}"
 
 assert_reserved_ip_present "${IP}"
 assert_volume_present
 
 echo "Applying Stack after Park ..."
-"${REPO_ROOT}/apply.sh" --yes
+"${REPO_ROOT}/apply.sh" --yes --env "${PREFECT_ENV}"
 
 AFTER_IP="$(stack_reserved_ip)"
 [[ "${AFTER_IP}" == "${IP}" ]] || fail "Reserved IP changed across Park→Apply: before=${IP} after=${AFTER_IP}"

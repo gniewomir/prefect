@@ -4,11 +4,13 @@
 
 # shellcheck source=../test/lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../test/lib.sh"
+# shellcheck source=../lib/environment.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/environment.sh"
 
 STACK_DIR="${REPO_ROOT}/terraform"
 
-# Provider-visible Durable identifiers (not State addresses).
-DURABLE_VOLUME_NAME="prefect-web-data"
+# Provider-visible Durable identifiers (not State addresses). Derived from PREFECT_ENV.
+DURABLE_VOLUME_NAME="$(environment_volume_name_for "${PREFECT_ENV:-test}")"
 DURABLE_VOLUME_REGION="fra1"
 
 require_do_token() {

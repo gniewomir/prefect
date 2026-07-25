@@ -35,6 +35,21 @@ assert_workspace "prod" "prod"
 assert_workspace "dev" "dev"
 assert_workspace "staging" "staging"
 
+assert_eq() {
+  local got="$1"
+  local want="$2"
+  local label="$3"
+  [[ "${got}" == "${want}" ]] || fail "${label}: want '${want}', got '${got}'"
+  pass "${label}"
+}
+
+assert_eq "$(environment_slug_for "")" "test" "slug: empty → test"
+assert_eq "$(environment_slug_for default)" "test" "slug: default → test"
+assert_eq "$(environment_slug_for test)" "test" "slug: test → test"
+assert_eq "$(environment_slug_for prod)" "prod" "slug: prod → prod"
+assert_eq "$(environment_volume_name_for "")" "prefect-test-web-data" "volume: empty → prefect-test-web-data"
+assert_eq "$(environment_volume_name_for prod)" "prefect-prod-web-data" "volume: prod → prefect-prod-web-data"
+
 assert_workspace_fails " " "whitespace-only slug"
 assert_workspace_fails "Test" "mixed-case slug (not aliased)"
 assert_workspace_fails "default " "trailing whitespace"

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Purge — permanently remove every Workload whose Intent is trash and its associated data.
 # Does not affect Workloads whose Intent is run or stop.
-# Usage: ./prefect/purge-workloads.sh
+# Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
+# Usage: ./prefect/purge-workloads.sh [--env <slug>]
 # Optional: VERIFY_SSH_IDENTITY=/path/to/private_key  PREFECT_USER=prefect
 set -euo pipefail
 
@@ -9,6 +10,14 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
 USER_NAME="${PREFECT_USER:-prefect}"
 HOST_SCRIPT="${REPO_ROOT}/prefect/lib/purge-workloads-host.sh"
+# shellcheck source=../lib/environment.sh
+source "${REPO_ROOT}/lib/environment.sh"
+
+environment_activate "${STACK_DIR}" "$@" || exit 1
+for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
+  echo "unknown argument: ${arg} (only optional --env is accepted)" >&2
+  exit 1
+done
 
 [[ -f "${HOST_SCRIPT}" ]] || {
   echo "missing ${HOST_SCRIPT}" >&2

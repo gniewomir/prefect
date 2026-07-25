@@ -18,7 +18,7 @@ assert_reserved_ip_present "${IP}"
 assert_volume_present
 
 echo "Tearing down Stack (confirming via stdin) ..."
-printf 'teardown\n' | "${REPO_ROOT}/teardown.sh"
+printf 'teardown\n' | "${REPO_ROOT}/teardown.sh" --env "${PREFECT_ENV}"
 
 assert_reserved_ip_absent "${IP}"
 assert_volume_absent

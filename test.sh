@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Acceptance Test runner — Applied Stack external behavior after Apply (./apply.sh).
 # Builds fixture once, runs test/[0-9]*.sh as subprocesses in sort order (fail-fast).
-# Usage: ./test.sh [selector]   e.g. ./test.sh 70-podman
+# Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
+# Usage: ./test.sh [--env <slug>] [selector]   e.g. ./test.sh 70-podman
 # Optional: VERIFY_SSH_IDENTITY=/path/to/private_key
 set -euo pipefail
 
@@ -10,8 +11,13 @@ STACK_DIR="${REPO_ROOT}/terraform"
 TEST_DIR="${REPO_ROOT}/test"
 # shellcheck source=test/lib.sh
 source "${TEST_DIR}/lib.sh"
+# shellcheck source=lib/environment.sh
+source "${REPO_ROOT}/lib/environment.sh"
 
 "${REPO_ROOT}/lib/check-stack-names.sh"
+
+environment_activate "${STACK_DIR}" "$@" || exit 1
+set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
 
 command -v terraform >/dev/null || fail "terraform not found"
 command -v jq >/dev/null || fail "jq not found"
@@ -33,16 +39,16 @@ HOST_JSON="$(echo "${STATE_JSON}" | jq -c '
 ')"
 [[ -n "${HOST_JSON}" && "${HOST_JSON}" != "null" ]] || fail "Host digitalocean_droplet.web not in State"
 
-export IP STATE_JSON HOST_JSON REPO_ROOT
+export IP STATE_JSON HOST_JSON REPO_ROOT PREFECT_ENV
 export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"
 
 # Reserved IP survives Host recreate; host keys do not — drop stale known_hosts before any SSH case.
 ssh-keygen -R "${IP}" >/dev/null 2>&1 || true
 
-echo "Checking Reserved IP ${IP} ..."
+echo "Checking Reserved IP ${IP} (Environment ${PREFECT_ENV}) ..."
 
 # Prefect Components for the Prefect User (idempotent Component Setup; not Initial Host Provisioning).
-"${REPO_ROOT}/prefect/ensure-components.sh"
+"${REPO_ROOT}/prefect/ensure-components.sh" --env "${PREFECT_ENV}"
 
 ALL_CASES=()
 while IFS= read -r case_path; do
