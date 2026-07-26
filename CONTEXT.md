@@ -1,6 +1,6 @@
 # Prefect
 
-Infrastructure-as-code for Prefect. This repository holds Terraform stacks that provision and manage the cloud resources other projects run on.
+Prefect owns a reusable Host carrier and a thin Workload contract so a solo operator can ship many small projects, experiments, and MVPs without repeating platform work or paying PaaS/app-platform lock-in — accepting infrastructure and Host-shape lock-in they control instead. It removes unproductive friction (platform TLS, repeated provisioning) and keeps productive friction (declaring how containers run); scale is vertical inside Prefect, then graduate a Workload out.
 
 ## Language
 
