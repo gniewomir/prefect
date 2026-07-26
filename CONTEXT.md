@@ -1,6 +1,6 @@
 # Prefect
 
-Prefect owns a reusable Host carrier and a thin Workload contract so a solo operator can ship many small projects, experiments, and MVPs without repeating platform work or paying PaaS/app-platform lock-in — accepting infrastructure and Host-shape lock-in they control instead. It removes unproductive friction (platform TLS, repeated provisioning) and keeps productive friction (declaring how containers run); scale is vertical inside Prefect, then graduate a Workload out.
+Prefect owns a reusable Host carrier and a thin Workload contract so a solo operator can ship many small projects, experiments, and MVPs without repeating platform work, paying for managed infrastructure too early, or becoming dependent on a PaaS that is costly to leave. It removes unproductive friction (platform TLS, repeated provisioning) and keeps productive friction (declaring how containers run). Host capacity changes should remain routine and low-disruption; scale vertically while the shared Host remains sufficient, then graduate a Workload to dedicated infrastructure.
 
 ## Language
 
