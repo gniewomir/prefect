@@ -13,7 +13,7 @@ A Terraform root module that owns a cohesive slice of infrastructure for one pro
 _Avoid_: Project, workspace (Terraform State slices are an implementation detail — see Environment); Environment (when you mean the module itself rather than an instance)
 
 **Environment**:
-A namespaced instance of a Stack under one provider account: its own State and its own account-unique cloud names (including Cloud Project, Host, Host Volume, tags, Firewall, SSH key). Identified by an open-ended operator-chosen slug (e.g. `test`, `prod`, `dev`, `staging` — no fixed enum). When no Environment is explicitly selected, the operator is on the **test** Environment. In operator tooling, `test` and `default` refer to that same Environment (`default` is the only alias). Prefect operator CLI is safe by default: every operator entrypoint accepts an Environment parameter and affects **test** unless another Environment is explicitly specified. A `prod` Environment is optional — created only when needed. Distinct from the provider Cloud Project’s metadata `environment` field (Production / Staging / …), which is billing/UI labeling only.
+A namespaced instance of a Stack under one provider account: its own State and its own account-unique cloud names (including Cloud Project, Host, Host Volume, Domain, tags, Firewall, SSH key). Identified by an open-ended operator-chosen slug (e.g. `test`, `prod`, `dev`, `staging` — no fixed enum). When no Environment is explicitly selected, the operator is on the **test** Environment. In operator tooling, `test` and `default` refer to that same Environment (`default` is the only alias). Prefect operator CLI is safe by default: every operator entrypoint accepts an Environment parameter and affects **test** unless another Environment is explicitly specified. A `prod` Environment is optional — created only when needed. Distinct from the provider Cloud Project’s metadata `environment` field (Production / Staging / …), which is billing/UI labeling only.
 _Avoid_: Workspace, stage, stack instance, Terraform workspace (when you mean this concept); environment variable / process environment (shell); Cloud Project `environment` field
 
 **Cloud Project**:
@@ -56,6 +56,10 @@ _Avoid_: logs (bare), cloud-init logs (when you mean this operator capability); 
 A stable public IPv4 address owned by the Stack and assigned to a Host. It survives Host rebuilds and Park; Teardown removes it with the rest of the Stack. The Host's own public IP does not survive rebuilds.
 _Avoid_: Floating IP, static IP, elastic IP (when you mean this address resource)
 
+**Domain**:
+The Stack-managed DNS Durable for an Environment: the provider zone and the Stack-authored records under it. A records to the Environment’s Reserved IP are required for each declared name (apex or subdomain); a Domain may carry more Stack-authored records over time. An Environment may have zero or more Domains. Park keeps it; Apply reattaches it; Teardown removes it; assigned to the Environment’s Cloud Project. Not a Public Hostname and not Workload ownership of names.
+_Avoid_: DNS zone, zone file, domain name (bare), subdomain (when you mean this Durable or part of it); Public Hostname (when you mean a Manifest claim)
+
 **Host Volume**:
 A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds and Park (Teardown removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Routes, certificates, and ACME HTTP-01 webroot, and later other Prefect/Workload paths) is owned by the Prefect User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Prefect User’s home. Not per-Workload volumes.
 _Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Prefect resource)
@@ -85,7 +89,7 @@ Bring the Stack to its desired managed presence: create any missing resources an
 _Avoid_: up, provision, terraform apply (when you mean this operation)
 
 **Durable**:
-A Stack-managed cloud resource that Park keeps and Apply reattaches: today only the Reserved IP and the Host Volume. Not Hosts, Firewalls, tags, SSH keys, or the Cloud Project.
+A Stack-managed cloud resource that Park keeps and Apply reattaches: today the Reserved IP, the Host Volume, and the Domain. Not Hosts, Firewalls, tags, SSH keys, or the Cloud Project.
 _Avoid_: persistent resource, stateful resource (when you mean this Park/Apply set)
 
 **Park**:
@@ -129,7 +133,7 @@ The operation that permanently removes every Workload whose Intent is **trash** 
 _Avoid_: Teardown (Stack-level), Destroy, delete, cleanup, gc (when you mean this Workload operation)
 
 **Public Hostname**:
-An enumerated FQDN pointed at a public Host’s Reserved IP for which the Edge terminates TLS. Declared on a Workload Manifest (one or more per Workload); unique among Workloads on that Host that still claim it (Intent **run** or **stop**); not a DNS zone and not an open-ended wildcard. DNS (A/AAAA → Reserved IP) is out of band — not a Component.
+An enumerated FQDN pointed at a public Host’s Reserved IP for which the Edge terminates TLS. Declared on a Workload Manifest (one or more per Workload); unique among Workloads on that Host that still claim it (Intent **run** or **stop**); not a DNS zone and not an open-ended wildcard. Resolution for Stack-owned names is via the Environment’s Domain Durable; a Manifest claim does not create DNS.
 _Avoid_: Domain, subdomain, vhost, server name, DNS name (when you mean this Prefect concept)
 
 **Service Network**:
