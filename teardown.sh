@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Teardown the Stack — full wipe including Durables (Reserved IP + Host Volume).
+# Teardown the Stack — full wipe including Durables (Reserved IP + Host Volume + Domain).
 # Writes durable_destroy_override.tf and passes -var=allow_durable_destroy=true
 # so prevent_destroy lifts; removes the override afterward (ADR-0016).
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
@@ -57,7 +57,7 @@ fi
 cp "${OVERRIDE_EXAMPLE}" "${OVERRIDE}"
 
 echo "WARNING: Teardown permanently removes every Stack-managed resource,"
-echo "         including Durables (Reserved IP and Host Volume)."
+echo "         including Durables (Reserved IP, Host Volume, and Domain)."
 echo "         Billing for those Durables stops only after this wipe."
 echo "         Prefer Park (./park.sh) when you intend to Apply again soon."
 echo

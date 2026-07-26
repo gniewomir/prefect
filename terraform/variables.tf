@@ -7,7 +7,7 @@ variable "allow_durable_destroy" {
   type        = bool
   default     = false
   description = <<-EOT
-    Teardown only: allow destroying Durables (Reserved IP address, Host Volume).
+    Teardown only: allow destroying Durables (Reserved IP, Host Volume, Domain).
     Default false. Terraform cannot interpolate lifecycle.prevent_destroy, so Teardown
     must also write durable_destroy_override.tf (see durable_destroy_override.tf.example)
     before destroy; remove the override after. Raw destroy without both stays fail-closed.

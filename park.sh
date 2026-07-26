@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Park the Stack — destroy everything in State except the preserve whitelist.
-# Durables (Reserved IP + Host Volume) carry prevent_destroy; that is the Durable
-# backstop. Config stays Applied; the next ./apply.sh recreates non-durables.
+# Durables (Reserved IP + Host Volume + Domain) carry prevent_destroy; that is the
+# Durable backstop. Config stays Applied; the next ./apply.sh recreates non-durables.
 # Guards protect Durables, not operator Apply (ADR-0016).
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Requires: terraform; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
@@ -17,6 +17,7 @@ source "${REPO_ROOT}/lib/environment.sh"
 # Keep these; destroy every other address currently in State.
 # Durables must also have lifecycle.prevent_destroy — that is the source of truth
 # if this list drifts. Cloud Project stays so Durables do not leave Prefect.
+# Domain Durables (for_each) are matched in is_preserved by address prefix (ADR-0020).
 PRESERVE=(
   digitalocean_reserved_ip.web
   digitalocean_volume.web
@@ -32,6 +33,10 @@ is_preserved() {
   for p in "${PRESERVE[@]}"; do
     [[ "${addr}" == "${p}" ]] && return 0
   done
+  # for_each Domain Durable instances (zone + Stack-authored A records)
+  case "${addr}" in
+    digitalocean_domain.this\[*|digitalocean_record.a\[*) return 0 ;;
+  esac
   return 1
 }
 
@@ -66,7 +71,7 @@ if [[ ${#target_args[@]} -eq 0 ]]; then
   exit 0
 fi
 
-echo "WARNING: Park keeps Durables (Reserved IP and Host Volume)."
+echo "WARNING: Park keeps Durables (Reserved IP, Host Volume, and Domain)."
 echo "         They remain in the provider and continue to bill while Parked."
 echo "         Teardown (./teardown.sh) is the full wipe when you intend to stop billing."
 echo
@@ -74,6 +79,8 @@ echo "Park plan (destroy State except preserve whitelist; Durables use prevent_d
 echo
 echo "Preserved:"
 printf '  %s\n' "${PRESERVE[@]}"
+echo "  digitalocean_domain.this[*]  (for_each Domain zones)"
+echo "  digitalocean_record.a[*]     (for_each Domain A records)"
 echo
 echo "Destroy targets:"
 for ((i = 0; i < ${#target_args[@]}; i += 1)); do

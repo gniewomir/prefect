@@ -1,8 +1,8 @@
 # Cloud Project Prefect owns assignable Stack resources.
-# Durables (Reserved IP + Host Volume) stay on the project resource so they remain in
-# Prefect while Parked and do not drift to the account default (ADR-0016). Listing an
-# assigned Reserved IP can show as floatingip in the Projects API — prefer refresh/
-# apply rather than removing the URN (Parked membership is the priority).
+# Durables (Reserved IP + Host Volume + Domain) stay on the project resource so they
+# remain in Prefect while Parked and do not drift to the account default (ADR-0016).
+# Listing an assigned Reserved IP can show as floatingip in the Projects API — prefer
+# refresh/apply rather than removing the URN (Parked membership is the priority).
 #
 # Host membership is a separate digitalocean_project_resources so Park can destroy the
 # Host without pulling Cloud Project (and Durables) into the destroy graph. Apply
@@ -14,10 +14,13 @@ resource "digitalocean_project" "prefect" {
   environment = "Production"
   is_default  = false
 
-  resources = [
-    digitalocean_reserved_ip.web.urn,
-    digitalocean_volume.web.urn,
-  ]
+  resources = concat(
+    [
+      digitalocean_reserved_ip.web.urn,
+      digitalocean_volume.web.urn,
+    ],
+    [for d in digitalocean_domain.this : d.urn],
+  )
 }
 
 resource "digitalocean_project_resources" "web_host" {

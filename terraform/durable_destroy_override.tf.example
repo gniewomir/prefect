@@ -13,3 +13,15 @@ resource "digitalocean_reserved_ip" "web" {
     prevent_destroy = false
   }
 }
+
+resource "digitalocean_domain" "this" {
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "digitalocean_record" "a" {
+  lifecycle {
+    prevent_destroy = false
+  }
+}
