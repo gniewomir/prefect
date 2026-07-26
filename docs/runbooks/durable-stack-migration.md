@@ -1,6 +1,6 @@
 # Durable Stack shape — operator notes
 
-ADR-0016 / issue #24. Reserved IP is a Durable address plus a separate Host assignment; Host Volume and the address refuse destroy unless Teardown unlocks them.
+ADR-0016 / issue #24. Reserved IP is a Durable address plus a separate Host assignment; Host Volume, Domain, and the address refuse destroy unless Teardown unlocks them.
 
 **Environment (ADR-0019):** `./apply.sh`, `./park.sh`, and `./teardown.sh` are safe by default — no `--env` selects the **test** Environment (Terraform workspace `default`). `--env test` and `--env default` mean the same Environment; any other slug (e.g. `--env prod`) must be passed explicitly. Scripts always select that workspace for the invocation (they do not trust a leftover current workspace).
 

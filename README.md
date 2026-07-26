@@ -56,7 +56,9 @@ Safe by default: nothing touches a non-test Environment unless you pass `--env` 
 
 ## Durables
 
-**Durables** are the Reserved IP and the Host Volume. They survive **Park** and are reattached on the next **Apply**. They continue to incur charges while Parked. **Teardown** removes them.
+**Durables** are the Reserved IP, the Host Volume, and **Domain** (provider DNS zone plus Stack-authored A records → Reserved IP). They survive **Park** and are reattached on the next **Apply**. They continue to incur charges while Parked (Domain lifecycle ownership still applies when DNS itself is free). **Teardown** removes them.
+
+Domains are optional (**0..N** per Environment). Configure via `TF_VAR_domains` (JSON) or a `.tfvars` file — map of apex FQDN → `{ names = ["@", "www", …] }`. Empty = no Domains. Registrar purchase and NS delegation to the provider stay **out of band**; the Stack owns the Domain only after the name is on the provider. Adopting an existing provider zone is one-shot import surgery — not Apply auto-adopt: [domain Durable import](docs/runbooks/domain-durable-import.md).
 
 ## Operations
 
@@ -72,4 +74,4 @@ Safe by default: nothing touches a non-test Environment unless you pass `--env` 
 
 Host-side helpers under `prefect/` (`ensure-components.sh`, `workload-setup.sh`, `purge-workloads.sh`) use the same `--env` rule.
 
-Further reading: [ADR-0016](docs/adr/0016-park-durables-teardown.md) (Park / Durables / Teardown), [`test/README.md`](test/README.md), [`lifecycle-test/README.md`](lifecycle-test/README.md).
+Further reading: [ADR-0016](docs/adr/0016-park-durables-teardown.md) (Park / Durables / Teardown), [ADR-0020](docs/adr/0020-domain-durable.md) (Domain Durable), [`docs/runbooks/domain-durable-import.md`](docs/runbooks/domain-durable-import.md), [`test/README.md`](test/README.md), [`lifecycle-test/README.md`](lifecycle-test/README.md).
