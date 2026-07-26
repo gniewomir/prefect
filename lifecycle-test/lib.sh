@@ -86,6 +86,58 @@ assert_volume_absent() {
   pass "Host Volume ${name} gone from provider"
 }
 
+# Apex FQDNs for Domain Durables currently in State (empty if none configured).
+stack_domain_names() {
+  (cd "${STACK_DIR}" && terraform state list 2>/dev/null) \
+    | sed -n 's/^digitalocean_domain\.this\["\(.*\)"]$/\1/p'
+}
+
+# Assert each Stack Domain zone still exists and has A → Reserved IP (survives Park).
+# No-op pass when zero Domains are in State (operator has not configured Domains).
+assert_domains_present() {
+  local ip="$1"
+  [[ -n "${ip}" ]] || fail "assert_domains_present: empty Reserved IP"
+  local zones zone body
+  zones="$(stack_domain_names)"
+  if [[ -z "${zones}" ]]; then
+    pass "Domain Durables not in State — skip Domain present asserts"
+    return 0
+  fi
+  while IFS= read -r zone; do
+    [[ -z "${zone}" ]] && continue
+    do_api_get "/v2/domains/${zone}" >/dev/null \
+      || fail "Domain ${zone} not found at provider"
+    body="$(do_api_get "/v2/domains/${zone}/records")" \
+      || fail "Domain ${zone} records list failed"
+    echo "${body}" | jq -e --arg ip "${ip}" \
+      '[.domain_records[] | select(.type == "A" and .data == $ip)] | length >= 1' >/dev/null \
+      || fail "Domain ${zone} has no A record → Reserved IP ${ip} at provider"
+    pass "Domain ${zone} present with A → ${ip}"
+  done <<< "${zones}"
+}
+
+# Assert each listed Domain zone is gone at the provider (after Teardown).
+assert_domains_absent() {
+  local zones="$1"
+  if [[ -z "${zones}" ]]; then
+    pass "Domain Durables were not configured — skip Domain absent asserts"
+    return 0
+  fi
+  require_do_token
+  local zone http_code
+  while IFS= read -r zone; do
+    [[ -z "${zone}" ]] && continue
+    http_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+      -H "Authorization: Bearer ${DIGITALOCEAN_TOKEN}" \
+      -H "Content-Type: application/json" \
+      "https://api.digitalocean.com/v2/domains/${zone}")" \
+      || fail "Domain lookup request failed for ${zone}"
+    [[ "${http_code}" == "404" ]] \
+      || fail "Domain ${zone} still present at provider (HTTP ${http_code})"
+    pass "Domain ${zone} gone from provider"
+  done <<< "${zones}"
+}
+
 # Assert Stack State has no managed addresses (Teardown leftover: empty).
 assert_stack_empty() {
   local addrs

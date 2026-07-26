@@ -6,8 +6,10 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
 
 ## Status
 
-- Park → Apply round-trip: `10-park-apply.sh`
-- Teardown (Durables wiped, State empty): `20-teardown.sh`
+- Park → Apply round-trip: `10-park-apply.sh` (Reserved IP, Host Volume marker, Domain when configured)
+- Teardown (Durables wiped, State empty): `20-teardown.sh` (Reserved IP, Host Volume, Domain when configured)
+
+Domain Durable asserts run when Domains are in State (configure `TF_VAR_domains` / `.tfvars` and Apply before the suite). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs.
 
 Apply fail-fast when Durable assumptions do not hold is not automated here — no safe reproduction without stranding billing or State.
 

@@ -74,7 +74,7 @@ done
 
 if [[ "${needs_teardown_confirm}" == true ]]; then
   echo "WARNING: selected cases include Teardown — full wipe including Durables."
-  echo "         Billing for Reserved IP and Host Volume stops only after this wipe."
+  echo "         Billing for Reserved IP, Host Volume, and Domain stops only after this wipe."
   echo
   printf "Type exactly 'teardown' to run Teardown Lifecycle cases: "
   read -r confirm

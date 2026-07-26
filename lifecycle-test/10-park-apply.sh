@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lifecycle Test: Park → Apply preserves Durables (Reserved IP + Host Volume marker).
+# Lifecycle Test: Park → Apply preserves Durables (Reserved IP + Host Volume marker + Domain).
 # Leftover Stack state on success: Applied (Host + Durables restored).
 # On failure: may leave Parked or mid-Apply — restore with: ./apply.sh
 set -euo pipefail
@@ -17,6 +17,8 @@ IP="$(stack_reserved_ip 2>/dev/null || true)"
 [[ -n "${IP}" ]] || fail "no reserved_ip output (Apply the Stack before this Lifecycle Test)"
 export IP
 
+DOMAINS_BEFORE="$(stack_domain_names)"
+
 wait_until_ssh_reachable
 wait_until_volume_mounted
 
@@ -30,6 +32,7 @@ printf 'park\n' | "${REPO_ROOT}/park.sh" --env "${PREFECT_ENV}"
 
 assert_reserved_ip_present "${IP}"
 assert_volume_present
+assert_domains_present "${IP}"
 
 echo "Applying Stack after Park ..."
 "${REPO_ROOT}/apply.sh" --yes --env "${PREFECT_ENV}"
@@ -37,6 +40,11 @@ echo "Applying Stack after Park ..."
 AFTER_IP="$(stack_reserved_ip)"
 [[ "${AFTER_IP}" == "${IP}" ]] || fail "Reserved IP changed across Park→Apply: before=${IP} after=${AFTER_IP}"
 pass "Reserved IP unchanged across Park→Apply (${IP})"
+
+DOMAINS_AFTER="$(stack_domain_names)"
+[[ "${DOMAINS_AFTER}" == "${DOMAINS_BEFORE}" ]] \
+  || fail "Domain set changed across Park→Apply: before=${DOMAINS_BEFORE} after=${DOMAINS_AFTER}"
+assert_domains_present "${AFTER_IP}"
 
 export IP="${AFTER_IP}"
 ssh-keygen -R "${IP}" >/dev/null 2>&1 || true
