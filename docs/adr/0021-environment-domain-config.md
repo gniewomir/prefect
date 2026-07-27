@@ -1,0 +1,5 @@
+# Environment Domain assignment lives in committed config/
+
+Which Domains an Environment owns is declared in committed `config/environments/<cloud-slug>/domains.json` (general Environment config tree; Domains first). The Stack loads that file from the current workspace’s cloud slug (`default` → `test`); missing file means zero Domains. No `TF_VAR_domains`, no per-Environment `-var-file` — workspace / `--env` is enough for bare CLI and operator scripts. An apex belongs in at most one Environment’s file; provider collisions fail closed. Narrowing the file (drop apex or A label) does not destroy on Apply — Durable `prevent_destroy` fails closed; widening Applies normally. Registrar NS stays out of band. See [ADR-0020](0020-domain-durable.md) for the Durable itself; runbooks cover add/import.
+
+**Considered:** Shared `*.auto.tfvars` (cross-Environment footgun); per-env `-var-file` (extra arg every raw CLI invoke); shell-bridged `TF_VAR_domains_<slug>`; single map file of all Environments; `-var=environment` to select the file (duplicates workspace / ADR-0019). Rejected.

@@ -1,26 +1,38 @@
 # Domain Durable import — existing provider zone
 
-ADR-0020 / issue #50. **Apply does not auto-adopt** a Domain that already exists on the provider (“name already exists”). Use this one-shot Stack surgery, then ordinary Apply/Park/Teardown.
+ADR-0020 / ADR-0021 / issue #50. **Apply does not auto-adopt** a Domain that already exists on the provider (“name already exists”). Use this one-shot Stack surgery, then ordinary Apply/Park/Teardown.
+
+For a Domain that is **not** yet on the provider, use ordinary Apply instead: [add a new Domain](domain-durable-add.md).
 
 Registrar NS → provider stays out of band and is unchanged by import.
 
 ## Before you start
 
 1. Credentials set (`DIGITALOCEAN_TOKEN`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY`).
-2. Select the Environment workspace (raw `terraform` defaults to `default` = **test**).
-3. Put the Domain in Stack config so Terraform expects it — e.g. `TF_VAR_domains` JSON:
+2. Select the Environment workspace (raw `terraform` defaults to `default` = **test**; cloud slug for the config path is `test`).
+3. Declare the Domain in that Environment’s file so Terraform expects it:
 
-```bash
-export TF_VAR_domains='{"example.com":{"names":["@","www"]}}'
+```text
+config/environments/<slug>/domains.json
 ```
 
-`names` must match the Stack-authored A labels you will manage (at least one; A → Reserved IP).
+Example for **test**:
+
+```json
+{
+  "example.com": {
+    "names": ["@", "www"]
+  }
+}
+```
+
+`names` must match the Stack-authored A labels you will manage (at least one; A → Reserved IP). No `TF_VAR_domains` — the selected workspace loads this file.
 
 4. Reserved IP must already be in State (or Apply will create Domains against a new address — usually wrong when adopting an existing zone pointed at an old IP).
 
 ## Import the zone
 
-From the Stack directory:
+From the Stack directory (correct workspace already selected):
 
 ```bash
 cd terraform

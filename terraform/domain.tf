@@ -1,31 +1,19 @@
 # Domain Durables (ADR-0020): provider zone + Stack-authored A records → Reserved IP.
+# Assignment: committed config/environments/<cloud-slug>/domains.json (ADR-0021).
 # Park keeps them; Teardown unlocks via allow_durable_destroy + override (ADR-0016).
 # Prefer no create-time ip_address — apex A is an explicit digitalocean_record.
 
-variable "domains" {
-  type = map(object({
-    names = list(string)
-  }))
-  default     = {}
-  description = <<-EOT
-    Domain Durables keyed by apex FQDN (e.g. example.com). Each entry's names
-    are Stack-authored A record labels (@ for apex, www, …) pointing at the
-    Environment Reserved IP. Empty map = zero Domains. Set via TF_VAR_domains
-    (JSON) or a .tfvars file. Registrar NS → provider stays out of band.
-  EOT
-
-  validation {
-    condition = alltrue([
-      for _zone, cfg in var.domains : length(cfg.names) > 0
-    ])
-    error_message = "Each Domain must declare at least one name (A → Reserved IP)."
-  }
-}
-
 locals {
+  domains_path = "${path.module}/../config/environments/${local.environment_slug}/domains.json"
+  domains_raw  = fileexists(local.domains_path) ? jsondecode(file(local.domains_path)) : {}
+  domains = {
+    for zone, cfg in local.domains_raw : zone => {
+      names = [for name in cfg.names : name]
+    }
+  }
   domain_a_records = {
     for pair in flatten([
-      for zone, cfg in var.domains : [
+      for zone, cfg in local.domains : [
         for name in cfg.names : {
           key  = "${zone}:${name}"
           zone = zone
@@ -36,8 +24,17 @@ locals {
   }
 }
 
+check "domains_names_nonempty" {
+  assert {
+    condition = alltrue([
+      for _zone, cfg in local.domains : length(cfg.names) > 0
+    ])
+    error_message = "Each Domain must declare at least one name (A → Reserved IP)."
+  }
+}
+
 resource "digitalocean_domain" "this" {
-  for_each = var.domains
+  for_each = local.domains
 
   name = each.key
 
@@ -53,6 +50,8 @@ resource "digitalocean_record" "a" {
   type   = "A"
   name   = each.value.name
   value  = digitalocean_reserved_ip.web.ip_address
+  # Explicit: provider default is 1800; omitting it makes import/read show TTL 0 and warn on every converge.
+  ttl = 1800
 
   lifecycle {
     prevent_destroy = true
