@@ -2,7 +2,7 @@
 
 ADR-0020 / ADR-0021 / issue #50. Use this when the apex is **not** already a zone on the provider. Ordinary Apply creates the Domain Durable (zone + Stack-authored A records → Reserved IP). Registrar purchase and NS → provider stay out of band.
 
-If the zone already exists on the provider (“name already exists”), stop — use [domain Durable import](domain-durable-import.md) instead. Apply does not auto-adopt.
+If the zone already exists on the provider (“name already exists”) and the apex is declared in Environment config, ordinary **Apply** may **Adopt** it ([ADR-0026](../adr/0026-adopt-into-state.md) / [#66](https://github.com/gniewomir/prefect/issues/66)). Use [domain Durable import](domain-durable-import.md) only for non-allowlisted surgery until Adopt is implemented, or for cases Adopt refuses.
 
 ## Before you start
 
