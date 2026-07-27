@@ -1,0 +1,22 @@
+---
+description: Preserve frictionless Stack lifecycle convergence and additive changes
+globs: "{terraform/**,apply.sh,park.sh,teardown.sh,lifecycle-test.sh,lifecycle-test/**,config/environments/**}"
+alwaysApply: false
+---
+
+# Terraform lifecycle convergence
+
+Follow ADR-0025 and the lifecycle language in `CONTEXT.md`.
+
+- Classify every managed resource and relationship exactly once as Durable or Recreatable.
+- Place Durables in `module.durables` and Recreatables in conditional `module.recreatables`.
+- A Durable may depend only on Durables. Converge the complete Durable module before the Recreatable module.
+- Give every Durable `prevent_destroy`; only Teardown may lift it.
+- Park must use a non-sticky intent and a complete Terraform plan. Do not use routine `-target`, State edits, or duplicated preserve lists.
+- Give each remote fact one Terraform owner. Count implicit provider side effects as writers.
+- Never mix an aggregate collection owner with resources that own members of that collection.
+- On DigitalOcean, leave `digitalocean_project.resources` unset. Own disjoint memberships with `digitalocean_project_resources` in the member's lifecycle module.
+- An Additive Stack Change must preserve every existing identity, desired attribute, and relationship throughout Apply.
+- Apply and Park must be retry-convergent after supported partial failure; repeating the command must end in an empty plan.
+- Pin provider versions exactly. Lifecycle, membership, and provider-version changes require the ADR-0025 live lifecycle matrix before merge.
+- Fail closed on external drift and unmanaged collisions. Do not auto-adopt or add compatibility paths.

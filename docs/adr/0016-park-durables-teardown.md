@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0025
+---
+
 # Park keeps Durables; Teardown is explicit full wipe
 
 Development and other non-production Environments need to drop the Host when idle (stop paying for compute you are not using) without losing stable public addressing, DNS, or Host Volume bytes (certs, Routes, ACME webroot) for a later Apply. **Destroy** (remove every managed resource) was the wrong default for that. We replace it with **Park** (remove Host and other non-durables; keep **Durables**), **Apply** (create missing resources and reattach Durables; fail fast if Durable assumptions do not hold), and **Teardown** (full wipe including Durables). Durables are the **Reserved IP**, the **Host Volume**, and the **Domain** (provider DNS zone plus Stack-authored records — see [ADR-0020](0020-domain-durable.md)). Park is a cost convenience for non-production — not the normal path for production. This supersedes ADR-0009’s “survive Host recreate, not Destroy” deferral — that need is now real.

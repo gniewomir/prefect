@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0025
+---
+
 # Cloud Project owns Hosts; Reserved IP membership uses Projects API floatingip URN
 
 The Stack creates Cloud Project `Prefect` and assigns Hosts to it via a separate `digitalocean_project_resources` (so Park can destroy the Host without pulling the Cloud Project into the destroy graph).

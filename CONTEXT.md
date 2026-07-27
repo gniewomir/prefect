@@ -85,16 +85,32 @@ An executable check of Stack lifecycle operations that deliberately remove or re
 _Avoid_: Acceptance Test, destroy test, integration test (when you mean this concept)
 
 **Apply**:
-Bring the Stack to its desired managed presence: create any missing resources and reattach existing Durables when they are already Stack-managed. Used after Park or Teardown, and for ordinary convergence. Fails fast if Durable assumptions do not hold (for example Durables missing from State or not reattachable as expected).
+The operation that converges a Stack to Applied from Applied, Parked, or a supported partially failed lifecycle operation. Repeating Apply is the normal recovery path and ends with an empty plan; external drift, unmanaged collisions, and provider/account hard failures remain explicit blockers.
 _Avoid_: up, provision, terraform apply (when you mean this operation)
 
+**Applied**:
+The stable Stack condition in which every configured Durable and Recreatable is present and converged.
+_Avoid_: running, up, active
+
 **Durable**:
-A Stack-managed cloud resource that Park keeps and Apply reattaches: today the Reserved IP, the Host Volume, and the Domain. Not Hosts, Firewalls, tags, SSH keys, or the Cloud Project.
+A Stack-managed resource or relationship that Park preserves and Apply keeps converged. Today this includes the Reserved IP, Host Volume, Domain, Cloud Project, and the relationships that keep those resources assigned while Parked.
 _Avoid_: persistent resource, stateful resource (when you mean this Park/Apply set)
 
+**Recreatable**:
+A Stack-managed resource or relationship that Park removes and Apply recreates without preserving its identity or data. Today this includes the Host and its Applied-only companions and relationships.
+_Avoid_: non-durable, ephemeral resource, disposable resource
+
+**Additive Stack Change**:
+A configuration change that adds resource instances or relationships while leaving every existing managed identity and desired attribute unchanged.
+_Avoid_: non-destructive change, additive update (bare)
+
 **Park**:
-Remove the Host and other non-durable Stack resources while keeping Durables Stack-managed for a later Apply. A cost convenience for development and other non-production Environments when the Host is not in active use; Durables continue to bill while Parked. Not the normal path for production.
+The operation that converges a Stack to Parked from Applied, Parked, or a supported partially failed lifecycle operation. A cost convenience for development and other non-production Environments; Durables continue to bill while Parked.
 _Avoid_: soft destroy, soft teardown, down, halt, suspend, Destroy (ambiguous — say Park or Teardown)
+
+**Parked**:
+The stable Stack condition in which every configured Durable is present and converged and every Recreatable is absent.
+_Avoid_: stopped, down, inactive
 
 **Teardown**:
 Permanently remove every resource the Stack currently manages, including Durables, leaving State empty. Stack configuration stays in the repository and can be Applied again. Explicit full wipe when Durable billing should stop — not the idle path for non-production (that is Park).

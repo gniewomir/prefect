@@ -1,0 +1,19 @@
+---
+status: accepted
+---
+
+# Lifecycle convergence by structural class and single ownership
+
+Apply and Park must converge from Applied, Parked, and supported partially failed lifecycle operations by repeating the same normal operator command; convergence ends with an empty plan and never requires targets, imports, State edits, provider-console work, or prescribed ordering ceremony. An Additive Stack Change must not remove, replace, or temporarily relocate any existing managed fact. External drift, unmanaged collisions, and provider/account hard failures are outside this guarantee and fail closed with an actionable error.
+
+Every managed resource and relationship has exactly one behavioral lifecycle class and one owner. **Durables** survive Park; this includes the Cloud Project and Durable membership relationships as well as identity- or data-bearing resources. **Recreatables** disappear during Park and return during Apply. Terraform expresses the classes once as `module.durables` and conditional `module.recreatables`: Durables may depend only on Durables, all Durables converge before any Recreatable, and every Durable has `prevent_destroy` lifted only by Teardown. Park supplies a non-sticky absence intent to a complete Terraform plan; ordinary Apply supplies presence again.
+
+One Terraform address owns each provider-side fact. Aggregate collection fields may not coexist with resources that own members of the same collection, and indirect provider behavior counts as a writer. For DigitalOcean, `digitalocean_project` owns project metadata only; `digitalocean_project_resources` owns disjoint memberships in the lifecycle module of the member. The Reserved IP is placed with the other Durables before a Host can be created or moved, and the Host is detached before its project membership disappears, so DigitalOcean's attached-IP-following-Host behavior never changes a fact owned elsewhere.
+
+Provider versions are exact because lifecycle correctness depends on provider read/update semantics. Changes to lifecycle structure, project membership, or provider versions require a live test-Environment matrix before merge: repeated Apply and Park must become no-ops; Additive Stack Changes must converge from both Applied and Parked; and a deterministic partial Apply after a Durable addition must recover by repeating Apply. Normal Apply rejects subtractive Durable changes; selective retirement requires a future explicit operation, while Teardown remains the full wipe.
+
+This supersedes ADR-0016's State-gap/targeted-Park implementation and narrow Durable classification, and ADR-0003's mixed aggregate/per-membership Cloud Project ownership. The test Environment may be recreated for adoption and lifecycle evidence; `lifecycle-test.gniewomir.pl` is the additive Domain fixture.
+
+## Considered
+
+Sticky Park configuration made ordinary Apply fail to restore presence; targeted destroy made Park depend on duplicated address lists and incomplete Terraform graphs; separate States made one Stack lifecycle an operator orchestration problem; overlapping aggregate and per-member ownership repeatedly produced destructive set reconciliation. Rejected.
