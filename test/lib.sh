@@ -34,13 +34,18 @@ provider_host_volume_json() {
 }
 
 environment_domains_path() {
-  printf '%s/config/environments/%s/domains.json\n' "${REPO_ROOT}" "${PREFECT_ENV}"
+  # Prefer domains.override.json when present (ADR-0021); empty when neither exists.
+  if ! declare -F domains_assignment_path >/dev/null 2>&1; then
+    # shellcheck source=../lib/domains.sh
+    source "${REPO_ROOT}/lib/domains.sh"
+  fi
+  domains_assignment_path "${PREFECT_ENV}"
 }
 
 configured_domain_names() {
   local domains_path
   domains_path="$(environment_domains_path)"
-  [[ -f "${domains_path}" ]] || return 0
+  [[ -n "${domains_path}" && -f "${domains_path}" ]] || return 0
   jq -r 'keys[]' "${domains_path}"
 }
 

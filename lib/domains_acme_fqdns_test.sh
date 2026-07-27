@@ -47,4 +47,12 @@ mkdir -p "${TMP_ENV}/config/environments/empty-env"
 REPO_ROOT="${TMP_ENV}"
 assert_fqdns empty-env
 
+# Override replaces committed assignment for ACME want-list.
+mkdir -p "${TMP_ENV}/config/environments/overridden"
+printf '%s\n' '{"committed.example":{"names":["@","www"]}}' \
+  >"${TMP_ENV}/config/environments/overridden/domains.json"
+printf '%s\n' '{"lifecycle-test.committed.example":{"names":["@"]}}' \
+  >"${TMP_ENV}/config/environments/overridden/domains.override.json"
+assert_fqdns overridden lifecycle-test.committed.example
+
 echo "All domains ACME FQDN helper checks passed."

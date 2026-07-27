@@ -66,17 +66,19 @@ echo
 
 needs_teardown_confirm=false
 for case_path in "${CASES[@]}"; do
-  if [[ "$(basename "${case_path}")" == *teardown* ]]; then
+  base="$(basename "${case_path}")"
+  if [[ "${base}" == *teardown* || "${base}" == *additive* ]]; then
     needs_teardown_confirm=true
     break
   fi
 done
 
 if [[ "${needs_teardown_confirm}" == true ]]; then
-  echo "WARNING: selected cases include Teardown — full wipe including Durables."
-  echo "         Billing for Reserved IP, Host Volume, and Domain stops only after this wipe."
+  echo "WARNING: selected cases include Teardown (full wipe including Durables),"
+  echo "         or Additive Domain cleanup that Teardowns then re-Applies."
+  echo "         Billing for Reserved IP, Host Volume, and Domain stops during Teardown."
   echo
-  printf "Type exactly 'teardown' to run Teardown Lifecycle cases: "
+  printf "Type exactly 'teardown' to run those Lifecycle cases: "
   read -r confirm
   [[ "${confirm}" == "teardown" ]] || fail "aborted (expected exact 'teardown')"
   echo

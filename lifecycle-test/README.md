@@ -10,9 +10,15 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
   (empty repeated Apply/Park plans; Cloud Project / Reserved IP / Host Volume /
   Domain identities; Host Volume marker; Host and Reserved IP memberships by
   lifecycle class)
+- Applied Additive Domain: `15-additive-domain.sh`
+  (derived `domains.override.json` fixture; prior identities/memberships preserved;
+  empty re-Apply; Teardown with override → drop override → committed re-Apply)
 - Teardown (Durables wiped, State empty): `20-teardown.sh` (Cloud Project, Reserved IP, Host Volume, Domain when configured)
 
-Domain Durable asserts run when Domains are in State (declare them in `config/environments/<cloud-slug>/domains.json` and Apply before the suite). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs.
+Domain Durable asserts run when Domains are in State (declare them in `config/environments/<cloud-slug>/domains.json` and Apply before the suite). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs. The Additive Domain case requires a non-empty committed Domain assignment (base apex for `lifecycle-test.<apex>`).
+
+
+**Internal Domain override (maintainer / harness only):** if `config/environments/<slug>/domains.override.json` exists, production Domain loaders use it **instead of** `domains.json` (ADR-0021). Gitignored; not an operator flag. Additive Domain Lifecycle cases may write a derived override (committed map plus `lifecycle-test.<lexicographically-first-apex>`), run Apply/Teardown while it is present, then remove it before re-Apply of committed Domains only.
 
 ## Run
 

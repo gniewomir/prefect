@@ -2,6 +2,10 @@
 # Adopt allowlisted provider facts into the selected Environment State (ADR-0026).
 # Public interface: adopt_preflight apply|park|teardown
 
+_ADOPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=domains.sh
+source "${_ADOPT_DIR}/domains.sh"
+
 adopt_fail() {
   echo "FAIL: Adopt: $*" >&2
   return 1
@@ -186,12 +190,13 @@ adopt_domain_records() {
 adopt_domains() {
   local state_json="$1"
   local environment_slug="$2"
-  local domains_path="${REPO_ROOT}/config/environments/${environment_slug}/domains.json"
+  local domains_path
   local ip_values reserved_ip=""
   local provider_json zone address match_count zone_exists
   local name record_address needs_provider=false
 
-  [[ -f "${domains_path}" ]] || return 0
+  domains_path="$(domains_assignment_path "${environment_slug}")" || return 1
+  [[ -n "${domains_path}" ]] || return 0
   jq -e 'type == "object"' "${domains_path}" >/dev/null \
     || { adopt_fail "invalid Domain declaration ${domains_path}"; return 1; }
   [[ "$(jq -r 'keys | length' "${domains_path}")" -gt 0 ]] || return 0
@@ -293,11 +298,13 @@ adopt_project_memberships() {
   local durable_address="module.durables.digitalocean_project_resources.durables"
   local host_membership_address="module.recreatables[0].digitalocean_project_resources.web_host"
   local project_values project_id provider_json values urn all_present
-  local domains_path="${REPO_ROOT}/config/environments/${environment_slug}/domains.json"
+  local domains_path
   local zone host_values host_id host_urn
   local reserved_ip_values reserved_ip reserved_ip_json assigned_host_id
   local durable_urns=()
   local durables_complete=true
+
+  domains_path="$(domains_assignment_path "${environment_slug}")" || return 1
 
   if adopt_state_values "${state_json}" "${durable_address}" >/dev/null 2>&1 \
     && { [[ "${include_host}" != true ]] \
@@ -325,7 +332,7 @@ adopt_project_memberships() {
       durables_complete=false
     }
     [[ -n "${values}" ]] && durable_urns+=("$(jq -er '.urn' <<<"${values}")")
-    if [[ -f "${domains_path}" ]]; then
+    if [[ -n "${domains_path}" ]]; then
       while IFS= read -r zone; do
         values="$(adopt_state_values "${state_json}" "module.durables.digitalocean_domain.this[\"${zone}\"]")" || {
           durables_complete=false

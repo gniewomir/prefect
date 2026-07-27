@@ -133,7 +133,7 @@ The idempotent, declarative Host-side application of one Workload’s Intent fro
 _Avoid_: Setup (bare), Component Setup, install, deploy, Purge (when you mean this Workload action)
 
 **Edge**:
-The mandatory public HTTP/HTTPS front door on a public Host. A Prefect Component (not optional). Sole publisher of Host ports 80/443; Workloads sit behind it via operator-authored Routes. Terminates TLS using Domain-scoped certificates; owns on-demand ACME as the issuance mechanism. ACME’s want-list is the explicit FQDN set from the Environment’s Domain assignment (`domains.json` apex + `names`); ensure-components installs that want-list on the Host; ACME does not generate Workload Routes. On :80, only ACME challenges and HTTPS redirects — never Workload cleartext.
+The mandatory public HTTP/HTTPS front door on a public Host. A Prefect Component (not optional). Sole publisher of Host ports 80/443; Workloads sit behind it via operator-authored Routes. Terminates TLS using Domain-scoped certificates; owns on-demand ACME as the issuance mechanism. ACME’s want-list is the explicit FQDN set from the Environment’s Domain assignment (apex + `names`); ensure-components installs that want-list on the Host; ACME does not generate Workload Routes. On :80, only ACME challenges and HTTPS redirects — never Workload cleartext.
 _Avoid_: Reverse proxy, ingress, gateway, nginx (when you mean this Prefect role — nginx is today’s implementation)
 
 **Workload**:

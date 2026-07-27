@@ -347,3 +347,37 @@ wait_until_volume_mounted() {
   done
   fail "Host Volume not mounted at /var/lib/prefect within ${timeout}s"
 }
+
+# Absolute path to committed domains.json (never the override).
+domains_committed_path() {
+  printf '%s/config/environments/%s/domains.json\n' "${REPO_ROOT}" "${PREFECT_ENV}"
+}
+
+# Absolute path to domains.override.json for the selected Environment.
+domains_override_path() {
+  printf '%s/config/environments/%s/domains.override.json\n' "${REPO_ROOT}" "${PREFECT_ENV}"
+}
+
+# Remove internal Domain override if present.
+remove_domain_override() {
+  rm -f "$(domains_override_path)"
+}
+
+# Write domains.override.json = committed map + lifecycle-test.<lex-first-apex> {"names":["@"]}.
+# Prints the fixture apex on stdout. Fails if committed Domains are missing or empty.
+write_additive_domain_override() {
+  local committed override base fixture
+  committed="$(domains_committed_path)"
+  override="$(domains_override_path)"
+  [[ -f "${committed}" ]] || fail "committed Domain assignment missing: ${committed}"
+  base="$(jq -er 'keys | sort | .[0] // empty' "${committed}")" \
+    || fail "could not read committed Domain apexes from ${committed}"
+  [[ -n "${base}" ]] || fail "committed Domains empty — need a base apex for additive fixture"
+  fixture="lifecycle-test.${base}"
+  jq -e --arg fixture "${fixture}" '
+    . + {($fixture): {"names": ["@"]}}
+  ' "${committed}" >"${override}" \
+    || fail "could not write Domain override ${override}"
+  printf '%s\n' "${fixture}"
+}
+
