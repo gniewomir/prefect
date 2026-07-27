@@ -14,6 +14,8 @@ OVERRIDE_EXAMPLE="${STACK_DIR}/modules/durables/durable_destroy_override.tf.exam
 UNLOCK_VAR=(-var=allow_durable_destroy=true)
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/lib/environment.sh"
+# shellcheck source=lib/adopt.sh
+source "${REPO_ROOT}/lib/adopt.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -36,6 +38,8 @@ command -v terraform >/dev/null || fail "terraform not found"
 cd "${STACK_DIR}"
 
 environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
+
+adopt_preflight teardown "${ENVIRONMENT_RAW}" || exit 1
 
 # Never leave the Durable unlock armed after this script exits.
 trap remove_override EXIT

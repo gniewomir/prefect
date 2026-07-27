@@ -16,6 +16,26 @@ set -euo pipefail
 printf '%s\n' "$*" >>"${TERRAFORM_CALLS}"
 case "${1-}" in
   workspace) exit 0 ;;
+  show)
+    cat <<'JSON'
+{"values":{"root_module":{"child_modules":[{"address":"module.durables","resources":[
+  {"address":"module.durables.digitalocean_project.prefect","mode":"managed","values":{"id":"project-test-id"}},
+  {"address":"module.durables.digitalocean_volume.web","mode":"managed","values":{"id":"volume-test-id"}},
+  {"address":"module.durables.digitalocean_reserved_ip.web","mode":"managed","values":{"ip_address":"203.0.113.10"}},
+  {"address":"module.durables.digitalocean_domain.this[\"gniewomir.pl\"]","mode":"managed","values":{"id":"gniewomir.pl"}},
+  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:@\"]","mode":"managed","values":{"id":"1001"}},
+  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:www\"]","mode":"managed","values":{"id":"1002"}},
+  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:api\"]","mode":"managed","values":{"id":"1003"}},
+  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:test-acme\"]","mode":"managed","values":{"id":"1004"}},
+  {"address":"module.durables.digitalocean_project_resources.durables","mode":"managed","values":{"id":"project-test-id"}}
+]},{"address":"module.recreatables[0]","resources":[
+  {"address":"module.recreatables[0].digitalocean_droplet.web","mode":"managed","values":{"id":4242}},
+  {"address":"module.recreatables[0].digitalocean_reserved_ip_assignment.web","mode":"managed","values":{"ip_address":"203.0.113.10","droplet_id":4242}},
+  {"address":"module.recreatables[0].digitalocean_project_resources.web_host","mode":"managed","values":{"id":"project-test-id"}},
+  {"address":"module.recreatables[0].digitalocean_volume_attachment.web","mode":"managed","values":{"id":"attachment-test-id"}}
+]}]}}}
+JSON
+    ;;
   plan) exit 2 ;;
   apply) exit 0 ;;
   state)
@@ -45,7 +65,7 @@ grep -Fxq \
   || fail "Park must apply complete Recreatable absence"
 
 if grep -Eq -- '(^| )(-target=|state |destroy($| ))' "${TERRAFORM_CALLS}"; then
-  fail "Park must not use targets, State inspection, or terraform destroy"
+  fail "Park must not use targets, raw terraform state commands, or terraform destroy"
 fi
 
 pass "Park supplies non-sticky Recreatable absence to a complete Terraform plan"

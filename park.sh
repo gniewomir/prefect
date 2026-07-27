@@ -11,6 +11,8 @@ REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/lib/environment.sh"
+# shellcheck source=lib/adopt.sh
+source "${REPO_ROOT}/lib/adopt.sh"
 
 ABSENCE_VAR=(-var=recreatables_present=false)
 
@@ -30,6 +32,8 @@ command -v terraform >/dev/null || fail "terraform not found"
 cd "${STACK_DIR}"
 
 environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
+
+adopt_preflight park "${ENVIRONMENT_RAW}" || exit 1
 
 echo "WARNING: Park keeps Durables (Cloud Project, Reserved IP, Host Volume, and Domain)."
 echo "         They remain in the provider and continue to bill while Parked."

@@ -13,6 +13,8 @@ STACK_DIR="${REPO_ROOT}/terraform"
 PRESENCE_VAR=(-var=recreatables_present=true)
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/lib/environment.sh"
+# shellcheck source=lib/adopt.sh
+source "${REPO_ROOT}/lib/adopt.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -37,6 +39,8 @@ command -v terraform >/dev/null || fail "terraform not found"
 cd "${STACK_DIR}"
 
 environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
+
+adopt_preflight apply "${ENVIRONMENT_RAW}" || exit 1
 
 if [[ "${YES}" == true ]]; then
   terraform apply -input=false -auto-approve "${PRESENCE_VAR[@]}"

@@ -2,7 +2,7 @@
 
 ADR-0020 / ADR-0021 / ADR-0026 / issue #50. For a Domain **declared** in the Environment’s `domains.json`, ordinary **Apply** may **Adopt** an already-existing provider zone (exact FQDN match). Prefer that path.
 
-This runbook is one-shot Stack surgery for cases Adopt does not cover (or until Adopt is implemented). For a Domain that is **not** yet on the provider, use ordinary Apply: [add a new Domain](domain-durable-add.md).
+This runbook is one-shot Stack surgery for cases Adopt does not cover or refuses. For a Domain that is **not** yet on the provider, use ordinary Apply: [add a new Domain](domain-durable-add.md).
 
 Registrar NS → provider stays out of band and is unchanged by import.
 

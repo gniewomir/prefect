@@ -85,11 +85,11 @@ An executable check of Stack lifecycle operations that deliberately remove or re
 _Avoid_: Acceptance Test, destroy test, integration test (when you mean this concept)
 
 **Apply**:
-The operation that converges a Stack to Applied from Applied, Parked, or a supported partially failed lifecycle operation. Repeating Apply is the normal recovery path and ends with an empty plan; may Adopt allowlisted facts in preflight. External drift, unmanaged collisions, Adopt ambiguity, and provider/account hard failures remain explicit blockers.
+The operation that converges a Stack to Applied from Applied, Parked, or a supported partially failed lifecycle operation. Repeating Apply is the normal recovery path and ends with an empty plan; may Adopt allowlisted facts as part of its normal convergence. External drift, unmanaged collisions, Adopt ambiguity, and provider/account hard failures remain explicit blockers.
 _Avoid_: up, provision, terraform apply (when you mean this operation)
 
 **Adopt**:
-The binding of an already-existing provider fact into State under the Environment’s known Stack-owned identity. Apply, Park, and Teardown may Adopt via preflight (Apply: allowlisted Durables and known Recreatable relationships; Park and Teardown: allowlisted Durables and Durable relationships only); none of these is a separate operator command. Scope is identity-stable Durables (Domain, Host Volume, Cloud Project, and their Durable memberships) and — for Apply only — known Recreatable relationships whose endpoints are already known. Exact identity match only; ambiguity, wrong endpoint, or identity conflict fails closed. Not discovery of an unbound Host by name, and not an orphan Reserved IP address (no Environment key without State).
+The binding of an already-existing provider fact into State under the Environment’s known Stack-owned identity. Adopt starts with exact-match preflight; binding may complete there or during the ensuing normal lifecycle convergence when an already-correct relationship cannot be bound earlier. Apply may Adopt allowlisted Durables and known Recreatable relationships; Park and Teardown may Adopt allowlisted Durables and Durable relationships only. None is a separate operator command. Scope is identity-stable Durables (Domain, Host Volume, Cloud Project, and their Durable memberships) and — for Apply only — known Recreatable relationships whose endpoints are already known. Ambiguity, wrong endpoint, identity conflict, or a binding that would move or rewrite the provider fact fails closed. Not discovery of an unbound Host by name, and not an orphan Reserved IP address (no Environment key without State).
 _Avoid_: import, terraform import, State surgery, auto-import (when you mean this concept)
 
 **Applied**:
@@ -109,7 +109,7 @@ A configuration change that adds resource instances or relationships while leavi
 _Avoid_: non-destructive change, additive update (bare)
 
 **Park**:
-The operation that converges a Stack to Parked from Applied, Parked, or a supported partially failed lifecycle operation. May Adopt allowlisted Durables in preflight. A cost convenience for development and other non-production Environments; Durables continue to bill while Parked.
+The operation that converges a Stack to Parked from Applied, Parked, or a supported partially failed lifecycle operation. May Adopt allowlisted Durables as part of its normal convergence. A cost convenience for development and other non-production Environments; Durables continue to bill while Parked.
 _Avoid_: soft destroy, soft teardown, down, halt, suspend, Destroy (ambiguous — say Park or Teardown)
 
 **Parked**:
