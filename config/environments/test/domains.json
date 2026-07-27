@@ -1,5 +1,5 @@
 {
   "gniewomir.pl": {
-    "names": ["@", "www", "api"]
+    "names": ["@", "www", "api", "test-acme"]
   }
 }
