@@ -1,0 +1,44 @@
+# Teardown copies this file to durable_destroy_override.tf only while removing
+# the complete Stack. Every Durable must appear here.
+
+resource "digitalocean_project" "prefect" {
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "digitalocean_volume" "web" {
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "digitalocean_reserved_ip" "web" {
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "digitalocean_domain" "this" {
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "digitalocean_record" "a" {
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "digitalocean_project_resources" "durables" {
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "terraform_data" "destroy_unlock_gate" {
+  lifecycle {
+    prevent_destroy = false
+  }
+}

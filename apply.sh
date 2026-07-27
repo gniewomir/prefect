@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply the Stack — bring managed presence to the desired config (ADR-0016).
+# Apply the Stack — converge Durables and request Recreatable presence (ADR-0025).
 # Interactive by default (Terraform plan + yes/no). Use --yes for automation.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Closed surface: optional --yes and --env only. Specialist surgery stays raw terraform
@@ -34,7 +34,6 @@ command -v terraform >/dev/null || fail "terraform not found"
 [[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY is not set"
 
 cd "${STACK_DIR}"
-rm -f parked.auto.tfvars # leftover from sticky-parked experiment; no longer used
 
 environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
 

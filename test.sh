@@ -34,11 +34,12 @@ IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
 
 STATE_JSON="$(terraform show -json)"
 HOST_JSON="$(echo "${STATE_JSON}" | jq -c '
-  .values.root_module.resources[]
+  def resources: (.resources[]?), (.child_modules[]? | resources);
+  .values.root_module | resources
   | select(.type == "digitalocean_droplet" and .name == "web")
   | .values
 ')"
-[[ -n "${HOST_JSON}" && "${HOST_JSON}" != "null" ]] || fail "Host digitalocean_droplet.web not in State"
+[[ -n "${HOST_JSON}" && "${HOST_JSON}" != "null" ]] || fail "Host not in State"
 
 export IP STATE_JSON HOST_JSON REPO_ROOT PREFECT_ENV
 export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"

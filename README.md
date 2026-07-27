@@ -56,7 +56,7 @@ Safe by default: nothing touches a non-test Environment unless you pass `--env` 
 
 ## Durables
 
-**Durables** are the Reserved IP, the Host Volume, and **Domain** (provider DNS zone plus Stack-authored A records → Reserved IP). They survive **Park** and are reattached on the next **Apply**. They continue to incur charges while Parked (Domain lifecycle ownership still applies when DNS itself is free). **Teardown** removes them.
+**Durables** are the Cloud Project, Reserved IP, Host Volume, **Domain** (provider DNS zone plus Stack-authored A records → Reserved IP), and their preserved Cloud Project relationships. They survive **Park**. **Recreatables** are the Host and its Applied-only companions and relationships; Park removes them and Apply restores them. Durables may continue to incur charges while Parked. **Teardown** removes the complete Stack.
 
 Domains are optional (**0..N** per Environment). Declare them in committed `config/environments/<cloud-slug>/domains.json` (map of apex FQDN → `{ "names": ["@", "www", …] }`). Missing file = no Domains. The Stack loads the file for the current Environment (workspace / `--env`); no `TF_VAR_domains`. Registrar purchase and NS delegation stay **out of band**. New Domains: [add a Domain](docs/runbooks/domain-durable-add.md). Adopting an existing provider zone: [domain Durable import](docs/runbooks/domain-durable-import.md). Declaration mechanism: [ADR-0021](docs/adr/0021-environment-domain-config.md).
 
@@ -74,4 +74,4 @@ Domains are optional (**0..N** per Environment). Declare them in committed `conf
 
 Host-side helpers under `prefect/` (`ensure-components.sh`, `workload-setup.sh`, `purge-workloads.sh`) use the same `--env` rule.
 
-Further reading: [ADR-0016](docs/adr/0016-park-durables-teardown.md) (Park / Durables / Teardown), [ADR-0020](docs/adr/0020-domain-durable.md) (Domain Durable), [ADR-0021](docs/adr/0021-environment-domain-config.md) (Environment Domain config), [`docs/runbooks/domain-durable-add.md`](docs/runbooks/domain-durable-add.md), [`docs/runbooks/domain-durable-import.md`](docs/runbooks/domain-durable-import.md), [`test/README.md`](test/README.md), [`lifecycle-test/README.md`](lifecycle-test/README.md).
+Further reading: [ADR-0025](docs/adr/0025-lifecycle-convergence-by-structural-class.md) (lifecycle convergence), [ADR-0020](docs/adr/0020-domain-durable.md) (Domain Durable), [ADR-0021](docs/adr/0021-environment-domain-config.md) (Environment Domain config), [`docs/runbooks/domain-durable-add.md`](docs/runbooks/domain-durable-add.md), [`docs/runbooks/domain-durable-import.md`](docs/runbooks/domain-durable-import.md), [`test/README.md`](test/README.md), [`lifecycle-test/README.md`](lifecycle-test/README.md).

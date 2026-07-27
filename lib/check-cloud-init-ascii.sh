@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Fail if terraform/cloud-init contains non-ASCII bytes.
+# Fail if the Recreatable module cloud-init contains non-ASCII bytes.
 # DigitalOcean can mojibake UTF-8 in user_data; YAML then rejects control
 # characters (e.g. U+0086 from a mangled arrow) and drops the whole cloud-config.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-CLOUD_INIT_DIR="${REPO_ROOT}/terraform/cloud-init"
+CLOUD_INIT_DIR="${REPO_ROOT}/terraform/modules/recreatables/cloud-init"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }

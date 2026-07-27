@@ -36,6 +36,7 @@ assert_fqdns() {
 assert_fqdns test \
   api.gniewomir.pl \
   gniewomir.pl \
+  test-acme.gniewomir.pl \
   www.gniewomir.pl
 
 # Missing domains.json → empty set.

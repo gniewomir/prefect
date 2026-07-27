@@ -36,7 +36,7 @@ From the Stack directory (correct workspace already selected):
 
 ```bash
 cd terraform
-terraform import 'digitalocean_domain.this["example.com"]' example.com
+terraform import 'module.durables.digitalocean_domain.this["example.com"]' example.com
 ```
 
 ## Import Stack-authored A records
@@ -51,8 +51,8 @@ Import each label you declared in `names` (resource key is `zone:name`):
 
 ```bash
 # Replace RECORD_ID with the A record id for @ / www / …
-terraform import 'digitalocean_record.a["example.com:@"]' 'example.com,RECORD_ID'
-terraform import 'digitalocean_record.a["example.com:www"]' 'example.com,RECORD_ID'
+terraform import 'module.durables.digitalocean_record.a["example.com:@"]' 'example.com,RECORD_ID'
+terraform import 'module.durables.digitalocean_record.a["example.com:www"]' 'example.com,RECORD_ID'
 ```
 
 If a declared label has no A record yet, skip import for that key — the next Apply creates it.

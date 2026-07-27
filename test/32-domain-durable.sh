@@ -10,20 +10,24 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 require_ip
 [[ -n "${STATE_JSON:-}" ]] || fail "fixture missing STATE_JSON (run via ./test.sh)"
 
-PROJECT_JSON="$(echo "${STATE_JSON}" | jq -c '
-  .values.root_module.resources[]
-  | select(.type == "digitalocean_project" and .name == "prefect")
+DURABLE_ASSIGN_JSON="$(echo "${STATE_JSON}" | jq -c '
+  def resources: (.resources[]?), (.child_modules[]? | resources);
+  .values.root_module | resources
+  | select(.type == "digitalocean_project_resources" and .name == "durables")
   | .values
 ')"
-[[ -n "${PROJECT_JSON}" && "${PROJECT_JSON}" != "null" ]] || fail "Cloud Project digitalocean_project.prefect not in State"
+[[ -n "${DURABLE_ASSIGN_JSON}" && "${DURABLE_ASSIGN_JSON}" != "null" ]] \
+  || fail "Durable Cloud Project memberships not in State"
 
 DOMAIN_COUNT="$(echo "${STATE_JSON}" | jq '
-  [.values.root_module.resources[]
+  [def resources: (.resources[]?), (.child_modules[]? | resources);
+  .values.root_module | resources
   | select(.type == "digitalocean_domain" and .name == "this")] | length
 ')"
 
 RECORD_COUNT="$(echo "${STATE_JSON}" | jq '
-  [.values.root_module.resources[]
+  [def resources: (.resources[]?), (.child_modules[]? | resources);
+  .values.root_module | resources
   | select(.type == "digitalocean_record" and .name == "a")] | length
 ')"
 
@@ -36,10 +40,11 @@ fi
 # Every Domain URN is on the Cloud Project Durable set.
 while IFS= read -r urn; do
   [[ -n "${urn}" && "${urn}" != "null" ]] || fail "Domain missing urn in State"
-  echo "${PROJECT_JSON}" | jq -e --arg urn "${urn}" '.resources | index($urn) != null' >/dev/null \
+  echo "${DURABLE_ASSIGN_JSON}" | jq -e --arg urn "${urn}" '.resources | index($urn) != null' >/dev/null \
     || fail "Domain URN ${urn} not assigned to Cloud Project Prefect"
 done < <(echo "${STATE_JSON}" | jq -r '
-  .values.root_module.resources[]
+  def resources: (.resources[]?), (.child_modules[]? | resources);
+  .values.root_module | resources
   | select(.type == "digitalocean_domain" and .name == "this")
   | .values.urn
 ')
@@ -52,7 +57,8 @@ while IFS= read -r row; do
   [[ "${rtype}" == "A" ]] || fail "Domain record type ${rtype} != A"
   [[ "${value}" == "${IP}" ]] || fail "Domain A value ${value} != Reserved IP ${IP}"
 done < <(echo "${STATE_JSON}" | jq -c '
-  .values.root_module.resources[]
+  def resources: (.resources[]?), (.child_modules[]? | resources);
+  .values.root_module | resources
   | select(.type == "digitalocean_record" and .name == "a")
   | .values
 ')

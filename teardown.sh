@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Teardown the Stack — full wipe including Durables (Reserved IP + Host Volume + Domain).
-# Writes durable_destroy_override.tf and passes -var=allow_durable_destroy=true
-# so prevent_destroy lifts; removes the override afterward (ADR-0016).
+# Teardown the Stack — full wipe including all Durables.
+# Temporarily unlocks the Durable module and removes the override afterward.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Requires: terraform; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
 # Usage: ./teardown.sh [--env <slug>]
@@ -10,8 +9,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
-OVERRIDE="${STACK_DIR}/durable_destroy_override.tf"
-OVERRIDE_EXAMPLE="${STACK_DIR}/durable_destroy_override.tf.example"
+OVERRIDE="${STACK_DIR}/modules/durables/durable_destroy_override.tf"
+OVERRIDE_EXAMPLE="${STACK_DIR}/modules/durables/durable_destroy_override.tf.example"
 UNLOCK_VAR=(-var=allow_durable_destroy=true)
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/lib/environment.sh"
@@ -35,7 +34,6 @@ command -v terraform >/dev/null || fail "terraform not found"
 [[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY is not set"
 
 cd "${STACK_DIR}"
-rm -f parked.auto.tfvars # leftover from sticky-parked experiment; no longer used
 
 environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
 
@@ -57,7 +55,7 @@ fi
 cp "${OVERRIDE_EXAMPLE}" "${OVERRIDE}"
 
 echo "WARNING: Teardown permanently removes every Stack-managed resource,"
-echo "         including Durables (Reserved IP, Host Volume, and Domain)."
+echo "         including Durables (Cloud Project, Reserved IP, Host Volume, and Domain)."
 echo "         Billing for those Durables stops only after this wipe."
 echo "         Prefer Park (./park.sh) when you intend to Apply again soon."
 echo

@@ -15,6 +15,8 @@ IP="$(stack_reserved_ip 2>/dev/null || true)"
 [[ -n "${IP}" ]] || fail "no reserved_ip output (Apply the Stack before this Lifecycle Test)"
 
 DOMAINS_BEFORE="$(stack_domain_names)"
+PROJECT_ID="$(stack_cloud_project_id)"
+[[ -n "${PROJECT_ID}" ]] || fail "Cloud Project not in State before Teardown"
 
 assert_reserved_ip_present "${IP}"
 assert_volume_present
@@ -24,6 +26,7 @@ echo "Tearing down Stack (confirming via stdin) ..."
 printf 'teardown\n' | "${REPO_ROOT}/teardown.sh" --env "${PREFECT_ENV}"
 
 assert_reserved_ip_absent "${IP}"
+assert_cloud_project_absent "${PROJECT_ID}"
 assert_volume_absent
 assert_domains_absent "${DOMAINS_BEFORE}"
 assert_stack_empty

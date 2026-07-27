@@ -46,31 +46,45 @@ assert_reserved_ip_present() {
   pass "Reserved IP ${ip} present at provider"
 }
 
-# Cloud Project id from State (Park preserves digitalocean_project.prefect).
+# Cloud Project id from State (Park preserves the Durable module).
 stack_cloud_project_id() {
   (cd "${STACK_DIR}" && terraform show -json 2>/dev/null) \
     | jq -r '
-      .values.root_module.resources[]
+      def resources: (.resources[]?), (.child_modules[]? | resources);
+      .values.root_module | resources
       | select(.type == "digitalocean_project" and .name == "prefect")
       | .values.id
     ' | head -n1
 }
 
-# Assert Reserved IP is a member of Cloud Project Prefect at the provider
-# (do:floatingip:<ip> — ADR-0003 / ADR-0016 Parked membership).
-assert_reserved_ip_in_cloud_project() {
+# Assert every configured Durable is a Cloud Project member at the provider.
+assert_durables_in_cloud_project() {
   local ip="$1"
-  [[ -n "${ip}" ]] || fail "assert_reserved_ip_in_cloud_project: empty IP"
-  local project_id body urn
+  [[ -n "${ip}" ]] || fail "assert_durables_in_cloud_project: empty IP"
+  local project_id body expected_urn
   project_id="$(stack_cloud_project_id)"
   [[ -n "${project_id}" ]] || fail "Cloud Project prefect not in State"
-  urn="do:floatingip:${ip}"
   body="$(do_api_get "/v2/projects/${project_id}/resources")" \
     || fail "Cloud Project resources list failed for ${project_id}"
-  echo "${body}" | jq -e --arg urn "${urn}" \
-    '[.resources[].urn] | index($urn) != null' >/dev/null \
-    || fail "Reserved IP ${urn} not in Cloud Project Prefect (${project_id})"
-  pass "Reserved IP ${ip} in Cloud Project Prefect"
+  while IFS= read -r expected_urn; do
+    [[ -n "${expected_urn}" ]] || continue
+    echo "${body}" | jq -e --arg urn "${expected_urn}" \
+      '[.resources[].urn] | index($urn) != null' >/dev/null \
+      || fail "Durable ${expected_urn} not in Cloud Project Prefect (${project_id})"
+  done < <(
+    printf 'do:floatingip:%s\n' "${ip}"
+    (cd "${STACK_DIR}" && terraform show -json 2>/dev/null) \
+      | jq -r '
+        def resources: (.resources[]?), (.child_modules[]? | resources);
+        .values.root_module | resources
+        | select(
+            (.type == "digitalocean_volume" and .name == "web")
+            or (.type == "digitalocean_domain" and .name == "this")
+          )
+        | .values.urn
+      '
+  )
+  pass "all Durables remain in Cloud Project Prefect"
 }
 
 # Assert Host Volume still exists at the provider (survives Park).
@@ -101,6 +115,21 @@ assert_reserved_ip_absent() {
   pass "Reserved IP ${ip} gone from provider"
 }
 
+assert_cloud_project_absent() {
+  local project_id="$1"
+  [[ -n "${project_id}" ]] || fail "assert_cloud_project_absent: empty project id"
+  require_do_token
+  local http_code
+  http_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+    -H "Authorization: Bearer ${DIGITALOCEAN_TOKEN}" \
+    -H "Content-Type: application/json" \
+    "https://api.digitalocean.com/v2/projects/${project_id}")" \
+    || fail "Cloud Project lookup failed for ${project_id}"
+  [[ "${http_code}" == "404" ]] \
+    || fail "Cloud Project ${project_id} still present at provider (HTTP ${http_code})"
+  pass "Cloud Project gone from provider"
+}
+
 # Assert Host Volume is gone at the provider (after Teardown).
 assert_volume_absent() {
   local name="${1:-${DURABLE_VOLUME_NAME}}"
@@ -115,8 +144,13 @@ assert_volume_absent() {
 
 # Apex FQDNs for Domain Durables currently in State (empty if none configured).
 stack_domain_names() {
-  (cd "${STACK_DIR}" && terraform state list 2>/dev/null) \
-    | sed -n 's/^digitalocean_domain\.this\["\(.*\)"]$/\1/p'
+  (cd "${STACK_DIR}" && terraform show -json 2>/dev/null) \
+    | jq -r '
+      def resources: (.resources[]?), (.child_modules[]? | resources);
+      .values.root_module | resources
+      | select(.type == "digitalocean_domain" and .name == "this")
+      | .values.name
+    '
 }
 
 # Assert each Stack Domain zone still exists and has A → Reserved IP (survives Park).
