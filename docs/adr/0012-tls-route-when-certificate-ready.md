@@ -1,7 +1,7 @@
-# Enable TLS Route shell only after the certificate exists
+# HTTPS readiness is operator Route + certificate material, not Setup projection
 
-For each Public Hostname, the Edge enables the HTTPS server shell only once the corresponding certificate is present on the Host Volume. Workload Setup projects the Workload Manifest (Workload Intent, Public Hostname claim, ACME request, optional Route interior) and must not block on issuance — DNS is out of band and happy-path ACME is usually seconds to a couple of minutes, but mispointed DNS makes wait time unbounded. After ACME writes usable PEMs, Edge ACME reprojects Routes from stored Manifests and reloads the front door so HTTPS can go live without a second Workload Setup (ADR-0015). “HTTPS live” is a readiness/Acceptance concern, not a Workload Setup success criterion. When Intent is **stop**, the same TLS shell is used to return 503 without proxying (ADR-0014) — still only while a usable certificate exists.
-
-**Enable-when-ready over immediate :443 with broken handshakes:** avoids serving a Public Hostname on HTTPS before TLS can succeed.
+Workload Setup must not block on certificate issuance — DNS is out of band and happy-path ACME is usually seconds to a couple of minutes, but mispointed DNS makes wait time unbounded. Operator-authored **Routes** may reference certificate paths; whether HTTPS answers is a readiness/Acceptance concern once PEMs exist on the Host Volume, not a Workload Setup success criterion. After ACME writes usable PEMs, Edge ACME **reloads** the front door without rewriting Route files so existing operator Routes can use new material (ADR-0015 / ADR-0022). Intent **stop** uninstalls that Workload’s Routes (no Prefect-managed 503 shells — ADR-0014 / ADR-0022).
 
 **Non-blocking Setup over Setup-waits-for-cert:** keeps Workload Setup deterministic when DNS or CAA is wrong.
+
+**Reload-without-Route-rewrite over ACME reprojecting Manifest shells:** preserves operator-owned Route bytes.

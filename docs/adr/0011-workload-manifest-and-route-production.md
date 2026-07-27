@@ -1,9 +1,9 @@
-# Workload Manifest produces Routes; names stay Manifest-owned
+# Workload Manifest declares Intent; operator Routes are installed, not projected
 
-HTTPS needs enumerated **Public Hostnames** across many names on one Edge. A **Workload Manifest** is the source of truth for that Workload’s **Workload Intent** (ADR-0014 / ADR-0017), its Public Hostnames (one or more), and for producing its **Route**. Workload Setup and Edge ACME (post-issue refresh, ADR-0015) project the Edge server shell (listen / Public Hostnames / TLS wiring) from the stored Manifest; when no suitable generated proxy body applies, an optional Workload-provided **interior** may replace only the proxy body. The interior must not declare Public Hostnames — so Manifest and Route cannot drift without parsing proxy config. ACME obtains one certificate per declared Public Hostname (HTTP-01); DNS remains out of band (A/AAAA → Reserved IP). A Public Hostname is unique among Workloads on that Host that still claim it (Intent **run** or **stop**); Workload Setup fails on conflict. Intent **trash** releases the claim (ADR-0014).
+A **Workload Manifest** is the source of truth for that Workload’s **Workload Intent** (ADR-0014 / ADR-0017). Optional interim **Public Hostnames** remain the ACME want-list input until a sibling cutover (unique among Intent **run**). **Routes** are operator-authored native config under `workloads/<name>/routes/`; Workload Setup installs them into the Edge routes directory as `<name>--<filename>` for Intent **run** and removes that Workload’s installed Routes for **stop** / **trash** — Prefect does not generate Edge shells or Manifest **interior** splicing (ADR-0022). ACME obtains one certificate per want-list name (HTTP-01); DNS remains out of band (A/AAAA → Reserved IP). Domain owns names and certificate material; a Workload uses them via Routes.
 
-**Manifest over parsing Route config for ACME:** keeps certificate input independent of proxy syntax.
+**Manifest Public Hostnames for ACME over parsing Route config:** keeps certificate input independent of proxy syntax until Domain-derived want-list.
 
-**Generate shell + optional interior over hand-written full vhosts or Manifest-only with no escape hatch:** avoids hostname mismatch checks, still allows non-default proxy shape.
+**Operator-authored full Routes over generate-shell + optional interior:** Prefect stops owning Edge HTTP behaviour for Workloads; native nginx (or equivalent) stays the Workload HTTP language.
 
-**Enumerated Public Hostnames + HTTP-01 over wildcards / DNS-01:** matches multiple domains and subdomains without DNS provider credentials on the Host.
+**Enumerated Public Hostnames + HTTP-01 over wildcards / DNS-01:** matches multiple domains and subdomains without DNS provider credentials on the Host (want-list SoT migrates in a sibling cutover).

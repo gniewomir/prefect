@@ -16,7 +16,16 @@ TOKEN="prefect-acme-foundation-probe"
 TOKEN_PATH="${ACME_WWW}/.well-known/acme-challenge/${TOKEN}"
 
 # Host :443 is published by the Edge (listener present — TLS shells come later).
-if ! ssh "${SSH_OPTS[@]}" "root@${IP}" "ss -ltn | grep -qE ':443[[:space:]]'"; then
+# Retry: ensure-components may briefly bounce the Edge Pod.
+listening=0
+for _ in $(seq 1 30); do
+  if ssh "${SSH_OPTS[@]}" "root@${IP}" "ss -ltn | grep -qE ':443[[:space:]]'"; then
+    listening=1
+    break
+  fi
+  sleep 1
+done
+if [[ "${listening}" -ne 1 ]]; then
   fail "Host :443 is not listening (Edge should PublishPort 443)"
 fi
 pass "Edge publishes Host :443"

@@ -76,8 +76,9 @@ ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/work
   || fail "Purge must not touch Intent stop keep-me"
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/workloads/reclaim-b/manifest.json" \
   || fail "Purge must not touch Intent run reclaim-b"
-keep_claim="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/claims/${HOST_KEEP}")"
-[[ "${keep_claim}" == "keep-me" ]] || fail "Intent stop claim should survive Purge"
+if ssh "${SSH_OPTS[@]}" "root@${IP}" "test -e /var/lib/prefect/components_data/edge/claims/${HOST_KEEP}"; then
+  fail "Intent stop must not hold Public Hostname claim (unique among Intent run only)"
+fi
 want="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/acme/want-list")"
 echo "${want}" | grep -qx "${HOST_A}" \
   || fail "after Purge, ACME want-list should still include Intent run reclaim-b hostname"

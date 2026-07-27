@@ -8,6 +8,6 @@ Public Hosts get a mandatory **Edge** (Prefect-owned HTTP/HTTPS front door) and 
 
 **Edge Pod + nginx container over a lone container:** keeps Edge units cohesive and leaves room for helpers that share the Pod; ACME execution model is on-demand (ADR-0015), not a standing sidecar. No placeholder/self-signed 443 in the first drop.
 
-**Workload-owned Routes over a monolithic Edge config or dynamic discovery:** each Workload’s Route is produced from its Workload Manifest (ADR-0011); the Edge is a shell. Reload-on-Route-change is a future deploy contract, not part of the first units. Alpine-family nginx image; Host bind mounts for Routes and certs (and ACME webroot — ADR-0015).
+**Workload-owned Routes over a monolithic Edge config or dynamic discovery:** each Workload’s Route is operator-authored native config installed by Workload Setup (ADR-0011 / ADR-0022); the Edge is a shell that includes drop-in files. Alpine-family nginx image; Host bind mounts for Routes and certs (and ACME webroot — ADR-0015).
 
 **Unchanged from ADR-0004 / ADR-0006:** user Quadlets / rootless only; no Quadlet install in Initial Host Provisioning; Host stays a carrier. Prefect User + linger are Initial Host Provisioning (ADR-0008).

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Host-local Workload Setup. Invoked by prefect/workload-setup.sh (not an operator entrypoint).
 # Usage: PREFECT_USER=prefect bash workload-setup-host.sh /path/to/staging-dir
-# Staging dir must contain manifest.json and optionally interior.conf.
+# Staging dir must contain manifest.json; optional routes/ tree (operator-authored Route SoT).
 set -euo pipefail
 
 STAGE="${1:?staging dir required}"
 USER_NAME="${PREFECT_USER:-prefect}"
 MANIFEST="${STAGE}/manifest.json"
-INTERIOR_SRC="${STAGE}/interior.conf"
+ROUTES_STAGE="${STAGE}/routes"
 
 DATA_ROOT=/var/lib/prefect/components_data
 EDGE_DATA="${DATA_ROOT}/edge"
@@ -19,8 +19,8 @@ WANT_LIST="${ACME_DIR}/want-list"
 
 # shellcheck source=quadlet-user-session.sh
 source /var/lib/prefect/components/lib/quadlet-user-session.sh
-# shellcheck source=edge-project-routes-host.sh
-source /var/lib/prefect/components/lib/edge-project-routes-host.sh
+# shellcheck source=edge-routes-host.sh
+source /var/lib/prefect/components/lib/edge-routes-host.sh
 
 [[ -f "${MANIFEST}" ]] || {
   echo "manifest.json missing in ${STAGE}" >&2
@@ -45,8 +45,9 @@ if intent not in ("run", "stop", "trash"):
     raise SystemExit("manifest.intent must be run|stop|trash")
 if not upstream or not isinstance(upstream, str):
     raise SystemExit("manifest.upstream must be a non-empty string (host:port)")
-if not isinstance(hosts, list) or not hosts or not all(isinstance(h, str) and h for h in hosts):
-    raise SystemExit("manifest.public_hostnames must be a non-empty list of strings")
+if not isinstance(hosts, list) or not all(isinstance(h, str) and h for h in hosts):
+    raise SystemExit("manifest.public_hostnames must be a list of non-empty strings")
+# Empty list is allowed (ACME want-list simply omits this Workload).
 if any(c in name for c in "/ \t\n"):
     raise SystemExit("manifest.name must be a single path segment")
 print(f"WL_NAME={shlex.quote(name)}")
@@ -59,18 +60,8 @@ PY
 mkdir -p "${CLAIMS_DIR}" "${ROUTES_DIR}" "${ACME_DIR}" "${WORKLOADS_ROOT}/${WL_NAME}"
 [[ -f "${WANT_LIST}" ]] || : >"${WANT_LIST}"
 
-# Reject interior that tries to own Public Hostnames / listen / TLS.
-if [[ -f "${INTERIOR_SRC}" ]]; then
-  if grep -Eiq '^\s*(server_name|listen|ssl_certificate|ssl_certificate_key)\b' "${INTERIOR_SRC}"; then
-    echo "Workload interior must not declare server_name, listen, or TLS certificate directives" >&2
-    exit 1
-  fi
-fi
-
-# Uniqueness among Intent run/stop claimants (Intent trash releases names).
-if [[ "${WL_INTENT}" == "trash" ]]; then
-  :
-else
+# Uniqueness among Intent run claimants only (Public Hostname → ACME want-list until #44).
+if [[ "${WL_INTENT}" == "run" ]]; then
   for host in ${WL_HOSTS}; do
     claim_file="${CLAIMS_DIR}/${host}"
     if [[ -f "${claim_file}" ]]; then
@@ -83,7 +74,7 @@ else
   done
 fi
 
-# Drop prior claims owned by this Workload, then re-apply if still claiming.
+# Drop prior claims owned by this Workload, then re-apply only for Intent run.
 if [[ -d "${CLAIMS_DIR}" ]]; then
   for claim_file in "${CLAIMS_DIR}"/*; do
     [[ -f "${claim_file}" ]] || continue
@@ -93,22 +84,26 @@ if [[ -d "${CLAIMS_DIR}" ]]; then
   done
 fi
 
-if [[ "${WL_INTENT}" != "trash" ]]; then
+if [[ "${WL_INTENT}" == "run" ]]; then
   for host in ${WL_HOSTS}; do
     printf '%s\n' "${WL_NAME}" >"${CLAIMS_DIR}/${host}"
   done
 fi
 
 install -m 0644 "${MANIFEST}" "${WORKLOADS_ROOT}/${WL_NAME}/manifest.json"
-if [[ -f "${INTERIOR_SRC}" ]]; then
-  install -m 0644 "${INTERIOR_SRC}" "${WORKLOADS_ROOT}/${WL_NAME}/interior.conf"
-else
-  rm -f "${WORKLOADS_ROOT}/${WL_NAME}/interior.conf"
+rm -f "${WORKLOADS_ROOT}/${WL_NAME}/interior.conf"
+rm -rf "${WORKLOADS_ROOT}/${WL_NAME}/routes"
+if [[ -d "${ROUTES_STAGE}" ]]; then
+  mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/routes"
+  for src in "${ROUTES_STAGE}"/*; do
+    [[ -f "${src}" ]] || continue
+    install -m 0644 "${src}" "${WORKLOADS_ROOT}/${WL_NAME}/routes/$(basename "${src}")"
+  done
 fi
 
 WL_UPSTREAM_HOST="${WL_UPSTREAM%%:*}"
 
-# Rebuild ACME want-list from Intent run claimants only (ADR-0014 / ADR-0015).
+# Rebuild ACME want-list from Intent run claimants only (ADR-0015; want-list SoT until #44).
 : >"${WANT_LIST}.tmp"
 if [[ -d "${WORKLOADS_ROOT}" ]]; then
   for wl_dir in "${WORKLOADS_ROOT}"/*; do
@@ -132,8 +127,8 @@ chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}"
 
 quadlet_user_session_begin
 
-# Project Routes for every stored Manifest (shared with Edge ACME post-issue refresh).
-edge_project_routes_from_manifests
+# Install operator Routes for Intent run; remove this Workload's installed Routes otherwise.
+edge_reconcile_workload_routes "${WL_NAME}" "${WL_INTENT}" "${WORKLOADS_ROOT}/${WL_NAME}/routes"
 
 # Minimal Workload Quadlet on the Service Network (name matches upstream host).
 WL_UNIT="${UNIT_DIR}/${WL_UPSTREAM_HOST}.container"
@@ -162,7 +157,6 @@ quadlet_user systemctl --user reset-failed "${WL_UPSTREAM_HOST}.service" 2>/dev/
 
 if [[ "${WL_INTENT}" == "run" ]]; then
   quadlet_user systemctl --user restart "${WL_UPSTREAM_HOST}.service"
-  # Wait until the Workload answers on the Service Network from the Edge Pod's perspective.
   for _ in $(seq 1 30); do
     if quadlet_user systemctl --user --quiet is-active "${WL_UPSTREAM_HOST}.service"; then
       break
@@ -174,7 +168,6 @@ else
   quadlet_user systemctl --user stop "${WL_UPSTREAM_HOST}.service" 2>/dev/null || true
 fi
 
-# Pick up projected Routes; do not wait for ACME.
 edge_reload_front_door_if_routes_changed
 
 # Trigger on-demand ACME immediately when Public Hostnames are claimed/changed (ADR-0015).

@@ -49,9 +49,9 @@ if ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/e
 fi
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/workloads/${WL}/manifest.json" \
   || fail "Intent trash Workload data should remain until Purge"
-if ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/edge/routes/${WL}.conf"; then
-  fail "Intent trash should remove Workload Route"
-fi
+trash_routes="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+  "ls /var/lib/prefect/components_data/edge/routes/${WL}.conf /var/lib/prefect/components_data/edge/routes/${WL}--* 2>/dev/null || true")"
+[[ -z "${trash_routes}" ]] || fail "Intent trash should remove Workload installed Routes (got: ${trash_routes})"
 want="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/acme/want-list")"
 echo "${want}" | grep -qx "${HOST}" && fail "Intent trash name must not stay in ACME want-list" || true
 pass "Intent trash releases claims and ACME wants; data retained until Purge"

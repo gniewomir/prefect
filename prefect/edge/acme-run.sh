@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # Edge ACME on-demand runner (systemd user oneshot).
 # Empty want-list → success with no CA contact.
-# Non-empty → HTTP-01 via lego (staging by default), write PEMs, refresh Routes, reload Edge.
-# PREFECT_ACME_ISSUE=0 skips CA contact (Acceptance / fixture) but still refreshes Routes.
+# Non-empty → HTTP-01 via lego (staging by default), write PEMs, reload Edge (no Route projection).
+# PREFECT_ACME_ISSUE=0 skips CA contact (Acceptance / fixture) but still reloads Edge when names exist.
 # PREFECT_ACME_DIRECTORY=production opts into the Let's Encrypt production directory.
 set -euo pipefail
 
 DATA_ROOT=/var/lib/prefect/components_data/edge
 EDGE_DATA="${DATA_ROOT}"
-WORKLOADS_ROOT=/var/lib/prefect/components_data/workloads
 ROUTES_DIR="${DATA_ROOT}/routes"
 CERTS_DIR="${DATA_ROOT}/certs"
 ACME_DIR="${DATA_ROOT}/acme"
@@ -19,8 +18,8 @@ USER_NAME="${PREFECT_USER:-prefect}"
 
 # shellcheck source=../lib/quadlet-user-session.sh
 source /var/lib/prefect/components/lib/quadlet-user-session.sh
-# shellcheck source=../lib/edge-project-routes-host.sh
-source /var/lib/prefect/components/lib/edge-project-routes-host.sh
+# shellcheck source=../lib/edge-routes-host.sh
+source /var/lib/prefect/components/lib/edge-routes-host.sh
 
 mkdir -p "${ACME_DIR}" "${ACME_WWW}" "${CERTS_DIR}" "${ROUTES_DIR}"
 [[ -f "${WANT_LIST}" ]] || : >"${WANT_LIST}"
@@ -110,7 +109,7 @@ if [[ "${PREFECT_ACME_ISSUE:-1}" != "0" ]]; then
     fi
   done
 else
-  echo "edge-acme: PREFECT_ACME_ISSUE=0 — skipping CA contact; refreshing Routes only" >&2
+  echo "edge-acme: PREFECT_ACME_ISSUE=0 — skipping CA contact; reloading Edge only" >&2
 fi
 
 # Oneshot runs as the Prefect User (systemd --user); only use root helpers when root.
@@ -121,11 +120,11 @@ else
   quadlet_user_session_begin
 fi
 
-edge_project_routes_from_manifests
-edge_reload_front_door_if_routes_changed
+# Operator-owned Routes are not rewritten; reload so new PEMs are picked up by existing Routes.
+edge_reload_front_door
 
 if [[ "${issue_failed}" -ne 0 ]]; then
-  echo "edge-acme: one or more CA contacts failed; usable PEMs left untouched; Routes refreshed" >&2
+  echo "edge-acme: one or more CA contacts failed; usable PEMs left untouched; Edge reloaded" >&2
 fi
-# Always succeed after refresh: DNS/CA failures are logged; Setup must not depend on issuance.
+# Always succeed after reload attempt: DNS/CA failures are logged; Setup must not depend on issuance.
 exit 0

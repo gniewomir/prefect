@@ -4,6 +4,7 @@
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./prefect/workload-setup.sh [--env <slug>] /path/to/manifest.json
 # Optional: VERIFY_SSH_IDENTITY=/path/to/private_key  PREFECT_USER=prefect
+# Operator Routes: optional sibling directory routes/ next to the Manifest (copied as SoT).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -43,29 +44,20 @@ if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
   SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
 fi
 
-# Resolve optional interior relative to the Manifest directory.
 MANIFEST_DIR="$(cd "$(dirname "${MANIFEST_PATH}")" && pwd)"
 MANIFEST_ABS="${MANIFEST_DIR}/$(basename "${MANIFEST_PATH}")"
-INTERIOR_REL="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("interior") or "")' "${MANIFEST_ABS}")"
-INTERIOR_ABS=""
-if [[ -n "${INTERIOR_REL}" ]]; then
-  if [[ "${INTERIOR_REL}" = /* ]]; then
-    INTERIOR_ABS="${INTERIOR_REL}"
-  else
-    INTERIOR_ABS="${MANIFEST_DIR}/${INTERIOR_REL}"
-  fi
-  [[ -f "${INTERIOR_ABS}" ]] || {
-    echo "interior file not found: ${INTERIOR_ABS}" >&2
-    exit 1
-  }
-fi
+ROUTES_SRC="${MANIFEST_DIR}/routes"
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
 cp "${MANIFEST_ABS}" "${STAGE}/manifest.json"
 cp "${HOST_SCRIPT}" "${STAGE}/workload-setup-host.sh"
-if [[ -n "${INTERIOR_ABS}" ]]; then
-  cp "${INTERIOR_ABS}" "${STAGE}/interior.conf"
+if [[ -d "${ROUTES_SRC}" ]]; then
+  mkdir -p "${STAGE}/routes"
+  for src in "${ROUTES_SRC}"/*; do
+    [[ -f "${src}" ]] || continue
+    cp "${src}" "${STAGE}/routes/$(basename "${src}")"
+  done
 fi
 
 COPYFILE_DISABLE=1 tar --format=ustar -C "${STAGE}" -cf - . \
