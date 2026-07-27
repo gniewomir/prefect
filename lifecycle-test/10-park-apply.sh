@@ -31,6 +31,7 @@ echo "Parking Stack (confirming via stdin) ..."
 printf 'park\n' | "${REPO_ROOT}/park.sh" --env "${PREFECT_ENV}"
 
 assert_reserved_ip_present "${IP}"
+assert_reserved_ip_in_cloud_project "${IP}"
 assert_volume_present
 assert_domains_present "${IP}"
 

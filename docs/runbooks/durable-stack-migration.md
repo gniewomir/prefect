@@ -6,7 +6,7 @@ ADR-0016 / issue #24. Reserved IP is a Durable address plus a separate Host assi
 
 ## Park
 
-`./park.sh [--env <slug>]` destroys every address in State **except** a preserve whitelist (Durables + Cloud Project + the Durable unlock gate). New non-durables are Parked automatically without updating the script. Durables also carry `lifecycle.prevent_destroy` — that is the Durable source of truth if the whitelist drifts. Config is unchanged; the next `./apply.sh` recreates non-durables. Already Parked: exits 0 when State is only preserved addresses.
+`./park.sh [--env <slug>]` destroys every address in State **except** a preserve whitelist (Durables + Cloud Project + Reserved IP floatingip membership + the Durable unlock gate). New non-durables are Parked automatically without updating the script. Durables also carry `lifecycle.prevent_destroy` — that is the Durable source of truth if the whitelist drifts. Config is unchanged; the next `./apply.sh` recreates non-durables. Already Parked: exits 0 when State is only preserved addresses.
 
 ## Apply
 

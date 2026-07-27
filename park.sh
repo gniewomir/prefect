@@ -16,12 +16,14 @@ source "${REPO_ROOT}/lib/environment.sh"
 
 # Keep these; destroy every other address currently in State.
 # Durables must also have lifecycle.prevent_destroy — that is the source of truth
-# if this list drifts. Cloud Project stays so Durables do not leave Prefect.
+# if this list drifts. Cloud Project + Reserved IP floatingip membership stay so
+# Durables do not leave Prefect.
 # Domain Durables (for_each) are matched in is_preserved by address prefix (ADR-0020).
 PRESERVE=(
   digitalocean_reserved_ip.web
   digitalocean_volume.web
   digitalocean_project.prefect
+  digitalocean_project_resources.reserved_ip
   terraform_data.durable_destroy_unlock_gate
 )
 

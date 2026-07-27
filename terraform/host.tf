@@ -64,8 +64,12 @@ resource "digitalocean_reserved_ip" "web" {
 }
 
 # Non-durable: destroyed on Park, recreated on Apply. Do not also set droplet_id on
-# digitalocean_reserved_ip.web.
+# digitalocean_reserved_ip.web. Attach only after the Host is in Cloud Project Prefect
+# so the IP follows the Host there (ADR-0003) instead of Terraform moving an attached
+# IP across projects (provider 412).
 resource "digitalocean_reserved_ip_assignment" "web" {
   ip_address = digitalocean_reserved_ip.web.ip_address
   droplet_id = digitalocean_droplet.web.id
+
+  depends_on = [digitalocean_project_resources.web_host]
 }

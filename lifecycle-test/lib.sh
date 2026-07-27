@@ -46,6 +46,33 @@ assert_reserved_ip_present() {
   pass "Reserved IP ${ip} present at provider"
 }
 
+# Cloud Project id from State (Park preserves digitalocean_project.prefect).
+stack_cloud_project_id() {
+  (cd "${STACK_DIR}" && terraform show -json 2>/dev/null) \
+    | jq -r '
+      .values.root_module.resources[]
+      | select(.type == "digitalocean_project" and .name == "prefect")
+      | .values.id
+    ' | head -n1
+}
+
+# Assert Reserved IP is a member of Cloud Project Prefect at the provider
+# (do:floatingip:<ip> — ADR-0003 / ADR-0016 Parked membership).
+assert_reserved_ip_in_cloud_project() {
+  local ip="$1"
+  [[ -n "${ip}" ]] || fail "assert_reserved_ip_in_cloud_project: empty IP"
+  local project_id body urn
+  project_id="$(stack_cloud_project_id)"
+  [[ -n "${project_id}" ]] || fail "Cloud Project prefect not in State"
+  urn="do:floatingip:${ip}"
+  body="$(do_api_get "/v2/projects/${project_id}/resources")" \
+    || fail "Cloud Project resources list failed for ${project_id}"
+  echo "${body}" | jq -e --arg urn "${urn}" \
+    '[.resources[].urn] | index($urn) != null' >/dev/null \
+    || fail "Reserved IP ${urn} not in Cloud Project Prefect (${project_id})"
+  pass "Reserved IP ${ip} in Cloud Project Prefect"
+}
+
 # Assert Host Volume still exists at the provider (survives Park).
 assert_volume_present() {
   local name="${1:-${DURABLE_VOLUME_NAME}}"

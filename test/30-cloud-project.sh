@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Cloud Project Prefect owns the Host and Host Volume
+# Acceptance Test: Cloud Project Prefect owns the Host, Host Volume, and Reserved IP
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -39,4 +39,23 @@ VOLUME_URN="$(echo "${STATE_JSON}" | jq -r '
 echo "${PROJECT_JSON}" | jq -e --arg urn "${VOLUME_URN}" '.resources | index($urn) != null' >/dev/null \
   || fail "Host Volume URN not assigned to Cloud Project Prefect"
 
-pass "Cloud Project Prefect owns Host and Host Volume"
+# Reserved IP membership uses Projects API floatingip URN (ADR-0003), separate
+# project_resources so Park can preserve it without depending on the Host.
+RESERVED_IP="$(echo "${STATE_JSON}" | jq -r '
+  .values.root_module.resources[]
+  | select(.type == "digitalocean_reserved_ip" and .name == "web")
+  | .values.ip_address
+')"
+[[ -n "${RESERVED_IP}" && "${RESERVED_IP}" != "null" ]] || fail "Reserved IP not in State"
+FLOATING_URN="do:floatingip:${RESERVED_IP}"
+IP_ASSIGN_JSON="$(echo "${STATE_JSON}" | jq -c '
+  .values.root_module.resources[]
+  | select(.type == "digitalocean_project_resources" and .name == "reserved_ip")
+  | .values
+')"
+[[ -n "${IP_ASSIGN_JSON}" && "${IP_ASSIGN_JSON}" != "null" ]] \
+  || fail "Reserved IP Cloud Project assignment digitalocean_project_resources.reserved_ip not in State"
+echo "${IP_ASSIGN_JSON}" | jq -e --arg urn "${FLOATING_URN}" '.resources | index($urn) != null' >/dev/null \
+  || fail "Reserved IP floatingip URN not assigned to Cloud Project Prefect via reserved_ip"
+
+pass "Cloud Project Prefect owns Host, Host Volume, and Reserved IP"
