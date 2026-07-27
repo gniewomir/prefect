@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Acceptance Test: Edge ACME foundation after ensure-components (no live CA)
-# Covers: :443 published, HTTP-01 webroot on :80, empty want-list oneshot + user timer, empty Edge 404.
+# Covers: :443 published, HTTP-01 webroot on :80, want-list presence, ACME oneshot + user timer, empty Edge 404.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -51,48 +51,23 @@ if [[ "${body}" != "${TOKEN}" ]]; then
 fi
 pass "Edge serves ACME HTTP-01 webroot on :80"
 
-# Want-list file exists; empty only when no Workload Manifests with Intent run remain on the Host.
-want_state="$(ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
-set -euo pipefail
-if [[ ! -f "${WANT_LIST}" ]]; then
-  echo missing
-  exit 0
-fi
-run_claimants=0
-if [[ -d /var/lib/prefect/components_data/workloads ]]; then
-  for m in /var/lib/prefect/components_data/workloads/*/manifest.json; do
-    [[ -f "\$m" ]] || continue
-    if python3 -c 'import json,sys; raise SystemExit(0 if json.load(open(sys.argv[1])).get("intent")=="run" else 1)' "\$m" 2>/dev/null; then
-      run_claimants=\$((run_claimants+1))
-    fi
-  done
-fi
-if grep -q '[^[:space:]]' "${WANT_LIST}"; then
-  if [[ "\$run_claimants" -gt 0 ]]; then
-    echo projected
-  else
-    echo nonempty
-  fi
-else
-  echo empty
-fi
-REMOTE
-)"
-case "${want_state}" in
-  empty|projected) pass "ACME want-list is present (${want_state})" ;;
-  missing) fail "ACME want-list file missing" ;;
-  *) fail "ACME want-list unexpected state '${want_state}'" ;;
-esac
+# ensure-components installs the Domain-derived want-list. Test 80 owns its exact contents.
+ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f '${WANT_LIST}'" \
+  || fail "ACME want-list file missing"
+pass "ACME want-list is present"
 
-# Oneshot + timer installed under Prefect User; oneshot succeeds with empty want-list
+# Oneshot + timer installed under Prefect User; exercise the unit without CA contact.
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
 set -euo pipefail
 UID_NUM="\$(id -u ${USER_NAME})"
 export XDG_RUNTIME_DIR="/run/user/\${UID_NUM}"
 systemctl start "user@\${UID_NUM}.service"
+trap 'runuser -u ${USER_NAME} -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" systemctl --user unset-environment PREFECT_ACME_ISSUE' EXIT
+runuser -u ${USER_NAME} -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" \
+  systemctl --user set-environment PREFECT_ACME_ISSUE=0
 runuser -u ${USER_NAME} -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" \
   systemctl --user --quiet is-active edge-acme.timer
 runuser -u ${USER_NAME} -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" \
-  systemctl --user start edge-acme.service
+  systemctl --user restart edge-acme.service
 REMOTE
 pass "Edge ACME timer active; oneshot succeeds"
