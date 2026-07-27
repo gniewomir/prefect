@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Host-local Purge. Invoked by prefect/purge-workloads.sh.
-# Removes every Workload whose Intent is trash and associated Routes, certificates, units, and Host Volume data.
+# Removes every Workload whose Intent is trash and Workload-associated data
+# (installed Routes, units, Host Volume Workload tree). Does not delete Domains
+# or Domain-scoped certificate material (ADR-0022 / #54).
 set -euo pipefail
 
 USER_NAME="${PREFECT_USER:-prefect}"
@@ -9,12 +11,13 @@ EDGE_DATA="${DATA_ROOT}/edge"
 WORKLOADS_ROOT="${DATA_ROOT}/workloads"
 CLAIMS_DIR="${EDGE_DATA}/claims"
 ROUTES_DIR="${EDGE_DATA}/routes"
-CERTS_DIR="${EDGE_DATA}/certs"
 ACME_DIR="${EDGE_DATA}/acme"
 WANT_LIST="${ACME_DIR}/want-list"
 
 # shellcheck source=quadlet-user-session.sh
 source /var/lib/prefect/components/lib/quadlet-user-session.sh
+# shellcheck source=edge-routes-host.sh
+source /var/lib/prefect/components/lib/edge-routes-host.sh
 
 command -v python3 >/dev/null || {
   echo "python3 required on Host for Purge" >&2
@@ -47,9 +50,10 @@ PY
       rm -f "${UNIT_DIR}/${upstream_host}.container"
     fi
 
-    rm -f "${ROUTES_DIR}/${P_NAME}.conf"
+    # Installed Routes may already be gone after Intent trash Setup; clear leftovers.
+    edge_remove_workload_installed_routes "${P_NAME}"
+
     for host in ${P_HOSTS}; do
-      rm -rf "${CERTS_DIR}/${host}"
       # Claims should already be released on Intent trash; clear any stale file.
       if [[ -f "${CLAIMS_DIR}/${host}" ]] && [[ "$(cat "${CLAIMS_DIR}/${host}")" == "${P_NAME}" ]]; then
         rm -f "${CLAIMS_DIR}/${host}"
