@@ -33,6 +33,7 @@ case "${1-}" in
 JSON
     ;;
   import) exit 0 ;;
+  plan) exit 2 ;;
   apply) exit 0 ;;
 esac
 EOF

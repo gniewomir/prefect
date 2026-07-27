@@ -19,6 +19,7 @@ STACK_DIR="${REPO_ROOT}/terraform"
 # Provider-visible Durable identifiers (not State addresses). Derived from PREFECT_ENV.
 DURABLE_VOLUME_NAME="$(environment_volume_name_for "${PREFECT_ENV:-test}")"
 DURABLE_VOLUME_REGION="fra1"
+HOST_NAME="prefect-${PREFECT_ENV:-test}-web"
 
 # Assert Reserved IP still exists at the provider (survives Park).
 assert_reserved_ip_present() {
@@ -35,6 +36,18 @@ assert_reserved_ip_present() {
 # Provider Cloud Project id for the selected Environment.
 stack_cloud_project_id() {
   provider_cloud_project_id
+}
+
+# Provider Host Volume id for the selected Environment (empty when absent).
+stack_host_volume_id() {
+  provider_host_volume_json | jq -r '.id // empty'
+}
+
+# Provider Host JSON for the Environment Host name (empty when absent).
+provider_host_by_name_json() {
+  local name="${1:-${HOST_NAME}}"
+  do_api_get "/v2/droplets?name=${name}&per_page=200" \
+    | jq -c --arg name "${name}" '[.droplets[] | select(.name == $name)] | .[0] // empty'
 }
 
 # Assert every configured Durable is a Cloud Project member at the provider.
@@ -179,6 +192,99 @@ assert_stack_empty() {
 
 stack_reserved_ip() {
   (cd "${STACK_DIR}" && terraform output -raw reserved_ip)
+}
+
+# Assert the Environment Host exists at the provider (Applied Recreatable).
+assert_host_present() {
+  local host_json
+  host_json="$(provider_host_by_name_json)"
+  [[ -n "${host_json}" && "${host_json}" != "null" ]] \
+    || fail "Host ${HOST_NAME} not found at provider"
+  pass "Host ${HOST_NAME} present at provider"
+}
+
+# Assert the Environment Host is absent at the provider (Parked Recreatable).
+assert_host_absent() {
+  local host_json
+  host_json="$(provider_host_by_name_json)"
+  [[ -z "${host_json}" || "${host_json}" == "null" ]] \
+    || fail "Host ${HOST_NAME} still present at provider after Park"
+  pass "Host ${HOST_NAME} absent at provider"
+}
+
+# Assert Host Cloud Project membership matches Applied (present) or Parked (absent).
+assert_host_membership() {
+  local expect="$1" # present | absent
+  local project_id body host_json host_id host_urn
+  project_id="$(stack_cloud_project_id)"
+  [[ -n "${project_id}" ]] || fail "Cloud Project not found at provider"
+  body="$(do_api_get "/v2/projects/${project_id}/resources?per_page=200")" \
+    || fail "Cloud Project resources list failed for ${project_id}"
+
+  case "${expect}" in
+    present)
+      host_json="$(provider_host_by_name_json)"
+      [[ -n "${host_json}" && "${host_json}" != "null" ]] \
+        || fail "Host ${HOST_NAME} not found at provider for membership assert"
+      host_id="$(echo "${host_json}" | jq -r '.id | tostring')"
+      host_urn="do:droplet:${host_id}"
+      echo "${body}" | jq -e --arg urn "${host_urn}" \
+        '[.resources[].urn] | index($urn) != null' >/dev/null \
+        || fail "Host ${host_urn} not in Cloud Project (Applied membership required)"
+      pass "Host membership present in Cloud Project (${host_urn})"
+      ;;
+    absent)
+      # This Stack owns one Host per Environment; Parked means no droplet URNs.
+      if echo "${body}" | jq -e \
+        '[.resources[].urn] | map(select(startswith("do:droplet:"))) | length == 0' >/dev/null; then
+        pass "Host membership absent from Cloud Project"
+        return 0
+      fi
+      fail "Cloud Project still lists a droplet URN while Host membership should be absent"
+      ;;
+    *)
+      fail "assert_host_membership: expect present|absent, got '${expect}'"
+      ;;
+  esac
+}
+
+# Assert Reserved IP remains a Durable Cloud Project member (Park and Apply).
+assert_reserved_ip_membership() {
+  local ip="$1"
+  local project_id body
+  [[ -n "${ip}" ]] || fail "assert_reserved_ip_membership: empty IP"
+  project_id="$(stack_cloud_project_id)"
+  [[ -n "${project_id}" ]] || fail "Cloud Project not found at provider"
+  body="$(do_api_get "/v2/projects/${project_id}/resources?per_page=200")" \
+    || fail "Cloud Project resources list failed for ${project_id}"
+  echo "${body}" | jq -e --arg urn "do:reservedip:${ip}" \
+    '[.resources[].urn] | index($urn) != null' >/dev/null \
+    || fail "Reserved IP do:reservedip:${ip} not in Cloud Project"
+  pass "Reserved IP membership present in Cloud Project (Durable)"
+}
+
+# Run Apply and require the operator-visible empty presence plan (Already Applied).
+assert_apply_noop() {
+  local out
+  out="$("${REPO_ROOT}/apply.sh" --yes --env "${PREFECT_ENV}" 2>&1)" || {
+    echo "${out}" >&2
+    fail "Apply failed while expecting an empty presence plan"
+  }
+  echo "${out}" | grep -Fq "Already Applied" \
+    || fail "repeating Apply did not report Already Applied (empty presence plan)"
+  pass "repeating Apply is a no-op (empty presence plan)"
+}
+
+# Run Park and require the operator-visible empty absence plan (Already Parked).
+assert_park_noop() {
+  local out
+  out="$(printf 'park\n' | "${REPO_ROOT}/park.sh" --env "${PREFECT_ENV}" 2>&1)" || {
+    echo "${out}" >&2
+    fail "Park failed while expecting an empty absence plan"
+  }
+  echo "${out}" | grep -Fq "Already Parked" \
+    || fail "repeating Park did not report Already Parked (empty absence plan)"
+  pass "repeating Park is a no-op (empty absence plan)"
 }
 
 # Poll until pubkey SSH to root@$IP works (Host create / boot lag after Apply).

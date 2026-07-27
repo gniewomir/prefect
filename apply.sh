@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Apply the Stack — converge Durables and request Recreatable presence (ADR-0025).
-# Interactive by default (Terraform plan + yes/no). Use --yes for automation.
+# Plans first; an empty presence plan means Already Applied (stable condition).
+# Interactive by default (plan + Terraform apply confirm). Use --yes for automation.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Closed surface: optional --yes and --env only. Specialist surgery stays raw terraform
 # in the Stack dir.
@@ -41,6 +42,30 @@ cd "${STACK_DIR}"
 environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
 
 adopt_preflight apply "${ENVIRONMENT_RAW}" || exit 1
+
+echo "Apply plan (complete plan with Recreatable presence enabled):"
+echo
+
+set +e
+terraform plan -detailed-exitcode -input=false "${PRESENCE_VAR[@]}"
+plan_rc=$?
+set -e
+
+case "${plan_rc}" in
+  0)
+    echo
+    echo "Already Applied (presence plan empty)."
+    exit 0
+    ;;
+  1)
+    fail "terraform plan failed"
+    ;;
+  2)
+    ;;
+  *)
+    fail "terraform plan exited with unexpected code ${plan_rc}"
+    ;;
+esac
 
 if [[ "${YES}" == true ]]; then
   terraform apply -input=false -auto-approve "${PRESENCE_VAR[@]}"

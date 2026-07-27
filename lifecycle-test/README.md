@@ -6,7 +6,10 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
 
 ## Status
 
-- Park → Apply round-trip: `10-park-apply.sh` (Cloud Project memberships, Reserved IP, Host Volume marker, Domain when configured)
+- Stable Applied / Parked + Park → Apply round-trip: `10-park-apply.sh`
+  (empty repeated Apply/Park plans; Cloud Project / Reserved IP / Host Volume /
+  Domain identities; Host Volume marker; Host and Reserved IP memberships by
+  lifecycle class)
 - Teardown (Durables wiped, State empty): `20-teardown.sh` (Cloud Project, Reserved IP, Host Volume, Domain when configured)
 
 Domain Durable asserts run when Domains are in State (declare them in `config/environments/<cloud-slug>/domains.json` and Apply before the suite). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs.

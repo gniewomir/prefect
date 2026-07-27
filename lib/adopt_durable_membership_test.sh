@@ -30,6 +30,7 @@ case "${1-}" in
 ]}]}}}
 JSON
     ;;
+  plan) exit 2 ;;
   apply) exit 0 ;;
 esac
 EOF
@@ -74,7 +75,7 @@ export RESERVED_IP_ASSIGNED=true
 if "${REPO_ROOT}/apply.sh" --yes --env test >/dev/null 2>&1; then
   fail "Applied external State loss must fail closed for Durable membership"
 fi
-if grep -Fq "apply " "${TERRAFORM_CALLS}"; then
+if grep -Eq '(^| )(plan |apply )' "${TERRAFORM_CALLS}"; then
   fail "Apply must not plan an unsafe Durable membership Create"
 fi
 pass "Apply fails closed on Applied Durable-membership State loss"

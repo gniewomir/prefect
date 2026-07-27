@@ -74,6 +74,10 @@ pass "Park supplies non-sticky Recreatable absence to a complete Terraform plan"
 TF_VAR_recreatables_present=false "${REPO_ROOT}/apply.sh" --yes --env test >/dev/null
 
 grep -Fxq \
+  "plan -detailed-exitcode -input=false -var=recreatables_present=true" \
+  "${TERRAFORM_CALLS}" \
+  || fail "Apply must plan complete Recreatable presence"
+grep -Fxq \
   "apply -input=false -auto-approve -var=recreatables_present=true" \
   "${TERRAFORM_CALLS}" \
   || fail "Apply must explicitly request Recreatable presence"
@@ -84,8 +88,89 @@ pass "Apply overrides ambient variables with Recreatable presence"
 TF_VAR_recreatables_present=false "${REPO_ROOT}/apply.sh" --env test >/dev/null
 
 grep -Fxq \
+  "plan -detailed-exitcode -input=false -var=recreatables_present=true" \
+  "${TERRAFORM_CALLS}" \
+  || fail "interactive Apply must plan complete Recreatable presence"
+grep -Fxq \
   "apply -var=recreatables_present=true" \
   "${TERRAFORM_CALLS}" \
   || fail "interactive Apply must explicitly request Recreatable presence"
 
 pass "interactive Apply requests Recreatable presence"
+
+: >"${TERRAFORM_CALLS}"
+cat >"${TMP_DIR}/bin/terraform" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >>"${TERRAFORM_CALLS}"
+case "${1-}" in
+  workspace) exit 0 ;;
+  show)
+    cat <<'JSON'
+{"values":{"root_module":{"child_modules":[{"address":"module.durables","resources":[
+  {"address":"module.durables.digitalocean_project.prefect","mode":"managed","values":{"id":"project-test-id"}},
+  {"address":"module.durables.digitalocean_volume.web","mode":"managed","values":{"id":"volume-test-id"}},
+  {"address":"module.durables.digitalocean_reserved_ip.web","mode":"managed","values":{"ip_address":"203.0.113.10"}},
+  {"address":"module.durables.digitalocean_domain.this[\"gniewomir.pl\"]","mode":"managed","values":{"id":"gniewomir.pl"}},
+  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:@\"]","mode":"managed","values":{"id":"1001"}},
+  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:www\"]","mode":"managed","values":{"id":"1002"}},
+  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:api\"]","mode":"managed","values":{"id":"1003"}},
+  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:test-acme\"]","mode":"managed","values":{"id":"1004"}},
+  {"address":"module.durables.digitalocean_project_resources.durables","mode":"managed","values":{"id":"project-test-id"}}
+]},{"address":"module.recreatables[0]","resources":[
+  {"address":"module.recreatables[0].digitalocean_droplet.web","mode":"managed","values":{"id":4242}},
+  {"address":"module.recreatables[0].digitalocean_reserved_ip_assignment.web","mode":"managed","values":{"ip_address":"203.0.113.10","droplet_id":4242}},
+  {"address":"module.recreatables[0].digitalocean_project_resources.web_host","mode":"managed","values":{"id":"project-test-id"}},
+  {"address":"module.recreatables[0].digitalocean_volume_attachment.web","mode":"managed","values":{"id":"attachment-test-id"}}
+]}]}}}
+JSON
+    ;;
+  plan) exit 0 ;;
+  apply) exit 0 ;;
+esac
+exit 0
+EOF
+chmod +x "${TMP_DIR}/bin/terraform"
+
+cat >"${TMP_DIR}/bin/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+url="${*: -1}"
+case "${url}" in
+  *"/v2/droplets?"*) printf '%s\n' '{"droplets":[{"id":4242,"name":"prefect-test-web"}]}' ;;
+  *"/v2/projects?"*) printf '%s\n' '{"projects":[{"id":"project-test-id","name":"prefect-test"}]}' ;;
+  *"/v2/projects/project-test-id/resources"*)
+    printf '%s\n' '{"resources":[
+      {"urn":"do:droplet:4242"},
+      {"urn":"do:volume:volume-test-id"},
+      {"urn":"do:reservedip:203.0.113.10"},
+      {"urn":"do:domain:gniewomir.pl"}
+    ]}'
+    ;;
+  *"/v2/volumes?"*) printf '%s\n' '{"volumes":[{"id":"volume-test-id","name":"prefect-test-web-data","region":{"slug":"fra1"},"droplet_ids":[4242]}]}' ;;
+  *"/v2/volumes/volume-test-id") printf '%s\n' '{"volume":{"id":"volume-test-id","droplet_ids":[4242]}}' ;;
+  *"/v2/domains?"*) printf '%s\n' '{"domains":[{"name":"gniewomir.pl"}]}' ;;
+  *"/v2/domains/gniewomir.pl/records"*)
+    printf '%s\n' '{"domain_records":[
+      {"id":1001,"type":"A","name":"@","data":"203.0.113.10"},
+      {"id":1002,"type":"A","name":"www","data":"203.0.113.10"},
+      {"id":1003,"type":"A","name":"api","data":"203.0.113.10"},
+      {"id":1004,"type":"A","name":"test-acme","data":"203.0.113.10"}
+    ]}'
+    ;;
+  *"/v2/reserved_ips/203.0.113.10")
+    printf '%s\n' '{"reserved_ip":{"ip":"203.0.113.10","droplet":{"id":4242}}}'
+    ;;
+  *) echo "unexpected provider request: ${url}" >&2; exit 1 ;;
+esac
+EOF
+chmod +x "${TMP_DIR}/bin/curl"
+
+out="$(TF_VAR_recreatables_present=false "${REPO_ROOT}/apply.sh" --yes --env test)"
+echo "${out}" | grep -Fq "Already Applied" \
+  || fail "Apply must report Already Applied when the presence plan is empty"
+if grep -Eq '(^| )apply( |$)' "${TERRAFORM_CALLS}"; then
+  fail "Apply must not apply when the presence plan is empty"
+fi
+
+pass "Apply short-circuits on an empty presence plan"

@@ -95,7 +95,7 @@ export PROVIDER_HOST_PRESENT=true
 if "${REPO_ROOT}/apply.sh" --yes --env test >/dev/null 2>&1; then
   fail "Apply must fail closed on an unbound provider Host"
 fi
-if grep -Eq '^(import|apply) ' "${TERRAFORM_CALLS}"; then
+if grep -Eq '^(import|plan|apply) ' "${TERRAFORM_CALLS}"; then
   fail "Apply must not mutate State or provider after detecting an unbound Host"
 fi
 

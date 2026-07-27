@@ -49,6 +49,7 @@ case "${1-}" in
 JSON
     ;;
   import) exit 0 ;;
+  plan) exit 2 ;;
   apply) exit 0 ;;
 esac
 EOF
@@ -83,9 +84,10 @@ grep -Fxq "${import_call}" "${TERRAFORM_CALLS}" \
   || fail "Apply must Adopt the exact provider assignment missing from State"
 
 import_line="$(grep -nFx "${import_call}" "${TERRAFORM_CALLS}" | cut -d: -f1)"
+plan_line="$(grep -nFx "plan -detailed-exitcode -input=false -var=recreatables_present=true" "${TERRAFORM_CALLS}" | cut -d: -f1)"
 apply_line="$(grep -nFx "apply -input=false -auto-approve -var=recreatables_present=true" "${TERRAFORM_CALLS}" | cut -d: -f1)"
-[[ "${import_line}" -lt "${apply_line}" ]] \
-  || fail "Apply must Adopt before its Terraform apply/plan"
+[[ "${import_line}" -lt "${plan_line}" && "${plan_line}" -lt "${apply_line}" ]] \
+  || fail "Apply must Adopt before its Terraform plan, then apply"
 
 pass "Apply Adopts an exact Reserved IP assignment before planning"
 
@@ -94,8 +96,8 @@ export PROVIDER_HOST_ID=9999
 if "${REPO_ROOT}/apply.sh" --yes --env test >/dev/null 2>&1; then
   fail "Apply must fail closed when the Reserved IP is assigned to a different Host"
 fi
-if grep -Fq "apply " "${TERRAFORM_CALLS}"; then
-  fail "Apply must not plan after an Adopt endpoint conflict"
+if grep -Eq '(^| )(plan |apply )' "${TERRAFORM_CALLS}"; then
+  fail "Apply must not plan or apply after an Adopt endpoint conflict"
 fi
 
 pass "Apply fails closed on a wrong Reserved IP assignment endpoint"
