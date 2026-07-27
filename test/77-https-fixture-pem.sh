@@ -18,7 +18,6 @@ cat >"${FIX_DIR}/manifest.json" <<EOF
 {
   "name": "${WL}",
   "intent": "run",
-  "public_hostnames": ["${HOST}"],
   "upstream": "${WL}:8080"
 }
 EOF
@@ -96,7 +95,7 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 [[ "${tls_code}" =~ ^[1-5][0-9]{2}$ ]] || fail "TLS to ${HOST} failed (code='${tls_code}')"
-pass "TLS to Public Hostname succeeds with fixture PEM (HTTP ${tls_code})"
+pass "TLS to fixture hostname succeeds with fixture PEM (HTTP ${tls_code})"
 
 redir="$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' --connect-timeout 10 --max-time 15 \
   -H "Host: ${HOST}" "http://${IP}/")"
@@ -106,7 +105,7 @@ redir_url="${redir#* }"
   || fail "expected redirect on :80 for cert-ready name, got '${redir}'"
 echo "${redir_url}" | grep -q "^https://${HOST}" \
   || fail "redirect target expected https://${HOST}/..., got '${redir_url}'"
-pass ":80 redirects to HTTPS for cert-ready Public Hostname"
+pass ":80 redirects to HTTPS for cert-ready fixture hostname"
 
 TOKEN="tls-acme-probe"
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE

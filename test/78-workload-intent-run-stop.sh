@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Intent run with operator Route; Intent stop uninstalls Routes + releases claim (#53)
+# Acceptance Test: Intent run with operator Route; Intent stop uninstalls Routes (#53 / ADR-0023)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -20,7 +20,6 @@ write_manifest() {
 {
   "name": "${WL}",
   "intent": "${intent}",
-  "public_hostnames": ["${HOST}"],
   "upstream": "${WL}:80"
 }
 EOF
@@ -52,12 +51,14 @@ server {
 }
 EOF
 
+want_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+  "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
+
 ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "rm -rf /var/lib/prefect/components_data/edge/certs/${HOST} \
           /var/lib/prefect/components_data/edge/routes/${WL}.conf \
           /var/lib/prefect/components_data/edge/routes/${WL}--* \
-          /var/lib/prefect/components_data/workloads/${WL} \
-          /var/lib/prefect/components_data/edge/claims/${HOST}"
+          /var/lib/prefect/components_data/workloads/${WL}"
 
 # PEMs before operator HTTPS Route (nginx requires certificate files to exist).
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
@@ -104,11 +105,6 @@ stop_routes="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
 [[ -z "${stop_routes}" ]] || fail "Intent stop must remove Workload installed Routes (got: ${stop_routes})"
 pass "Intent stop removes Workload installed Routes from Edge"
 
-if ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/edge/claims/${HOST}"; then
-  fail "Intent stop must release Public Hostname claim (unique among Intent run only)"
-fi
-pass "Intent stop releases Public Hostname claim"
-
 active="$(ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
 UID_NUM=\$(id -u prefect)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
@@ -123,11 +119,11 @@ REMOTE
 [[ "${active}" == "inactive" ]] || fail "Intent stop: Workload Quadlet should not be active"
 pass "Intent stop: Workload Quadlets are inactive"
 
-want="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/acme/want-list")"
-if echo "${want}" | grep -qx "${HOST}"; then
-  fail "Intent stop must not renew certificates (hostname still in ACME want-list)"
-fi
-pass "Intent stop does not renew certificates (absent from ACME want-list)"
+want_after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+  "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
+[[ "${want_after}" == "${want_before}" ]] \
+  || fail "Intent stop must not rewrite ACME want-list"
+pass "Intent stop leaves Domain ACME want-list unchanged"
 
 # Edge default miss — not a Prefect-managed 503 shell (ADR-0022).
 code=""

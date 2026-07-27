@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Edge ACME foundation after ensure-components (no live CA / no Public Hostname)
+# Acceptance Test: Edge ACME foundation after ensure-components (no live CA)
 # Covers: :443 published, HTTP-01 webroot on :80, empty want-list oneshot + user timer, empty Edge 404.
 set -euo pipefail
 # shellcheck source=lib.sh

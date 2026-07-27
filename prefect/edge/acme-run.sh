@@ -63,38 +63,45 @@ install_pems_from_lego() {
 
 issue_one() {
   local host="$1"
-  local email="${PREFECT_ACME_EMAIL:-acme@prefect.invalid}"
+  local email="${PREFECT_ACME_EMAIL:-}"
   local server
-  local -a lego_base
   server="$(acme_server)"
-  lego_base=(
-    timeout 30 "${LEGO_BIN}"
-    --accept-tos
-    --email "${email}"
-    --server "${server}"
-    --path "${ACME_DIR}"
-    --domains "${host}"
-    --http.webroot "${ACME_WWW}"
-  )
+  # Let's Encrypt rejects .invalid and example.com contacts; default from the name's apex.
+  if [[ -z "${email}" ]]; then
+    if [[ "${host}" == *.*.* ]]; then
+      email="acme@${host#*.}"
+    else
+      email="acme@${host}"
+    fi
+  fi
 
+  # lego v5: flags are command options; `run` issues and renews (no separate renew).
   # Bound CA wait so a mispointed DNS name cannot stall the oneshot forever.
   # Do not bind :80/:443 — webroot only (Edge serves challenges).
-  # Fresh issue via `run`; existing lego certs via `renew` (timer path).
-  if [[ -f "${ACME_DIR}/certificates/${host}.crt" ]]; then
-    if ! "${lego_base[@]}" renew --days 30; then
-      echo "edge-acme: CA renew failed for ${host} (leaving existing PEMs untouched)" >&2
-      return 1
-    fi
-  else
-    if ! "${lego_base[@]}" run; then
-      echo "edge-acme: CA issue failed for ${host} (leaving existing PEMs untouched)" >&2
-      return 1
-    fi
+  if ! timeout 120 "${LEGO_BIN}" run \
+    --path "${ACME_DIR}" \
+    --accept-tos \
+    --email "${email}" \
+    --server "${server}" \
+    --domains "${host}" \
+    --http \
+    --http.webroot "${ACME_WWW}" \
+    --renew-days 30; then
+    echo "edge-acme: CA issue/renew failed for ${host} (leaving existing PEMs untouched)" >&2
+    return 1
   fi
   install_pems_from_lego "${host}" || {
     echo "edge-acme: lego succeeded but PEMs missing for ${host}" >&2
     return 1
   }
+}
+
+# One-shot v4→v5 storage migrate (idempotent). lego prompts; answer yes non-interactively.
+ensure_lego_storage() {
+  if [[ ! -x "${LEGO_BIN}" ]]; then
+    return 0
+  fi
+  printf 'y\n' | "${LEGO_BIN}" migrate --path "${ACME_DIR}" >/dev/null 2>&1 || true
 }
 
 issue_failed=0
@@ -103,6 +110,7 @@ if [[ "${PREFECT_ACME_ISSUE:-1}" != "0" ]]; then
     echo "edge-acme: lego missing or not executable at ${LEGO_BIN}" >&2
     exit 1
   fi
+  ensure_lego_storage
   for host in "${names[@]}"; do
     if ! issue_one "${host}"; then
       issue_failed=1

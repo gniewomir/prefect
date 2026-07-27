@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Domain assignment helpers (ADR-0021 / ADR-0023).
-# Sourced by local checks (lib/domains_acme_fqdns_test.sh) and later by the
-# ACME want-list cutover (#56 / ensure-components).
+# Sourced by ensure-components and lib/domains_acme_fqdns_test.sh.
 #
 # Requires REPO_ROOT to be set to the repository root (call-time).
 

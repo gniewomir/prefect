@@ -14,6 +14,8 @@ USER_NAME="${PREFECT_USER:-prefect}"
 COMPONENTS=(network edge)
 # shellcheck source=../lib/environment.sh
 source "${REPO_ROOT}/lib/environment.sh"
+# shellcheck source=../lib/domains.sh
+source "${REPO_ROOT}/lib/domains.sh"
 
 environment_activate "${STACK_DIR}" "$@" || exit 1
 for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
@@ -59,6 +61,12 @@ done
 # Host-local carrier gate (IHP done, floor, Prefect User, Host Volume mount).
 ssh "${SSH_OPTS[@]}" "root@${IP}" "PREFECT_USER=${USER_NAME} bash -s" <"${CARRIER_READY}"
 
+# Domain-derived ACME want-list (ADR-0023): install before Edge Setup oneshot.
+WANT_TMP="$(mktemp)"
+domains_acme_fqdns_for "${PREFECT_ENV}" >"${WANT_TMP}"
+scp "${SSH_OPTS[@]}" "${WANT_TMP}" "root@${IP}:/tmp/prefect-acme-want-list"
+rm -f "${WANT_TMP}"
+
 # Stage Component trees plus shared Host-local lib (sourced by Component Setup).
 COPYFILE_DISABLE=1 tar --format=ustar -C "${REPO_ROOT}/prefect" -cf - \
   lib "${COMPONENTS[@]}" \
@@ -72,12 +80,14 @@ COMPONENTS=("$@")
 
 COMPONENTS_ROOT=/var/lib/prefect/components
 DATA_ROOT=/var/lib/prefect/components_data
+ACME_DIR="${DATA_ROOT}/edge/acme"
+WANT_LIST="${ACME_DIR}/want-list"
 
 STAGE="$(mktemp -d)"
-trap 'rm -rf "${STAGE}" /tmp/prefect-components.tar' EXIT
+trap 'rm -rf "${STAGE}" /tmp/prefect-components.tar /tmp/prefect-acme-want-list' EXIT
 tar -C "${STAGE}" -xf /tmp/prefect-components.tar
 
-mkdir -p "${COMPONENTS_ROOT}" "${DATA_ROOT}"
+mkdir -p "${COMPONENTS_ROOT}" "${DATA_ROOT}" "${ACME_DIR}"
 rm -rf "${COMPONENTS_ROOT}/lib"
 cp -a "${STAGE}/lib" "${COMPONENTS_ROOT}/lib"
 
@@ -86,6 +96,8 @@ for component in "${COMPONENTS[@]}"; do
   cp -a "${STAGE}/${component}" "${COMPONENTS_ROOT}/${component}"
   chmod a+x "${COMPONENTS_ROOT}/${component}/setup.sh"
 done
+
+install -m 0644 /tmp/prefect-acme-want-list "${WANT_LIST}"
 
 # Mount root stays root-owned; everything under it is Prefect User–owned.
 chown -R "${USER_NAME}:${USER_NAME}" "${COMPONENTS_ROOT}" "${DATA_ROOT}"

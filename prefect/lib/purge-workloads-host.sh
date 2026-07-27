@@ -2,17 +2,15 @@
 # Host-local Purge. Invoked by prefect/purge-workloads.sh.
 # Removes every Workload whose Intent is trash and Workload-associated data
 # (installed Routes, units, Host Volume Workload tree). Does not delete Domains
-# or Domain-scoped certificate material (ADR-0022 / #54).
+# or Domain-scoped certificate material (ADR-0022 / #54). Does not rebuild ACME
+# want-list (ADR-0023).
 set -euo pipefail
 
 USER_NAME="${PREFECT_USER:-prefect}"
 DATA_ROOT=/var/lib/prefect/components_data
 EDGE_DATA="${DATA_ROOT}/edge"
 WORKLOADS_ROOT="${DATA_ROOT}/workloads"
-CLAIMS_DIR="${EDGE_DATA}/claims"
 ROUTES_DIR="${EDGE_DATA}/routes"
-ACME_DIR="${EDGE_DATA}/acme"
-WANT_LIST="${ACME_DIR}/want-list"
 
 # shellcheck source=quadlet-user-session.sh
 source /var/lib/prefect/components/lib/quadlet-user-session.sh
@@ -35,11 +33,9 @@ m = json.load(open(sys.argv[1]))
 name = m.get("name") or ""
 intent = m.get("intent") or ""
 upstream = m.get("upstream") or ""
-hosts = m.get("public_hostnames") or []
 print(f"P_NAME={shlex.quote(name)}")
 print(f"P_INTENT={shlex.quote(intent)}")
 print(f"P_UPSTREAM={shlex.quote(upstream)}")
-print(f"P_HOSTS={shlex.quote(' '.join(hosts) if isinstance(hosts, list) else '')}")
 PY
 )"
     [[ "${P_INTENT}" == "trash" ]] || continue
@@ -53,35 +49,9 @@ PY
     # Installed Routes may already be gone after Intent trash Setup; clear leftovers.
     edge_remove_workload_installed_routes "${P_NAME}"
 
-    for host in ${P_HOSTS}; do
-      # Claims should already be released on Intent trash; clear any stale file.
-      if [[ -f "${CLAIMS_DIR}/${host}" ]] && [[ "$(cat "${CLAIMS_DIR}/${host}")" == "${P_NAME}" ]]; then
-        rm -f "${CLAIMS_DIR}/${host}"
-      fi
-    done
     rm -rf "${wl_dir}"
   done
 fi
-
-# Rebuild want-list from remaining Workloads whose Intent is run.
-mkdir -p "${ACME_DIR}"
-: >"${WANT_LIST}.tmp"
-if [[ -d "${WORKLOADS_ROOT}" ]]; then
-  for wl_dir in "${WORKLOADS_ROOT}"/*; do
-    [[ -d "${wl_dir}" && -f "${wl_dir}/manifest.json" ]] || continue
-    python3 - "${wl_dir}/manifest.json" "${WANT_LIST}.tmp" <<'PY'
-import json, sys
-m = json.load(open(sys.argv[1]))
-if m.get("intent") != "run":
-    raise SystemExit(0)
-with open(sys.argv[2], "a") as f:
-    for h in m.get("public_hostnames") or []:
-        f.write(f"{h}\n")
-PY
-  done
-fi
-sort -u "${WANT_LIST}.tmp" -o "${WANT_LIST}"
-rm -f "${WANT_LIST}.tmp"
 
 chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}" "${HOME_DIR}/.config" 2>/dev/null || true
 

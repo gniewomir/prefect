@@ -88,7 +88,8 @@ quadlet_user systemctl --user --quiet is-active edge-pod.service
 quadlet_user systemctl --user enable --now edge-acme.timer
 quadlet_user systemctl --user --quiet is-active edge-acme.timer
 # Do not block Component Setup on CA contact when the want-list is non-empty.
-quadlet_user systemctl --user --no-block start edge-acme.service
+# restart (not start): re-ensure must re-run oneshot even if a prior oneshot is still active.
+quadlet_user systemctl --user --no-block restart edge-acme.service
 
 # Wait until Host :80 returns an HTTP status (image pull + nginx start).
 for _ in $(seq 1 60); do

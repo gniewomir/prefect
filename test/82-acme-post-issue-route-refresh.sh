@@ -19,7 +19,6 @@ cat >"${FIX_DIR}/manifest.json" <<EOF
 {
   "name": "${WL}",
   "intent": "run",
-  "public_hostnames": ["${HOST}"],
   "upstream": "${WL}:80"
 }
 EOF
