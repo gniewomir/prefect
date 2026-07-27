@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Intent run with operator Route; Intent stop drops claim/want-list (#52/#53 seam)
-# Full stop→404 / uninstall assertions are owned by #53; here stop must not leave ACME renewing.
+# Acceptance Test: Intent run with operator Route; Intent stop uninstalls Routes + releases claim (#53)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -100,6 +99,11 @@ pass "Intent run + cert: Edge proxies to Workload over HTTPS via operator Route"
 write_manifest stop
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
 
+stop_routes="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+  "ls /var/lib/prefect/components_data/edge/routes/${WL}.conf /var/lib/prefect/components_data/edge/routes/${WL}--* 2>/dev/null || true")"
+[[ -z "${stop_routes}" ]] || fail "Intent stop must remove Workload installed Routes (got: ${stop_routes})"
+pass "Intent stop removes Workload installed Routes from Edge"
+
 if ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/edge/claims/${HOST}"; then
   fail "Intent stop must release Public Hostname claim (unique among Intent run only)"
 fi
@@ -119,9 +123,19 @@ REMOTE
 [[ "${active}" == "inactive" ]] || fail "Intent stop: Workload Quadlet should not be active"
 pass "Intent stop: Workload Quadlets are inactive"
 
-# #52: stop must not keep renewing; Route uninstall / :80 404 is #53 (may already be true if Setup reconciles)
 want="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/acme/want-list")"
 if echo "${want}" | grep -qx "${HOST}"; then
   fail "Intent stop must not renew certificates (hostname still in ACME want-list)"
 fi
 pass "Intent stop does not renew certificates (absent from ACME want-list)"
+
+# Edge default miss — not a Prefect-managed 503 shell (ADR-0022).
+code=""
+for _ in $(seq 1 30); do
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 15 \
+    -H "Host: ${HOST}" "http://${IP}/" 2>/dev/null || true)"
+  [[ "${code}" == "404" ]] && break
+  sleep 1
+done
+[[ "${code}" == "404" ]] || fail "Intent stop: expected Edge default miss HTTP 404 on :80 (not 503), got '${code}'"
+pass "Intent stop: previously routed name misses to Edge default (HTTP 404 on :80)"

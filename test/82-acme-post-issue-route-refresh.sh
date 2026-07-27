@@ -101,7 +101,8 @@ tls_code=""
 for _ in $(seq 1 30); do
   tls_code="$(curl -skS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 15 \
     --resolve "${HOST}:443:${IP}" "https://${HOST}/" 2>/dev/null || true)"
-  [[ "${tls_code}" =~ ^[0-9]{3}$ ]] && break
+  # curl prints 000 when the Edge is mid-reload — keep retrying until a real status.
+  [[ "${tls_code}" =~ ^[1-5][0-9]{2}$ ]] && break
   sleep 1
 done
 [[ "${tls_code}" =~ ^[1-5][0-9]{2}$ ]] || fail "TLS to ${HOST} failed after ACME reload (code='${tls_code}')"
