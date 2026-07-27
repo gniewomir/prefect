@@ -13,6 +13,10 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
 - Applied Additive Domain: `15-additive-domain.sh`
   (derived `domains.override.json` fixture; prior identities/memberships preserved;
   empty re-Apply; Teardown with override → drop override → committed re-Apply)
+- Parked additive partial Apply recovery: `16-parked-additive-partial-apply.sh`
+  (case-owned Park; same override fixture; Apply with invalid
+  `TF_VAR_DIGITALOCEAN_PUBLIC_KEY` after Durable converge; restore key → Apply;
+  empty re-Apply; Teardown cleanup as in `15-additive-domain.sh`)
 - Teardown (Durables wiped, State empty): `20-teardown.sh` (Cloud Project, Reserved IP, Host Volume, Domain when configured)
 
 Domain Durable asserts run when Domains are in State (declare them in `config/environments/<cloud-slug>/domains.json` and Apply before the suite). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs. The Additive Domain case requires a non-empty committed Domain assignment (base apex for `lifecycle-test.<apex>`).
@@ -45,4 +49,4 @@ The runner asks for exact `teardown` before any Teardown case; the case also con
 3. Document leftover Stack state in the case header (Parked vs Applied vs empty).
 4. Source `lib.sh` for `pass` / `fail`, provider Durable checks, and SSH helpers.
 
-Non-case files in this directory (`lib.sh`, this README) are not executed.
+Non-case files in this directory (`lib.sh`, `*_test.sh`, this README) are not executed.

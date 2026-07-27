@@ -381,3 +381,19 @@ write_additive_domain_override() {
   printf '%s\n' "${fixture}"
 }
 
+# Known-invalid SSH public key for Recreatable fault injection (#64).
+# Non-empty so ./apply.sh does not fail closed before planning; provider rejects at
+# digitalocean_ssh_key create (after Durables converge).
+lifecycle_invalid_public_key() {
+  printf '%s\n' 'not-a-valid-ssh-public-key'
+}
+
+# Run ./apply.sh --yes --env $PREFECT_ENV with TF_VAR_DIGITALOCEAN_PUBLIC_KEY set only
+# for that child process (parent env unchanged). Propagates Apply's exit status.
+apply_with_public_key() {
+  local public_key="${1-}"
+  [[ -n "${public_key}" ]] || fail "apply_with_public_key: empty public key"
+  TF_VAR_DIGITALOCEAN_PUBLIC_KEY="${public_key}" \
+    "${REPO_ROOT}/apply.sh" --yes --env "${PREFECT_ENV}"
+}
+
