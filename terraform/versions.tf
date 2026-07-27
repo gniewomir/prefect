@@ -6,5 +6,9 @@ terraform {
       source  = "digitalocean/digitalocean"
       version = "2.95.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "0.13.1"
+    }
   }
 }

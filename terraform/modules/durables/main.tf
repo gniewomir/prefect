@@ -69,13 +69,15 @@ resource "digitalocean_record" "a" {
 }
 
 # This resource is the sole owner of Durable Cloud Project memberships. The
-# Cloud Project itself owns metadata only.
+# Cloud Project itself owns metadata only. Use the Reserved IP resource URN
+# (do:reservedip:<ip>): the Projects list API returns that shape, while
+# do:floatingip:<ip> assignment drifts on every refresh and can drop siblings.
 resource "digitalocean_project_resources" "durables" {
   project = digitalocean_project.prefect.id
   resources = concat(
     [
       digitalocean_volume.web.urn,
-      format("do:floatingip:%s", digitalocean_reserved_ip.web.ip_address),
+      digitalocean_reserved_ip.web.urn,
     ],
     [for domain in digitalocean_domain.this : domain.urn],
   )

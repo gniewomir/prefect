@@ -70,9 +70,10 @@ resource "digitalocean_droplet" "web" {
     digitalocean_tag.prefect.id,
     digitalocean_tag.public_web.id,
   ]
-  volume_ids = [var.volume_id]
 
   # Initial Host Provisioning. Component Setup and Workloads remain outside it.
+  # Host Volume attaches via digitalocean_volume_attachment so Park can detach
+  # before Host destroy without DigitalOcean dropping Durable project membership.
   user_data = templatefile("${path.module}/cloud-init/web.yaml", {
     volume_name = var.volume_name
   })
@@ -86,11 +87,28 @@ resource "digitalocean_project_resources" "web_host" {
   ]
 }
 
-# Host placement must complete before attachment. The reverse dependency order
-# removes attachment before Host membership during Park.
+# Settle Host placement before droplet actions. DigitalOcean rejects concurrent
+# droplet events, and reserved_ip_assignment create-then-read is flaky when the
+# droplet still has a pending event.
+resource "time_sleep" "before_droplet_actions" {
+  depends_on = [digitalocean_project_resources.web_host]
+
+  create_duration = "30s"
+}
+
+# Reserved IP before volume: one droplet action at a time, and Park still
+# destroys volume attachment before Host membership/destroy so DigitalOcean
+# cannot move the Durable volume out of the Cloud Project.
 resource "digitalocean_reserved_ip_assignment" "web" {
   ip_address = var.reserved_ip_address
   droplet_id = digitalocean_droplet.web.id
 
-  depends_on = [digitalocean_project_resources.web_host]
+  depends_on = [time_sleep.before_droplet_actions]
+}
+
+resource "digitalocean_volume_attachment" "web" {
+  droplet_id = digitalocean_droplet.web.id
+  volume_id  = var.volume_id
+
+  depends_on = [digitalocean_reserved_ip_assignment.web]
 }

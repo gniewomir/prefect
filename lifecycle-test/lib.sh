@@ -52,8 +52,10 @@ assert_durables_in_cloud_project() {
       '[.resources[].urn] | index($urn) != null' >/dev/null \
       || fail "Durable ${expected_urn} not in Cloud Project Prefect (${project_id})"
   done < <(
-    printf 'do:floatingip:%s\n' "${ip}"
-    provider_host_volume_json | jq -r '.urn // empty'
+    # Durable Reserved IP membership uses do:reservedip:<ip> (provider list shape).
+    printf 'do:reservedip:%s\n' "${ip}"
+    volume_id="$(provider_host_volume_json | jq -r '.id // empty')"
+    [[ -n "${volume_id}" ]] && printf 'do:volume:%s\n' "${volume_id}"
     while IFS= read -r zone; do
       [[ -n "${zone}" ]] && printf 'do:domain:%s\n' "${zone}"
     done < <(stack_domain_names)

@@ -30,7 +30,7 @@ variable "reserved_ip_address" {
 }
 
 variable "volume_id" {
-  description = "Durable Host Volume attached at Host creation."
+  description = "Durable Host Volume attached by Recreatable volume_attachment."
   type        = string
 }
 

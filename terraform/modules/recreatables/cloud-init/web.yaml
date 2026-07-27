@@ -26,3 +26,13 @@ mounts:
 runcmd:
   - sysctl --system
   - loginctl enable-linger prefect
+  # Volume attaches via a Recreatable relationship after Host create; wait then mount.
+  - |
+    vol=/dev/disk/by-id/scsi-0DO_Volume_${volume_name}
+    for i in $(seq 1 90); do
+      if [ -e "$vol" ]; then
+        mount /var/lib/prefect || mount "$vol" /var/lib/prefect || true
+        break
+      fi
+      sleep 2
+    done

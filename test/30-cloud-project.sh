@@ -16,20 +16,24 @@ echo "${PROJECT_JSON}" | jq -e '.is_default == false' >/dev/null || fail "Cloud 
 PROJECT_ID="$(echo "${PROJECT_JSON}" | jq -r '.id')"
 PROJECT_RESOURCES="$(do_api_get "/v2/projects/${PROJECT_ID}/resources?per_page=200")"
 
-HOST_URN="$(echo "${HOST_JSON}" | jq -r '.urn')"
+HOST_ID="$(echo "${HOST_JSON}" | jq -r '.id | tostring')"
+[[ -n "${HOST_ID}" && "${HOST_ID}" != "null" ]] || fail "Host id missing from provider fixture"
+HOST_URN="do:droplet:${HOST_ID}"
 echo "${PROJECT_RESOURCES}" | jq -e --arg urn "${HOST_URN}" \
   '[.resources[].urn] | index($urn) != null' >/dev/null \
   || fail "Host URN not assigned to Cloud Project ${PROJECT_NAME}"
 
 VOLUME_NAME="prefect-${PREFECT_ENV}-web-data"
-VOLUME_URN="$(provider_host_volume_json | jq -r '.urn // empty')"
-[[ -n "${VOLUME_URN}" ]] || fail "Host Volume ${VOLUME_NAME} not found at provider"
+VOLUME_ID="$(provider_host_volume_json | jq -r '.id // empty')"
+[[ -n "${VOLUME_ID}" ]] || fail "Host Volume ${VOLUME_NAME} not found at provider"
+VOLUME_URN="do:volume:${VOLUME_ID}"
 echo "${PROJECT_RESOURCES}" | jq -e --arg urn "${VOLUME_URN}" \
   '[.resources[].urn] | index($urn) != null' >/dev/null \
   || fail "Host Volume URN not assigned to Cloud Project ${PROJECT_NAME}"
 
-FLOATING_URN="do:floatingip:${IP}"
-echo "${PROJECT_RESOURCES}" | jq -e --arg urn "${FLOATING_URN}" \
+# Projects list and Durable assignment both use do:reservedip:<ip>.
+RESERVED_URN="do:reservedip:${IP}"
+echo "${PROJECT_RESOURCES}" | jq -e --arg urn "${RESERVED_URN}" \
   '[.resources[].urn] | index($urn) != null' >/dev/null \
   || fail "Reserved IP not assigned to Cloud Project ${PROJECT_NAME}"
 
