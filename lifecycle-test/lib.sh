@@ -287,6 +287,31 @@ assert_park_noop() {
   pass "repeating Park is a no-op (empty absence plan)"
 }
 
+# Write a file on the mounted Host Volume and flush it before Park can detach.
+# Park destroys the Host / volume attachment without a guest unmount; dirty page
+# cache is not durable across that detach (Lifecycle marker would read back from
+# cache then vanish after Apply).
+write_host_volume_file() {
+  local path="$1"
+  local body="$2"
+  require_ip
+  acceptance_ssh_opts
+  ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<EOF
+set -euo pipefail
+findmnt --mountpoint /var/lib/prefect >/dev/null \
+  || { echo "FAIL: /var/lib/prefect not mounted" >&2; exit 1; }
+printf '%s\n' '${body}' > '${path}'
+# Flush file data + metadata; then a global sync as belt-and-braces before Park.
+sync '${path}'
+sync
+got="\$(cat '${path}')"
+[[ "\${got}" == '${body}' ]] || {
+  echo "FAIL: Host Volume write/read mismatch (got: '\${got}')" >&2
+  exit 1
+}
+EOF
+}
+
 # Poll until pubkey SSH to root@$IP works (Host create / boot lag after Apply).
 # Optional: SSH_READY_TIMEOUT_SECONDS (default 300).
 wait_until_ssh_reachable() {

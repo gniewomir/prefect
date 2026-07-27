@@ -28,11 +28,10 @@ DOMAINS_BEFORE="$(stack_domain_names)"
 
 wait_until_ssh_reachable
 wait_until_volume_mounted
+acceptance_ssh_opts
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" "printf '%s\n' '${MARKER_BODY}' > '${MARKER_PATH}'"
-got="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat '${MARKER_PATH}'")"
-[[ "${got}" == "${MARKER_BODY}" ]] || fail "marker write/read mismatch before Park"
-pass "marker written on Host Volume"
+write_host_volume_file "${MARKER_PATH}" "${MARKER_BODY}"
+pass "marker written and synced on Host Volume"
 
 assert_host_present
 assert_host_membership present
