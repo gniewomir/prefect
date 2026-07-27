@@ -26,22 +26,20 @@ command -v nc >/dev/null || fail "nc not found"
 command -v ssh >/dev/null || fail "ssh not found"
 command -v ping >/dev/null || fail "ping not found"
 command -v curl >/dev/null || fail "curl not found"
+require_do_token
 
 cd "${STACK_DIR}"
 
 IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
 [[ -n "${IP}" ]] || fail "no reserved_ip output (apply the Stack first)"
 
-STATE_JSON="$(terraform show -json)"
-HOST_JSON="$(echo "${STATE_JSON}" | jq -c '
-  def resources: (.resources[]?), (.child_modules[]? | resources);
-  .values.root_module | resources
-  | select(.type == "digitalocean_droplet" and .name == "web")
-  | .values
-')"
-[[ -n "${HOST_JSON}" && "${HOST_JSON}" != "null" ]] || fail "Host not in State"
+RESERVED_IP_JSON="$(do_api_get "/v2/reserved_ips/${IP}" | jq -c '.reserved_ip')"
+HOST_ID="$(echo "${RESERVED_IP_JSON}" | jq -r '.droplet.id // empty')"
+[[ -n "${HOST_ID}" ]] || fail "Reserved IP ${IP} is not attached to a provider Host"
+HOST_JSON="$(do_api_get "/v2/droplets/${HOST_ID}" | jq -c '.droplet')"
+[[ -n "${HOST_JSON}" && "${HOST_JSON}" != "null" ]] || fail "Host ${HOST_ID} not found at provider"
 
-export IP STATE_JSON HOST_JSON REPO_ROOT PREFECT_ENV
+export IP RESERVED_IP_JSON HOST_JSON REPO_ROOT PREFECT_ENV
 export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"
 
 # Reserved IP survives Host recreate; host keys do not — drop stale known_hosts before any SSH case.

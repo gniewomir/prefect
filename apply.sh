@@ -10,6 +10,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
+PRESENCE_VAR=(-var=recreatables_present=true)
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/lib/environment.sh"
 
@@ -38,9 +39,9 @@ cd "${STACK_DIR}"
 environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
 
 if [[ "${YES}" == true ]]; then
-  terraform apply -input=false -auto-approve
+  terraform apply -input=false -auto-approve "${PRESENCE_VAR[@]}"
 else
-  terraform apply
+  terraform apply "${PRESENCE_VAR[@]}"
 fi
 
 echo

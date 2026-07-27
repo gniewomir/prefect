@@ -26,7 +26,7 @@ Components (empty Edge → HTTP 404 on :80): the runner invokes `./prefect/ensur
 1. Pick the next free numeric prefix (gaps of 10 are intentional so you can insert).
 2. Add `test/NN-short-name.sh` — one capability / contract slice per file.
 3. Start from `set -euo pipefail`, source `lib.sh`, and use `pass` / `fail`.
-4. Assume fixture env from the runner (`IP`, and when needed `STATE_JSON` / `HOST_JSON`). Do not re-run `terraform show` in the case.
+4. Assume fixture env from the runner (`IP`, provider-observed `RESERVED_IP_JSON` / `HOST_JSON`) and use `do_api_get` for other provider outcomes.
 5. Keep the script focused on external behavior. The runner discovers `test/[0-9]*.sh` automatically — no registry edit.
 6. Do not call `./park.sh`, `./teardown.sh`, or otherwise remove the Host / Durables.
 

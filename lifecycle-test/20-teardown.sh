@@ -16,7 +16,7 @@ IP="$(stack_reserved_ip 2>/dev/null || true)"
 
 DOMAINS_BEFORE="$(stack_domain_names)"
 PROJECT_ID="$(stack_cloud_project_id)"
-[[ -n "${PROJECT_ID}" ]] || fail "Cloud Project not in State before Teardown"
+[[ -n "${PROJECT_ID}" ]] || fail "Cloud Project not found at provider before Teardown"
 
 assert_reserved_ip_present "${IP}"
 assert_volume_present

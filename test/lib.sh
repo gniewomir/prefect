@@ -1,8 +1,48 @@
 # Shared helpers for Acceptance Tests. Sourced by case scripts (not executed by the runner).
-# Requires fixture env from test.sh: IP, and for State-backed cases STATE_JSON / HOST_JSON.
+# Requires fixture env from test.sh: IP and provider-observed HOST_JSON.
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
+
+require_do_token() {
+  [[ -n "${DIGITALOCEAN_TOKEN:-}" ]] || fail "DIGITALOCEAN_TOKEN is not set"
+}
+
+do_api_get() {
+  local path="$1"
+  require_do_token
+  curl -fsS \
+    -H "Authorization: Bearer ${DIGITALOCEAN_TOKEN}" \
+    -H "Content-Type: application/json" \
+    "https://api.digitalocean.com${path}"
+}
+
+provider_cloud_project_json() {
+  local project_name="prefect-${PREFECT_ENV}"
+  do_api_get "/v2/projects?per_page=200" \
+    | jq -c --arg name "${project_name}" '.projects[] | select(.name == $name)'
+}
+
+provider_cloud_project_id() {
+  provider_cloud_project_json | jq -r '.id'
+}
+
+provider_host_volume_json() {
+  local volume_name="prefect-${PREFECT_ENV}-web-data"
+  do_api_get "/v2/volumes?name=${volume_name}&region=fra1" \
+    | jq -c '.volumes[0] // empty'
+}
+
+environment_domains_path() {
+  printf '%s/config/environments/%s/domains.json\n' "${REPO_ROOT}" "${PREFECT_ENV}"
+}
+
+configured_domain_names() {
+  local domains_path
+  domains_path="$(environment_domains_path)"
+  [[ -f "${domains_path}" ]] || return 0
+  jq -r 'keys[]' "${domains_path}"
+}
 
 require_ip() {
   [[ -n "${IP:-}" ]] || fail "fixture missing IP (run via ./test.sh)"

@@ -49,3 +49,23 @@ if grep -Eq -- '(^| )(-target=|state |destroy($| ))' "${TERRAFORM_CALLS}"; then
 fi
 
 pass "Park supplies non-sticky Recreatable absence to a complete Terraform plan"
+
+: >"${TERRAFORM_CALLS}"
+TF_VAR_recreatables_present=false "${REPO_ROOT}/apply.sh" --yes --env test >/dev/null
+
+grep -Fxq \
+  "apply -input=false -auto-approve -var=recreatables_present=true" \
+  "${TERRAFORM_CALLS}" \
+  || fail "Apply must explicitly request Recreatable presence"
+
+pass "Apply overrides ambient variables with Recreatable presence"
+
+: >"${TERRAFORM_CALLS}"
+TF_VAR_recreatables_present=false "${REPO_ROOT}/apply.sh" --env test >/dev/null
+
+grep -Fxq \
+  "apply -var=recreatables_present=true" \
+  "${TERRAFORM_CALLS}" \
+  || fail "interactive Apply must explicitly request Recreatable presence"
+
+pass "interactive Apply requests Recreatable presence"

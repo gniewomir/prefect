@@ -5,13 +5,11 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-[[ -n "${STATE_JSON:-}" ]] || fail "fixture missing STATE_JSON (run via ./test.sh)"
+[[ -n "${RESERVED_IP_JSON:-}" && "${RESERVED_IP_JSON}" != "null" ]] \
+  || fail "fixture missing RESERVED_IP_JSON (run via ./test.sh)"
 
-ASSIGNED="$(echo "${STATE_JSON}" | jq -r '
-  def resources: (.resources[]?), (.child_modules[]? | resources);
-  .values.root_module | resources
-  | select(.type == "digitalocean_reserved_ip" and .name == "web")
-  | .values.ip_address
-')"
-[[ "${ASSIGNED}" == "${IP}" ]] || fail "Reserved IP output ${IP} != State ${ASSIGNED}"
+ASSIGNED="$(echo "${RESERVED_IP_JSON}" | jq -r '.ip')"
+[[ "${ASSIGNED}" == "${IP}" ]] || fail "Reserved IP output ${IP} != provider ${ASSIGNED}"
+echo "${RESERVED_IP_JSON}" | jq -e '.droplet.id != null' >/dev/null \
+  || fail "Reserved IP ${IP} is not assigned to a Host"
 pass "Reserved IP assigned and exported"
