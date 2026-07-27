@@ -57,8 +57,8 @@ A stable public IPv4 address owned by the Stack and assigned to a Host. It survi
 _Avoid_: Floating IP, static IP, elastic IP (when you mean this address resource)
 
 **Domain**:
-The Stack-managed DNS Durable for an Environment: the provider zone and the Stack-authored records under it. A records to the Environment’s Reserved IP are required for each declared name (apex or subdomain); a Domain may carry more Stack-authored records over time. An Environment may have zero or more Domains. Park keeps it; Apply reattaches it; Teardown removes it; assigned to the Environment’s Cloud Project. Not a Public Hostname and not Workload ownership of names.
-_Avoid_: DNS zone, zone file, domain name (bare), subdomain (when you mean this Durable or part of it); Public Hostname (when you mean a Manifest claim)
+The Stack-managed DNS Durable for an Environment: the provider zone and the Stack-authored records under it. A records to the Environment’s Reserved IP are required for each declared name (apex or subdomain); a Domain may carry more Stack-authored records over time. Certificate material for those names is Domain-scoped — a Workload may use a Domain’s names via Routes; it does not own the Domain or its certificates. An Environment may have zero or more Domains. Park keeps it; Apply reattaches it; Teardown removes it; assigned to the Environment’s Cloud Project. Not Workload ownership of names.
+_Avoid_: DNS zone, zone file, domain name (bare), subdomain (when you mean this Durable or part of it); Public Hostname (when you mean a Manifest claim); Workload-owned certificate
 
 **Host Volume**:
 A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds and Park (Teardown removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Routes, certificates, and ACME HTTP-01 webroot, and later other Prefect/Workload paths) is owned by the Prefect User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Prefect User’s home. Not per-Workload volumes.
@@ -109,11 +109,11 @@ The idempotent, declarative Host-side application of one Component’s desired s
 _Avoid_: Setup (bare), install, deploy, provision, Workload Setup (when you mean this Component action)
 
 **Workload Setup**:
-The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest (Workload Intent, Public Hostnames, Route). Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
+The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest: Quadlets per Intent, and reconcile of that Workload’s operator-authored Routes into the Edge routes directory (**run** installs; **stop** / **trash** removes that Workload’s installed Routes) with an Edge reload when the installed set changes. Does not generate Route content from the Manifest. Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
 _Avoid_: Setup (bare), Component Setup, install, deploy, Purge (when you mean this Workload action)
 
 **Edge**:
-The mandatory public HTTP/HTTPS front door on a public Host. A Prefect Component (not optional). Sole publisher of Host ports 80/443; Workloads sit behind it. Terminates TLS for Public Hostnames and owns on-demand ACME (systemd user timer plus triggered runs when Public Hostnames change). On :80, only ACME challenges and HTTPS redirects — never Workload cleartext.
+The mandatory public HTTP/HTTPS front door on a public Host. A Prefect Component (not optional). Sole publisher of Host ports 80/443; Workloads sit behind it via operator-authored Routes. Terminates TLS using Domain-scoped certificates; owns on-demand ACME as the issuance mechanism. Until sibling cutover (#44), ACME want-list is rebuilt from Manifest Public Hostname fields (Intent **run**); ACME does not generate Workload Routes. On :80, only ACME challenges and HTTPS redirects — never Workload cleartext.
 _Avoid_: Reverse proxy, ingress, gateway, nginx (when you mean this Prefect role — nginx is today’s implementation)
 
 **Workload**:
@@ -121,28 +121,28 @@ An optional containerized service that runs on a Host. Not part of Prefect’s m
 _Avoid_: App, service, container, backend (when you mean this concept)
 
 **Workload Manifest**:
-A Workload-owned declaration that is the source of truth for that Workload’s Intent (**run**, **stop**, or **trash**), its Public Hostnames (one or more), and for producing its Route. First cut covers lifecycle and Edge reachability — not the Workload’s full runtime package beyond what Setup needs for those.
+A Workload-owned declaration that is the source of truth for that Workload’s Intent (**run**, **stop**, or **trash**). May still carry interim fields (e.g. Public Hostname) until a sibling cutover removes them; those fields are not used for Route production or Intent HTTP semantics. Operator-authored Routes live in the Workload definition tree alongside the Manifest, not as Manifest-generated content.
 _Avoid_: Manifest (bare), spec, compose file, workload config (when you mean this declaration)
 
 **Workload Intent**:
-The Manifest’s post–Workload Setup expectation — what must be true after Setup succeeds; never Host status or a report of what is currently on the server. **run** (Quadlets up, Public Hostnames claimed, certificates renewed, Edge proxies to the Workload when a certificate exists), **stop** (no Quadlets; Public Hostnames still reserved; data and certificates kept; certificates not renewed; Edge answers 503 for those names while a certificate can terminate TLS, then goes dark after expiry), or **trash** (eligible for Purge; Public Hostnames released; associated data retained until Purge).
+The Manifest’s post–Workload Setup expectation — what must be true after Setup succeeds; never Host status or a report of what is currently on the server. **run** (Quadlets up; that Workload’s operator-authored Routes installed on the Edge when present — zero Route files is valid; HTTP semantics are whatever installed Routes declare, not Prefect-generated shells; reachability is not a Setup success criterion), **stop** (no Quadlets; that Workload’s Routes are not installed on the Edge, so requests miss to the Edge default — today HTTP 404 on :80 — not a Prefect-managed 503), or **trash** (eligible for Purge; associated Workload data retained until Purge).
 _Avoid_: Workload Desired State, desired state, running, stopped, trashed, active, disabled, remove, status, phase, current state (when you mean this Manifest field)
 
 **Purge**:
-The operation that permanently removes every Workload whose Intent is **trash** and its associated data (Routes, certificates, Host Volume Workload data, and related units). Does not affect Workloads whose Intent is **run** or **stop**.
+The operation that permanently removes every Workload whose Intent is **trash** and its Workload-associated data (that Workload’s installed Routes, Host Volume Workload tree, and related units). Does not delete Domains or Domain-scoped certificate material. Does not affect Workloads whose Intent is **run** or **stop**.
 _Avoid_: Teardown (Stack-level), Destroy, delete, cleanup, gc (when you mean this Workload operation)
 
 **Public Hostname**:
-An enumerated FQDN pointed at a public Host’s Reserved IP for which the Edge terminates TLS. Declared on a Workload Manifest (one or more per Workload); unique among Workloads on that Host that still claim it (Intent **run** or **stop**); not a DNS zone and not an open-ended wildcard. Resolution for Stack-owned names is via the Environment’s Domain Durable; a Manifest claim does not create DNS.
-_Avoid_: Domain, subdomain, vhost, server name, DNS name (when you mean this Prefect concept)
+Deprecated interim Manifest field: an enumerated FQDN formerly claimed by a Workload for Edge TLS/ACME. Not Workload ownership of DNS or certificates — those are Domain-scoped. Remains the ACME want-list source of truth until sibling cutover (#44); not a Route or Intent HTTP concern. While it feeds the want-list, a Public Hostname must be unique among Workloads with Intent **run** (Setup fails on conflict). Edge ACME must not generate or reproject Workload Routes after issue/renew (reload only as needed for certificate material).
+_Avoid_: Domain (when you mean the Stack Durable); subdomain, vhost, server name, DNS name (when you mean this interim Manifest field)
 
 **Service Network**:
 The private container network on a Host that the Edge and Workloads join so they can reach each other by name. Owned by Prefect as its own Component (not by the Edge). Distinct from the provider Firewall.
 _Avoid_: Podman network, bridge, CNI (implementation); network (bare — ambiguous with Firewall / provider networking)
 
 **Route**:
-What the Edge loads for a Workload’s Public Hostnames. Projected from the stored Workload Manifest (Workload Intent, Public Hostnames, TLS wiring, optional **interior**) by Workload Setup and again by Edge ACME after successful issue/renew so HTTPS can go live without a second Setup: generated Edge shell plus either a generated proxy body or an optional Workload-provided interior (proxy body only — must not declare Public Hostnames). For Intent **run**, the HTTPS shell proxies to the Workload once a certificate exists; for Intent **stop**, the HTTPS shell returns 503 while a certificate lasts. The Edge’s own include shell and empty-routes stub remain Component-owned; Workload Routes must not be cleared by Component Setup.
-_Avoid_: Vhost, upstream, location block, snippet, server block (implementation)
+Operator-authored Edge config (native format) whose source of truth is `workloads/<name>/routes/` on the Host Volume (same relative layout when staging from the operator side). Workload Setup installs those files into the Edge routes directory as `<name>--<filename>` for the Edge to load (**run** only; **stop** / **trash** remove that Workload’s installed files). Missing `routes/` is valid (zero Routes). Not projected or generated from the Workload Manifest (no generated shells, no Manifest **interior**); Edge ACME does not generate Workload Routes. The Edge’s own include shell and empty-routes stub remain Component-owned; Workload Routes must not be cleared by Component Setup.
+_Avoid_: Vhost, upstream, location block, snippet, server block (implementation); projected Route, generated shell, interior (removed Prefect Route features)
 
 **Prefect User**:
 The Host login account that runs Prefect’s rootless user Quadlets (linger enabled so user systemd stays up without an interactive session). Created by Initial Host Provisioning on public Hosts — account and linger only, not Quadlet units.
