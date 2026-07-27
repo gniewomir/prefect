@@ -3,14 +3,16 @@
 # Idempotent for the same Manifest. Does not wait for ACME issuance.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./prefect/workload-setup.sh [--env <slug>] /path/to/manifest.json
+# Workload identity is the basename of the directory containing the Manifest (ADR-0024).
+# Optional siblings: routes/ and quadlets/ next to the Manifest.
 # Optional: VERIFY_SSH_IDENTITY=/path/to/private_key  PREFECT_USER=prefect
-# Operator Routes: optional sibling directory routes/ next to the Manifest (copied as SoT).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
 USER_NAME="${PREFECT_USER:-prefect}"
 HOST_SCRIPT="${REPO_ROOT}/prefect/lib/workload-setup-host.sh"
+QUADLETS_LIB="${REPO_ROOT}/prefect/lib/workload-quadlets-host.sh"
 # shellcheck source=../lib/environment.sh
 source "${REPO_ROOT}/lib/environment.sh"
 
@@ -30,6 +32,10 @@ MANIFEST_PATH="$1"
   echo "missing ${HOST_SCRIPT}" >&2
   exit 1
 }
+[[ -f "${QUADLETS_LIB}" ]] || {
+  echo "missing ${QUADLETS_LIB}" >&2
+  exit 1
+}
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -46,17 +52,34 @@ fi
 
 MANIFEST_DIR="$(cd "$(dirname "${MANIFEST_PATH}")" && pwd)"
 MANIFEST_ABS="${MANIFEST_DIR}/$(basename "${MANIFEST_PATH}")"
+WL_NAME="$(basename "${MANIFEST_DIR}")"
 ROUTES_SRC="${MANIFEST_DIR}/routes"
+QUADLETS_SRC="${MANIFEST_DIR}/quadlets"
+
+if [[ -z "${WL_NAME}" || "${WL_NAME}" == "." || "${WL_NAME}" == ".." ]] ||
+  [[ "${WL_NAME}" =~ [[:space:]] ]]; then
+  echo "workload identity (directory basename) must be a single path segment: '${WL_NAME}'" >&2
+  exit 1
+fi
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
-cp "${MANIFEST_ABS}" "${STAGE}/manifest.json"
 cp "${HOST_SCRIPT}" "${STAGE}/workload-setup-host.sh"
+cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
+mkdir -p "${STAGE}/${WL_NAME}"
+cp "${MANIFEST_ABS}" "${STAGE}/${WL_NAME}/manifest.json"
 if [[ -d "${ROUTES_SRC}" ]]; then
-  mkdir -p "${STAGE}/routes"
+  mkdir -p "${STAGE}/${WL_NAME}/routes"
   for src in "${ROUTES_SRC}"/*; do
     [[ -f "${src}" ]] || continue
-    cp "${src}" "${STAGE}/routes/$(basename "${src}")"
+    cp "${src}" "${STAGE}/${WL_NAME}/routes/$(basename "${src}")"
+  done
+fi
+if [[ -d "${QUADLETS_SRC}" ]]; then
+  mkdir -p "${STAGE}/${WL_NAME}/quadlets"
+  for src in "${QUADLETS_SRC}"/*; do
+    [[ -f "${src}" ]] || continue
+    cp "${src}" "${STAGE}/${WL_NAME}/quadlets/$(basename "${src}")"
   done
 fi
 
@@ -64,6 +87,6 @@ COPYFILE_DISABLE=1 tar --format=ustar -C "${STAGE}" -cf - . \
   | ssh "${SSH_OPTS[@]}" "root@${IP}" "rm -rf /tmp/prefect-workload-setup && mkdir -p /tmp/prefect-workload-setup && tar -C /tmp/prefect-workload-setup -xf -"
 
 ssh "${SSH_OPTS[@]}" "root@${IP}" \
-  "PREFECT_USER=${USER_NAME} bash /tmp/prefect-workload-setup/workload-setup-host.sh /tmp/prefect-workload-setup"
+  "PREFECT_USER=${USER_NAME} bash /tmp/prefect-workload-setup/workload-setup-host.sh /tmp/prefect-workload-setup/${WL_NAME}"
 
 echo "Workload Setup applied on ${IP}."

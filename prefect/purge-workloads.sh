@@ -11,6 +11,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
 USER_NAME="${PREFECT_USER:-prefect}"
 HOST_SCRIPT="${REPO_ROOT}/prefect/lib/purge-workloads-host.sh"
+QUADLETS_LIB="${REPO_ROOT}/prefect/lib/workload-quadlets-host.sh"
 # shellcheck source=../lib/environment.sh
 source "${REPO_ROOT}/lib/environment.sh"
 
@@ -22,6 +23,10 @@ done
 
 [[ -f "${HOST_SCRIPT}" ]] || {
   echo "missing ${HOST_SCRIPT}" >&2
+  exit 1
+}
+[[ -f "${QUADLETS_LIB}" ]] || {
+  echo "missing ${QUADLETS_LIB}" >&2
   exit 1
 }
 
@@ -40,6 +45,7 @@ fi
 STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
 cp "${HOST_SCRIPT}" "${STAGE}/purge-workloads-host.sh"
+cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 
 COPYFILE_DISABLE=1 tar --format=ustar -C "${STAGE}" -cf - . \
   | ssh "${SSH_OPTS[@]}" "root@${IP}" "rm -rf /tmp/prefect-purge && mkdir -p /tmp/prefect-purge && tar -C /tmp/prefect-purge -xf -"

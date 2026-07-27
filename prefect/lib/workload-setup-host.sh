@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Host-local Workload Setup. Invoked by prefect/workload-setup.sh (not an operator entrypoint).
-# Usage: PREFECT_USER=prefect bash workload-setup-host.sh /path/to/staging-dir
-# Staging dir must contain manifest.json; optional routes/ tree (operator-authored Route SoT).
+# Usage: PREFECT_USER=prefect bash workload-setup-host.sh /path/to/workload-tree
+# Workload tree must contain manifest.json; optional routes/ and quadlets/ (ADR-0024).
+# Identity is the basename of the Workload tree directory.
 # Does not build ACME want-list, claim hostnames, or start ACME (ADR-0023).
 set -euo pipefail
 
-STAGE="${1:?staging dir required}"
+TREE="${1:?workload tree required}"
 USER_NAME="${PREFECT_USER:-prefect}"
-MANIFEST="${STAGE}/manifest.json"
-ROUTES_STAGE="${STAGE}/routes"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MANIFEST="${TREE}/manifest.json"
+ROUTES_STAGE="${TREE}/routes"
+QUADLETS_STAGE="${TREE}/quadlets"
 
 DATA_ROOT=/var/lib/prefect/components_data
 EDGE_DATA="${DATA_ROOT}/edge"
@@ -19,11 +22,24 @@ ROUTES_DIR="${EDGE_DATA}/routes"
 source /var/lib/prefect/components/lib/quadlet-user-session.sh
 # shellcheck source=edge-routes-host.sh
 source /var/lib/prefect/components/lib/edge-routes-host.sh
+# shellcheck source=workload-quadlets-host.sh
+source "${HERE}/workload-quadlets-host.sh"
 
-[[ -f "${MANIFEST}" ]] || {
-  echo "manifest.json missing in ${STAGE}" >&2
+[[ -d "${TREE}" ]] || {
+  echo "workload tree missing: ${TREE}" >&2
   exit 1
 }
+[[ -f "${MANIFEST}" ]] || {
+  echo "manifest.json missing in ${TREE}" >&2
+  exit 1
+}
+
+WL_NAME="$(basename "${TREE}")"
+if [[ -z "${WL_NAME}" || "${WL_NAME}" == "." || "${WL_NAME}" == ".." ]] ||
+  [[ "${WL_NAME}" == */* ]] || [[ "${WL_NAME}" =~ [[:space:]] ]]; then
+  echo "workload identity (directory basename) must be a single path segment: '${WL_NAME}'" >&2
+  exit 1
+fi
 
 command -v python3 >/dev/null || {
   echo "python3 required on Host for Workload Manifest parsing" >&2
@@ -33,28 +49,46 @@ command -v python3 >/dev/null || {
 eval "$(python3 - "${MANIFEST}" <<'PY'
 import json, shlex, sys
 m = json.load(open(sys.argv[1]))
-if "public_hostnames" in m:
-    raise SystemExit(
-        "manifest.public_hostnames removed; ACME want-list is Domain assignment (ADR-0023)"
-    )
-name = m.get("name")
+if not isinstance(m, dict):
+    raise SystemExit("manifest must be a JSON object")
+allowed = {"intent", "description"}
+extra = sorted(set(m) - allowed)
+if extra:
+    raise SystemExit("manifest unknown keys (ADR-0024 allowlist): " + ", ".join(extra))
 intent = m.get("intent")
-upstream = m.get("upstream")
-if not name or not isinstance(name, str):
-    raise SystemExit("manifest.name must be a non-empty string")
 if intent not in ("run", "stop", "trash"):
     raise SystemExit("manifest.intent must be run|stop|trash")
-if not upstream or not isinstance(upstream, str):
-    raise SystemExit("manifest.upstream must be a non-empty string (host:port)")
-if any(c in name for c in "/ \t\n"):
-    raise SystemExit("manifest.name must be a single path segment")
-print(f"WL_NAME={shlex.quote(name)}")
+if "description" in m and not isinstance(m["description"], str):
+    raise SystemExit("manifest.description must be a string when present")
 print(f"WL_INTENT={shlex.quote(intent)}")
-print(f"WL_UPSTREAM={shlex.quote(upstream)}")
 PY
 )"
 
 mkdir -p "${ROUTES_DIR}" "${WORKLOADS_ROOT}/${WL_NAME}"
+
+PREV_QUADLETS="$(mktemp)"
+STAGE_QUADLETS_LIST="$(mktemp)"
+trap 'rm -f "${PREV_QUADLETS}" "${STAGE_QUADLETS_LIST}"' EXIT
+workload_quadlet_sot_basenames "${WORKLOADS_ROOT}/${WL_NAME}/quadlets" >"${PREV_QUADLETS}" || true
+workload_quadlet_sot_basenames "${QUADLETS_STAGE}" >"${STAGE_QUADLETS_LIST}" || true
+
+quadlet_user_session_begin
+
+# Collision check before mutating Host Volume SoT / unit files.
+while IFS= read -r base; do
+  [[ -n "${base}" ]] || continue
+  dest="${UNIT_DIR}/${base}"
+  owned_before=0
+  while IFS= read -r p; do
+    [[ "${p}" == "${base}" ]] || continue
+    owned_before=1
+    break
+  done <"${PREV_QUADLETS}"
+  if [[ -e "${dest}" && "${owned_before}" -eq 0 ]]; then
+    echo "workload quadlet basename '${base}' already exists in unit directory (not owned by Workload '${WL_NAME}')" >&2
+    exit 1
+  fi
+done <"${STAGE_QUADLETS_LIST}"
 
 install -m 0644 "${MANIFEST}" "${WORKLOADS_ROOT}/${WL_NAME}/manifest.json"
 rm -f "${WORKLOADS_ROOT}/${WL_NAME}/interior.conf"
@@ -67,51 +101,15 @@ if [[ -d "${ROUTES_STAGE}" ]]; then
   done
 fi
 
-WL_UPSTREAM_HOST="${WL_UPSTREAM%%:*}"
+workload_quadlet_sync_sot "${WL_NAME}" "${QUADLETS_STAGE}"
 
 chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}"
 
-quadlet_user_session_begin
-
-# Install operator Routes for Intent run; remove this Workload's installed Routes otherwise.
 edge_reconcile_workload_routes "${WL_NAME}" "${WL_INTENT}" "${WORKLOADS_ROOT}/${WL_NAME}/routes"
 
-# Minimal Workload Quadlet on the Service Network (name matches upstream host).
-WL_UNIT="${UNIT_DIR}/${WL_UPSTREAM_HOST}.container"
-if [[ "${WL_INTENT}" == "run" ]]; then
-  cat >"${WL_UNIT}" <<EOF
-[Unit]
-Description=Prefect Workload ${WL_NAME}
-
-[Container]
-Image=docker.io/library/nginx:alpine
-ContainerName=${WL_UPSTREAM_HOST}
-Network=service-network.network
-
-[Service]
-Restart=on-failure
-
-[Install]
-WantedBy=default.target
-EOF
-  chown "${USER_NAME}:${USER_NAME}" "${WL_UNIT}"
-fi
-# Intent stop/trash: stop service below; unit file retained until Purge (trash data retained).
+workload_quadlet_reconcile_unit_files "${WL_NAME}" <"${PREV_QUADLETS}"
 
 quadlet_user_session_reload
-quadlet_user systemctl --user reset-failed "${WL_UPSTREAM_HOST}.service" 2>/dev/null || true
-
-if [[ "${WL_INTENT}" == "run" ]]; then
-  quadlet_user systemctl --user restart "${WL_UPSTREAM_HOST}.service"
-  for _ in $(seq 1 30); do
-    if quadlet_user systemctl --user --quiet is-active "${WL_UPSTREAM_HOST}.service"; then
-      break
-    fi
-    sleep 1
-  done
-  quadlet_user systemctl --user --quiet is-active "${WL_UPSTREAM_HOST}.service"
-else
-  quadlet_user systemctl --user stop "${WL_UPSTREAM_HOST}.service" 2>/dev/null || true
-fi
+workload_quadlet_apply_intent "${WL_NAME}" "${WL_INTENT}"
 
 edge_reload_front_door_if_routes_changed

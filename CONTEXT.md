@@ -109,7 +109,7 @@ The idempotent, declarative Host-side application of one Component’s desired s
 _Avoid_: Setup (bare), install, deploy, provision, Workload Setup (when you mean this Component action)
 
 **Workload Setup**:
-The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest: Quadlets per Intent, and reconcile of that Workload’s operator-authored Routes into the Edge routes directory (**run** installs; **stop** / **trash** removes that Workload’s installed Routes) with an Edge reload when the installed set changes. Does not generate Route content from the Manifest. Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
+The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest: sync operator-authored Quadlets from the Workload definition tree’s `quadlets/` into the Prefect User unit directory under their authored basenames and apply them per Intent (**run** reconciles install/start and drops units removed from SoT; **stop** / **trash** stop those units — unit files retained until Purge), and reconcile of that Workload’s operator-authored Routes into the Edge routes directory (**run** installs; **stop** / **trash** removes that Workload’s installed Routes) with an Edge reload when the installed set changes. Missing or empty `quadlets/` or `routes/` is valid (zero of either). Refuses to overwrite a unit basename already present in the unit directory unless this Workload’s stored `quadlets/` already owns it. Does not generate Route or Quadlet content from the Manifest. Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
 _Avoid_: Setup (bare), Component Setup, install, deploy, Purge (when you mean this Workload action)
 
 **Edge**:
@@ -117,11 +117,11 @@ The mandatory public HTTP/HTTPS front door on a public Host. A Prefect Component
 _Avoid_: Reverse proxy, ingress, gateway, nginx (when you mean this Prefect role — nginx is today’s implementation)
 
 **Workload**:
-An optional containerized service that runs on a Host. Not part of Prefect’s mandatory Host shape, not a Component, and never installed during Initial Host Provisioning; typically reached only via the Edge, not by publishing 80/443 itself.
+An optional containerized service that runs on a Host. Identified by the basename of its Workload definition tree (the directory that holds the Manifest), not by a Manifest field. Not part of Prefect’s mandatory Host shape, not a Component, and never installed during Initial Host Provisioning; typically reached only via the Edge, not by publishing 80/443 itself.
 _Avoid_: App, service, container, backend (when you mean this concept)
 
 **Workload Manifest**:
-A Workload-owned declaration that is the source of truth for that Workload’s Intent (**run**, **stop**, or **trash**). It does not claim DNS names or feed ACME; operator-authored Routes live in the Workload definition tree alongside the Manifest, not as Manifest-generated content.
+A Workload-owned declaration that is the source of truth for that Workload’s Intent (**run**, **stop**, or **trash**), with an optional human-only `description` ignored by all automation. It does not name the Workload, claim DNS names, feed ACME, or carry runtime/Quadlet config; operator-authored Routes and Quadlets live in the Workload definition tree alongside the Manifest (`routes/` and `quadlets/` siblings).
 _Avoid_: Manifest (bare), spec, compose file, workload config (when you mean this declaration)
 
 **Workload Intent**:
@@ -129,7 +129,7 @@ The Manifest’s post–Workload Setup expectation — what must be true after S
 _Avoid_: Workload Desired State, desired state, running, stopped, trashed, active, disabled, remove, status, phase, current state (when you mean this Manifest field)
 
 **Purge**:
-The operation that permanently removes every Workload whose Intent is **trash** and its Workload-associated data (that Workload’s installed Routes, Host Volume Workload tree, and related units). Does not delete Domains or Domain-scoped certificate material. Does not affect Workloads whose Intent is **run** or **stop**.
+The operation that permanently removes every Workload whose Intent is **trash** and its Workload-associated data (that Workload’s installed Routes, Host Volume Workload tree including stored `routes/` and `quadlets/` SoT, and Prefect User unit files whose basenames appear in that Workload’s `quadlets/`). Does not delete Domains or Domain-scoped certificate material. Does not affect Workloads whose Intent is **run** or **stop**.
 _Avoid_: Teardown (Stack-level), Destroy, delete, cleanup, gc (when you mean this Workload operation)
 
 **Service Network**:

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Intent trash + Purge; Domain-scoped certs survive (#54 / ADR-0023)
+# Acceptance Test: Intent trash + Purge; Domain-scoped certs survive (#54 / ADR-0024)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -11,14 +11,28 @@ acceptance_ssh_opts
 FIX_DIR="$(mktemp -d)"
 trap 'rm -rf "${FIX_DIR}"' EXIT
 
-write_manifest() {
-  local file="$1" name="$2" intent="$3"
-  cat >"${file}" <<EOF
+stage_wl() {
+  local name="$1" intent="$2"
+  mkdir -p "${FIX_DIR}/${name}/quadlets"
+  cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
-  "name": "${name}",
-  "intent": "${intent}",
-  "upstream": "${name}:80"
+  "intent": "${intent}"
 }
+EOF
+  cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF
+[Unit]
+Description=Prefect Workload ${name}
+
+[Container]
+Image=docker.io/library/nginx:alpine
+ContainerName=${name}
+Network=service-network.network
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
 EOF
 }
 
@@ -39,14 +53,11 @@ REMOTE
 HOST_A="trash-a.example.test"
 HOST_B="trash-b.example.test"
 
+stage_wl trash-a run
+stage_wl reclaim-b run
+stage_wl keep-me stop
+stage_wl purge-me run
 mkdir -p "${FIX_DIR}/purge-me/routes"
-write_manifest "${FIX_DIR}/a-run.json" "trash-a" "run"
-write_manifest "${FIX_DIR}/a-trash.json" "trash-a" "trash"
-write_manifest "${FIX_DIR}/b-run.json" "reclaim-b" "run"
-write_manifest "${FIX_DIR}/keep-stop.json" "keep-me" "stop"
-write_manifest "${FIX_DIR}/keep-trash.json" "keep-me" "trash"
-write_manifest "${FIX_DIR}/purge-me/manifest.json" "purge-me" "run"
-write_manifest "${FIX_DIR}/purge-trash.json" "purge-me" "trash"
 cat >"${FIX_DIR}/purge-me/routes/http.conf" <<EOF
 server {
     listen 80;
@@ -59,42 +70,75 @@ EOF
 want_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
 
+# Drop leftover Workload trees and pre-ADR-0024 invented units for these fixtures.
+ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<'REMOTE'
+set -euo pipefail
+for n in trash-a reclaim-b keep-me purge-me; do
+  rm -rf "/var/lib/prefect/components_data/workloads/${n}"
+  rm -f "/var/lib/prefect/components_data/edge/routes/${n}.conf"
+  rm -f /var/lib/prefect/components_data/edge/routes/"${n}"--*
+  rm -f "/home/prefect/.config/containers/systemd/${n}.container"
+done
+REMOTE
+
 # Prior runs leave durable Host Volume state — reset these fixtures first.
-for m in a-trash keep-trash purge-trash; do
-  "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${m}.json" 2>/dev/null || true
+for name in trash-a keep-me purge-me; do
+  stage_wl "${name}" trash
+  "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${name}/manifest.json" 2>/dev/null || true
 done
 "${REPO_ROOT}/prefect/purge-workloads.sh" --env "${PREFECT_ENV:-test}"
 
-"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/a-run.json"
-"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/a-trash.json"
+stage_wl trash-a run
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/trash-a/manifest.json"
+stage_wl trash-a trash
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/trash-a/manifest.json"
 
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/workloads/trash-a/manifest.json" \
   || fail "Intent trash Workload data should remain until Purge"
 pass "Intent trash retains Workload data until Purge"
 
-# Another Workload can run without reclaiming hostname claims.
-"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/b-run.json"
+stage_wl reclaim-b run
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/reclaim-b/manifest.json"
 ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "test -f /var/lib/prefect/components_data/workloads/reclaim-b/manifest.json" \
   || fail "second Intent run Workload should Setup"
 pass "Intent run Workload Setup does not depend on hostname claims"
 
-# Keep Intent stop; trash another; Purge should only remove Intent trash
-"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/keep-stop.json"
+stage_wl keep-me stop
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/keep-me/manifest.json"
+stage_wl purge-me run
+mkdir -p "${FIX_DIR}/purge-me/routes"
+cat >"${FIX_DIR}/purge-me/routes/http.conf" <<EOF
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${HOST_B};
+    location / { return 200 "purge-probe\n"; add_header Content-Type text/plain; }
+}
+EOF
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/purge-me/manifest.json"
 ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "test -f /var/lib/prefect/components_data/edge/routes/purge-me--http.conf" \
   || fail "Intent run should install operator Route purge-me--http.conf"
 plant_fixture_pem "${HOST_B}"
 plant_fixture_pem "${HOST_A}"
-"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/purge-trash.json"
+stage_wl purge-me trash
+mkdir -p "${FIX_DIR}/purge-me/routes"
+cat >"${FIX_DIR}/purge-me/routes/http.conf" <<EOF
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${HOST_B};
+    location / { return 200 "purge-probe\n"; add_header Content-Type text/plain; }
+}
+EOF
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/purge-me/manifest.json"
 # Intent trash Setup already uninstalls Routes; plant a leftover so Purge must clear it.
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
 set -euo pipefail
 printf '%s\n' 'leftover-route' > /var/lib/prefect/components_data/edge/routes/purge-me--http.conf
 chown prefect:prefect /var/lib/prefect/components_data/edge/routes/purge-me--http.conf
 REMOTE
-# Also trash-a is still Intent trash from earlier
 "${REPO_ROOT}/prefect/purge-workloads.sh" --env "${PREFECT_ENV:-test}"
 
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test ! -e /var/lib/prefect/components_data/workloads/purge-me" \
@@ -124,4 +168,4 @@ want_after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
 [[ "${want_after}" == "${want_before}" ]] \
   || fail "Purge must not rewrite ACME want-list"
-pass "Purge removes trash Workloads/Routes; keeps Domain-scoped certs; leaves want-list unchanged"
+pass "Purge removes trash Workloads/Routes/units; keeps Domain-scoped certs; leaves want-list unchanged"

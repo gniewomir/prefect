@@ -13,16 +13,14 @@ WL="tlsprobe"
 FIX_DIR="$(mktemp -d)"
 trap 'rm -rf "${FIX_DIR}"' EXIT
 
-mkdir -p "${FIX_DIR}/routes"
-cat >"${FIX_DIR}/manifest.json" <<EOF
+mkdir -p "${FIX_DIR}/${WL}/routes"
+cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
-  "name": "${WL}",
-  "intent": "run",
-  "upstream": "${WL}:8080"
+  "intent": "run"
 }
 EOF
 # Operator-authored HTTPS Route (Prefect does not generate shells).
-cat >"${FIX_DIR}/routes/https.conf" <<EOF
+cat >"${FIX_DIR}/${WL}/routes/https.conf" <<EOF
 server {
     listen 80;
     listen [::]:80;
@@ -66,7 +64,7 @@ openssl req -x509 -newkey rsa:2048 -nodes \
 chown -R prefect:prefect /var/lib/prefect/components_data/edge/certs
 REMOTE
 
-"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/manifest.json"
+"${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
 
 installed="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "cat /var/lib/prefect/components_data/edge/routes/${WL}--https.conf")"
