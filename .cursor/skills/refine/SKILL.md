@@ -22,7 +22,7 @@ Done when: a single issue number is fixed.
 
 ### 2. Load the authority set
 
-Fetch and read:
+Authority-set menu:
 
 - the issue body and comments
 - linked issues
@@ -30,21 +30,23 @@ Fetch and read:
 - preceding closed siblings that share the same parent
 - linked assets
 - `CONTEXT.md` and relevant ADRs under `docs/adr/`
-- enough of the codebase to judge stated goals and means
+- enough of the codebase to judge **what to build**, **acceptance criteria**, and any **implementation decisions** the ticket or its parent spec still states
 
-Done when: every item above that exists has been read.
+For each item, decide from context already in the session whether a fresh load earns its keep: load it, or skip with a brief reason (irrelevant to this ticket, or already sufficient in context). Always refresh the ticket’s live tracker state (issue + comments, open blockers). Prefer not re-reading large artifacts already loaded this session unless drift checking needs a fresh pass.
+
+Done when: every menu item is loaded or explicitly skipped with a reason, and live ticket state has been refreshed.
 
 ### 3. Check for drift
 
 Against the authority set, look for:
 
-- **Goals / means** that no longer match code or docs
+- **What to build**, **acceptance criteria**, and any **implementation decisions** (on the ticket or its parent spec) that no longer match code or docs
 - **Prerequisites** — open blockers, or wrong/missing assumptions about work already done
-- **Parent alignment** — goals and wording vs parent (skip if no parent)
+- **Parent alignment** — what to build and wording vs parent (skip if no parent)
 - **Domain misalignment** — ticket vocabulary vs glossary / related ADRs
 - **Ambiguities** — unresolved decisions, preexisting or introduced since the ticket was written
 
-Judge fit. Leave how to achieve the goals to the implementing session.
+Judge fit. Leave how to achieve what to build to the implementing session.
 
 Done when: every axis above has an explicit pass or finding.
 
