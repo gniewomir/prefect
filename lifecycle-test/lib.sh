@@ -6,6 +6,8 @@
 
 [[ -n "${REPO_ROOT:-}" ]] || {
   echo "FAIL: fixture missing REPO_ROOT (run via ./lifecycle-test.sh)" >&2
+  # return when sourced; exit when executed as a script
+  # shellcheck disable=SC2317
   return 1 2>/dev/null || exit 1
 }
 

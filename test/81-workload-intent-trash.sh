@@ -9,7 +9,7 @@ acceptance_ssh_opts
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
 HOST="intent-trash.example.test"
-WL=intent-trash
+WL="intent-trash"
 FIX_DIR="$(mktemp -d)"
 trap 'rm -rf "${FIX_DIR}"' EXIT
 
