@@ -97,8 +97,14 @@ mkdir -p "\$(dirname "\${TOKEN_PATH}")"
 printf '%s\n' '${TOKEN}' >"\${TOKEN_PATH}"
 chown -R prefect:prefect ${DATA_ROOT}/acme-www
 REMOTE
-acme_body="$(curl -sS --connect-timeout 10 --max-time 15 \
-  --resolve "${FQDN}:80:${IP}" "http://${FQDN}/.well-known/acme-challenge/${TOKEN}")"
+# Retry: Edge may briefly RST during front-door reload (same window as /healthcheck).
+acme_body=""
+for _ in $(seq 1 30); do
+  acme_body="$(curl -sS --connect-timeout 10 --max-time 15 \
+    --resolve "${FQDN}:80:${IP}" "http://${FQDN}/.well-known/acme-challenge/${TOKEN}" 2>/dev/null || true)"
+  [[ "${acme_body}" == "${TOKEN}" ]] && break
+  sleep 1
+done
 [[ "${acme_body}" == "${TOKEN}" ]] || fail "ACME path on :80 broken after Domain front (got '${acme_body}')"
 pass "ACME HTTP-01 on :80 still works alongside Domain-front redirect"
 

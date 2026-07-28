@@ -101,11 +101,13 @@ quadlet_user systemctl --user --quiet is-active edge-pod.service
 # On-demand ACME capability: timer armed even with an empty want-list (ADR-0015).
 quadlet_user systemctl --user enable --now edge-acme.timer
 quadlet_user systemctl --user --quiet is-active edge-acme.timer
-# Do not block Component Setup on CA contact when the want-list is non-empty.
-# restart (not start): re-ensure must re-run oneshot even if a prior oneshot is still active.
-quadlet_user systemctl --user --no-block restart edge-acme.service
+# Block until the oneshot finishes: acme-run reloads the Edge front door at the end,
+# so returning early races Acceptance/operator HTTP on :80/:443. CA/DNS failures still
+# soft-succeed (oneshot exit 0 — ADR-0012 / ADR-0015). restart (not start): re-ensure
+# must re-run oneshot even if a prior oneshot is still active.
+quadlet_user systemctl --user restart edge-acme.service
 
-# Wait until Host :80 returns an HTTP status (image pull + nginx start).
+# Wait until Host :80 returns an HTTP status (post-ACME reload / image pull + nginx).
 for _ in $(seq 1 60); do
   code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 3 http://127.0.0.1/ 2>/dev/null || true)"
   if [[ "${code}" =~ ^[0-9]{3}$ ]]; then
@@ -114,5 +116,5 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 echo "Edge did not become reachable on :80 in time" >&2
-quadlet_user systemctl --user status edge-pod.service edge-nginx.service --no-pager >&2 || true
+quadlet_user systemctl --user status edge-pod.service edge-nginx.service edge-acme.service --no-pager >&2 || true
 exit 1

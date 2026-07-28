@@ -4,6 +4,8 @@ After=edge-pod.service
 
 [Service]
 Type=oneshot
+# lego per-name bound wait is 120s; allow multi-name want-lists + Edge reload.
+TimeoutStartSec=900
 ExecStart=/var/lib/prefect/components/edge/acme-run.sh
 
 [Install]
