@@ -20,7 +20,7 @@ while IFS= read -r -d '' file; do
       hits+="${file}:${line}"$'\n'
     done <<<"${file_hits}"
   fi
-done < <(find "${CLOUD_INIT_DIR}" -type f \( -name '*.yaml' -o -name '*.yml' \) -print0 | sort -z)
+done < <(find "${CLOUD_INIT_DIR}" -type f \( -name '*.yaml' -o -name '*.yml' -o -name '*.sh' \) ! -name '*_test.sh' -print0 | sort -z)
 
 if [[ -n "${hits}" ]]; then
   echo "FAIL: cloud-init must be ASCII-only (UTF-8 comments break DigitalOcean user_data):" >&2

@@ -35,8 +35,16 @@ fi
 
 id "${USER_NAME}" >/dev/null
 
+# Host Volume mount wait budget must stay aligned with prefect-host-volume.service
+# start-limit window (ADR-0031). Override only in tests.
+WAIT_SECONDS="${PREFECT_HOST_VOLUME_MOUNT_WAIT_SECONDS:-300}"
+POLL_SECONDS="${PREFECT_HOST_VOLUME_MOUNT_POLL_SECONDS:-2}"
+deadline=$((SECONDS + WAIT_SECONDS))
 # findmnt MOUNTPOINT (not -T): -T follows the path and can match / if unmounted.
-if ! findmnt --mountpoint /var/lib/prefect >/dev/null 2>&1; then
-  echo "Host Volume mount /var/lib/prefect missing" >&2
-  exit 1
-fi
+while ! findmnt --mountpoint /var/lib/prefect >/dev/null 2>&1; do
+  if ((SECONDS >= deadline)); then
+    echo "Host Volume mount /var/lib/prefect missing after ${WAIT_SECONDS}s (see prefect-host-volume.service)" >&2
+    exit 1
+  fi
+  sleep "${POLL_SECONDS}"
+done

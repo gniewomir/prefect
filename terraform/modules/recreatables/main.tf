@@ -80,8 +80,9 @@ resource "digitalocean_droplet" "web" {
   # Host Volume attaches via digitalocean_volume_attachment so Park can detach
   # before Host destroy without DigitalOcean dropping Durable project membership.
   user_data = templatefile("${path.module}/cloud-init/web.yaml", {
-    volume_name = var.volume_name
-    ssh_port    = local.ssh_port
+    volume_name                 = var.volume_name
+    ssh_port                    = local.ssh_port
+    ensure_host_volume_mount_sh = indent(6, file("${path.module}/cloud-init/ensure-host-volume-mount.sh"))
   })
 }
 

@@ -25,18 +25,49 @@ write_files:
   - path: /var/lib/systemd/linger/prefect
     content: ""
     permissions: "0644"
+  # Host Volume mount without scripts_user (ADR-0031).
+  - path: /usr/local/lib/prefect/ensure-host-volume-mount.sh
+    permissions: "0755"
+    content: |
+${ensure_host_volume_mount_sh}
+  - path: /etc/systemd/system/prefect-host-volume.service
+    content: |
+      [Unit]
+      Description=Prefect Host Volume at /var/lib/prefect
+      DefaultDependencies=no
+      After=local-fs-pre.target systemd-udev-settle.service
+      Before=multi-user.target
+      Conflicts=umount.target
+      StartLimitIntervalSec=300
+      StartLimitBurst=60
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/lib/prefect/ensure-host-volume-mount.sh /dev/disk/by-id/scsi-0DO_Volume_${volume_name}
+      TimeoutStartSec=60
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+  # Config-stage WantedBy symlink (cloud-init write_files cannot create symlinks).
+  - path: /etc/tmpfiles.d/prefect-host-volume.conf
+    content: |
+      L+ /etc/systemd/system/multi-user.target.wants/prefect-host-volume.service - - - - /etc/systemd/system/prefect-host-volume.service
+  # Late attach after Host create: start the oneshot when the by-id device appears
+  # (first boot may finish multi-user before tmpfiles creates the WantedBy link).
+  - path: /etc/udev/rules.d/99-prefect-host-volume.rules
+    content: |
+      ACTION=="add", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", ENV{ID_SERIAL}=="0DO_Volume_${volume_name}", TAG+="systemd", ENV{SYSTEMD_WANTS}+="prefect-host-volume.service"
 mounts:
   - [ /dev/disk/by-id/scsi-0DO_Volume_${volume_name}, /var/lib/prefect, ext4, "defaults,nofail,discard,noatime", "0", "2" ]
 runcmd:
   - sysctl --system
   - loginctl enable-linger prefect
-  # Volume attaches via a Recreatable relationship after Host create; wait then mount.
-  - |
-    vol=/dev/disk/by-id/scsi-0DO_Volume_${volume_name}
-    for i in $(seq 1 90); do
-      if [ -e "$vol" ]; then
-        mount /var/lib/prefect || mount "$vol" /var/lib/prefect || true
-        break
-      fi
-      sleep 2
-    done
+  # Optional accelerate when scripts_user runs; udev + tmpfiles cover vendor-skip.
+  - systemd-tmpfiles --create /etc/tmpfiles.d/prefect-host-volume.conf
+  - systemctl daemon-reload
+  - udevadm control --reload-rules
+  - udevadm trigger --action=add --subsystem-match=block
+  - systemctl start prefect-host-volume.service
