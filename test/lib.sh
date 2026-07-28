@@ -1,6 +1,13 @@
 # Shared helpers for Acceptance Tests. Sourced by case scripts (not executed by the runner).
 # Requires fixture env from test.sh: IP and provider-observed HOST_JSON.
 
+# PREFECT_SSH_PORT — shell twin of Terraform recreatables ssh_port (ADR-0030).
+if [[ -z "${REPO_ROOT:-}" ]]; then
+  REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+# shellcheck source=../lib/ssh.sh
+source "${REPO_ROOT}/lib/ssh.sh"
+
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 
@@ -83,9 +90,33 @@ probe_allowed_tcp() {
   fi
 }
 
+# Denied TCP: Firewall should DROP (timeout), not allow through to a closed port (refused).
+probe_denied_tcp() {
+  local port="$1"
+  local out
+  local rc
+  set +e
+  out="$(probe_tcp_nc "${port}")"
+  rc=$?
+  set -e
+  if [[ ${rc} -eq 0 ]]; then
+    fail "inbound TCP ${port} unexpectedly accepted"
+  elif echo "${out}" | grep -qi "refused"; then
+    fail "inbound TCP ${port} reached Host (connection refused) — Firewall likely allowing it"
+  else
+    pass "inbound TCP ${port} filtered (denied by Firewall)"
+  fi
+}
+
 # Populate SSH_OPTS for pubkey BatchMode sessions. Optional: VERIFY_SSH_IDENTITY.
 acceptance_ssh_opts() {
-  SSH_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o PreferredAuthentications=publickey)
+  SSH_OPTS=(
+    -o "Port=${PREFECT_SSH_PORT}"
+    -o BatchMode=yes
+    -o StrictHostKeyChecking=accept-new
+    -o ConnectTimeout=10
+    -o PreferredAuthentications=publickey
+  )
   if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
     SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
   fi

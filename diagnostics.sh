@@ -14,6 +14,8 @@ STACK_DIR="${REPO_ROOT}/terraform"
 source "${REPO_ROOT}/lib/environment.sh"
 # shellcheck source=lib/diagnostics.sh
 source "${REPO_ROOT}/lib/diagnostics.sh"
+# shellcheck source=lib/ssh.sh
+source "${REPO_ROOT}/lib/ssh.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -47,6 +49,7 @@ mkdir -p "${OUT_DIR}"
 OUT_DIR="$(cd "${OUT_DIR}" && pwd)"
 
 SSH_OPTS=(
+  -o "Port=${PREFECT_SSH_PORT}"
   -o BatchMode=yes
   -o ConnectTimeout=15
   -o ServerAliveInterval=5

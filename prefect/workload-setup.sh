@@ -15,6 +15,8 @@ HOST_SCRIPT="${REPO_ROOT}/prefect/lib/workload-setup-host.sh"
 QUADLETS_LIB="${REPO_ROOT}/prefect/lib/workload-quadlets-host.sh"
 # shellcheck source=../lib/environment.sh
 source "${REPO_ROOT}/lib/environment.sh"
+# shellcheck source=../lib/ssh.sh
+source "${REPO_ROOT}/lib/ssh.sh"
 
 environment_activate "${STACK_DIR}" "$@" || exit 1
 set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
@@ -45,7 +47,13 @@ cd "${STACK_DIR}"
 IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
 [[ -n "${IP}" ]] || { echo "no reserved_ip output (apply the Stack first)" >&2; exit 1; }
 
-SSH_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o PreferredAuthentications=publickey)
+SSH_OPTS=(
+  -o "Port=${PREFECT_SSH_PORT}"
+  -o BatchMode=yes
+  -o StrictHostKeyChecking=accept-new
+  -o ConnectTimeout=10
+  -o PreferredAuthentications=publickey
+)
 if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
   SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
 fi

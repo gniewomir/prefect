@@ -41,7 +41,7 @@ The provider distribution image the Stack pins for a Host (today: Ubuntu 26.04 x
 _Avoid_: Droplet image, OS slug, AMI (when you mean this concept)
 
 **Initial Host Provisioning**:
-One-shot Host setup applied when the Host is created (delivered via the provider’s user-data / cloud-init). Prepares the Host as a carrier for Components (engine, Prefect User, port floor, Host Volume mount) but does not run Component Setup and does not install Workloads. Not ongoing Host management and not Stack Bootstrap.
+One-shot Host setup applied when the Host is created (delivered via the provider’s user-data / cloud-init). Prepares the Host as a carrier for Components (engine, Prefect User, SSH listen port, port floor, Host Volume mount) but does not run Component Setup and does not install Workloads. Not ongoing Host management and not Stack Bootstrap.
 _Avoid_: User Data, cloud-init, userdata (when you mean this concept); provisioning (bare — ambiguous with Stack apply)
 
 **Carrier ready**:
