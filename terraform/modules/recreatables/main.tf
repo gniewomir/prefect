@@ -59,7 +59,7 @@ resource "digitalocean_firewall" "public_web" {
 resource "digitalocean_droplet" "web" {
   name   = var.names.host
   region = var.region
-  size   = "s-1vcpu-512mb-10gb"
+  size   = "s-1vcpu-1gb"
   image  = "ubuntu-26-04-x64"
 
   ipv6    = false
