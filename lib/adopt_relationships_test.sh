@@ -116,4 +116,5 @@ if grep -Eq '(^| )(plan |apply )' "${TERRAFORM_CALLS}"; then
   fail "Apply must not plan or apply after a Cloud Project membership endpoint conflict"
 fi
 
+# Ownership-boundary membership fail-closed (#63 AC; prove existing).
 pass "Apply fails closed on a wrong Cloud Project membership endpoint"

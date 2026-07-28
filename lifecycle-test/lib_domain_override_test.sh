@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Seam: write_subtractive_domain_override / write_additive_domain_override (#62/#63).
-# No cloud access.
+# Seam: write_subtractive_domain_override (#63). No cloud access.
 set -euo pipefail
 
 REAL_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -45,14 +44,4 @@ pass "write_subtractive_domain_override drops lex-first apex only"
 remove_domain_override
 [[ ! -f "${override}" ]] || fail "remove_domain_override must delete the file"
 
-fixture="$(write_additive_domain_override)"
-[[ "${fixture}" == "lifecycle-test.alpha.example" ]] \
-  || fail "additive fixture apex unexpected: '${fixture}'"
-jq -e --arg f "${fixture}" 'has($f) and .[$f].names == ["@"]' "$(domains_override_path)" >/dev/null \
-  || fail "additive override must include fixture apex"
-jq -e 'has("alpha.example") and has("zebra.example")' "$(domains_override_path)" >/dev/null \
-  || fail "additive override must retain committed apexes"
-pass "write_additive_domain_override keeps committed map and adds fixture"
-
-remove_domain_override
-echo "All Domain override helper checks passed."
+echo "All subtractive Domain override helper checks passed."

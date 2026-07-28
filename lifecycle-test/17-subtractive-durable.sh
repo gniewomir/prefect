@@ -26,6 +26,7 @@ VOLUME_ID_BEFORE="$(stack_host_volume_id)"
 [[ -n "${VOLUME_ID_BEFORE}" ]] || fail "Host Volume not found at provider before subtractive Apply"
 DOMAINS_BEFORE="$(stack_domain_names)"
 [[ -n "${DOMAINS_BEFORE}" ]] || fail "committed Domains empty — subtractive fixture needs an apex to drop"
+COMMITTED_DOMAINS_HASH="$(shasum -a 256 "$(domains_committed_path)" | awk '{print $1}')"
 
 assert_host_present
 assert_host_membership present
@@ -65,23 +66,35 @@ HOST_ID_AFTER="$(provider_host_by_name_json | jq -r '.id | tostring')"
   || fail "Host id changed during failed subtractive Apply"
 pass "Durable and Host identities unchanged after failed subtractive Apply"
 
-# Override empties configured Domains; assert provider still has prior zones via DOMAINS_BEFORE.
-while IFS= read -r zone; do
-  [[ -z "${zone}" ]] && continue
-  do_api_get "/v2/domains/${zone}" >/dev/null \
-    || fail "Domain ${zone} missing at provider after failed subtractive Apply"
-  body="$(do_api_get "/v2/domains/${zone}/records")" \
-    || fail "Domain ${zone} records list failed after failed subtractive Apply"
+# Override empties configured Domains; assert provider still has prior Domains via DOMAINS_BEFORE.
+while IFS= read -r apex; do
+  [[ -z "${apex}" ]] && continue
+  do_api_get "/v2/domains/${apex}" >/dev/null \
+    || fail "Domain ${apex} missing at provider after failed subtractive Apply"
+  body="$(do_api_get "/v2/domains/${apex}/records")" \
+    || fail "Domain ${apex} records list failed after failed subtractive Apply"
   echo "${body}" | jq -e --arg ip "${IP}" \
     '[.domain_records[] | select(.type == "A" and .data == $ip)] | length >= 1' >/dev/null \
-    || fail "Domain ${zone} lost A → Reserved IP after failed subtractive Apply"
+    || fail "Domain ${apex} lost A → Reserved IP after failed subtractive Apply"
 done <<< "${DOMAINS_BEFORE}"
 pass "prior Domains still present at provider (including dropped apex ${DROPPED_APEX})"
+
+# With override active, stack_domain_names omits the dropped apex — check its membership explicitly.
+project_body="$(do_api_get "/v2/projects/$(stack_cloud_project_id)/resources?per_page=200")" \
+  || fail "Cloud Project resources list failed after failed subtractive Apply"
+echo "${project_body}" | jq -e --arg urn "do:domain:${DROPPED_APEX}" \
+  '[.resources[].urn] | index($urn) != null' >/dev/null \
+  || fail "dropped Domain ${DROPPED_APEX} missing from Cloud Project after failed subtractive Apply"
+pass "dropped Domain ${DROPPED_APEX} still a Durable Cloud Project member"
 
 assert_host_present
 assert_host_membership present
 assert_reserved_ip_membership "${IP}"
-assert_durables_in_cloud_project "${IP}"
+
+AFTER_COMMITTED_HASH="$(shasum -a 256 "$(domains_committed_path)" | awk '{print $1}')"
+[[ "${AFTER_COMMITTED_HASH}" == "${COMMITTED_DOMAINS_HASH}" ]] \
+  || fail "committed domains.json changed during subtractive run"
+pass "committed domains.json unchanged"
 
 remove_domain_override
 trap - EXIT
@@ -92,10 +105,10 @@ echo "Re-Applying committed Domains after removing subtractive override ..."
 RESTORE_IP="$(stack_reserved_ip)"
 [[ "${RESTORE_IP}" == "${IP}" ]] || fail "Reserved IP changed during committed restore Apply"
 DOMAINS_RESTORED="$(stack_domain_names)"
-while IFS= read -r zone; do
-  [[ -z "${zone}" ]] && continue
-  echo "${DOMAINS_RESTORED}" | grep -Fxq "${zone}" \
-    || fail "committed Domain ${zone} missing after restore Apply"
+while IFS= read -r apex; do
+  [[ -z "${apex}" ]] && continue
+  echo "${DOMAINS_RESTORED}" | grep -Fxq "${apex}" \
+    || fail "committed Domain ${apex} missing after restore Apply"
 done <<< "${DOMAINS_BEFORE}"
 assert_domains_present "${IP}"
 assert_host_present
