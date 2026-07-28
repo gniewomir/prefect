@@ -18,4 +18,4 @@ Pre-stability: no backwards compatibility by default (ADR-0018; always-apply rul
 
 ### Coding standards
 
-See root `CODING_STANDARDS.md` (ShellCheck and related conventions).
+See root `CODING_STANDARDS.md` (ShellCheck, Terraform fmt/validate/TFLint, and related conventions).

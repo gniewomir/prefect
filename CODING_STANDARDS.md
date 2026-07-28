@@ -38,3 +38,18 @@ ShellCheck (`shell=bash`) does **not** enforce this section — reviewers and au
 **Temp files:** `mktemp` / `mktemp -d` with an explicit `XXXXXX` template under `"${TMPDIR:-/tmp}"` (e.g. `mktemp -d "${TMPDIR:-/tmp}/foo.XXXXXX"`); `umask 077` when creating dirs.
 
 **NUL-safe file lists:** `find … -print0` with `read -d ''` or `xargs -0` when names may contain spaces/newlines.
+
+## Terraform
+
+Stack HCL lives under `terraform/`. Formatting and lint are gated; lifecycle/domain rules are not.
+
+- **Format:** Canonical `terraform fmt` style. The gate is `terraform fmt -check -recursive`.
+- **Validate:** `terraform validate` after `terraform init -backend=false` (no cloud backend / credentials required for the gate).
+- **Lint:** TFLint with the `terraform` plugin `recommended` preset is authoritative for TFLint findings. Run `./lint-terraform.sh`. Config: `terraform/.tflint.hcl`.
+- **Baseline disables** in `.tflint.hcl` are intentional (version pins live at Stack root). Do not re-litigate them in review.
+- **One-off exceptions:** `# tflint-ignore: rule_name  # why` next to the site — prefer that over widening the repo baseline.
+- **Security / policy scanners** (Checkov, Trivy, tfsec) are not part of the gate.
+
+### Lifecycle and ownership (human)
+
+TFLint does **not** enforce Durable/Recreatable placement, `prevent_destroy`, membership ownership, or Apply/Park convergence. Those follow ADR-0025, `CONTEXT.md`, and `.cursor/rules/terraform-lifecycle-convergence.mdc` — reviewers and authors must.
