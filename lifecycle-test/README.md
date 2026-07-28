@@ -10,6 +10,10 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
   (empty repeated Apply/Park plans; Cloud Project / Reserved IP / Host Volume /
   Domain identities; Host Volume marker; Host and Reserved IP memberships by
   lifecycle class)
+- Parked Additive Domain happy path: `14-parked-additive-domain.sh`
+  (case-owned Park; same override fixture as `15`; one normal Apply; prior Durables
+  unchanged; fixture present; Recreatables restored; empty re-Apply; Teardown cleanup
+  as in `15-additive-domain.sh`)
 - Applied Additive Domain: `15-additive-domain.sh`
   (derived `domains.override.json` fixture; prior identities/memberships preserved;
   empty re-Apply; Teardown with override → drop override → committed re-Apply)
@@ -20,7 +24,9 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
 - Subtractive Durable fail-closed: `17-subtractive-durable.sh`
   (narrower `domains.override.json` drops lex-first committed apex; Apply fails with
   `prevent_destroy`; Durables unchanged; drop override → committed re-Apply; empty re-Apply)
-- Teardown (Durables wiped, State empty): `20-teardown.sh` (Cloud Project, Reserved IP, Host Volume, Domain when configured)
+- Teardown from Parked (Durables wiped, State empty): `20-teardown.sh`
+  (case-owned Park → Teardown; Cloud Project, Reserved IP, Host Volume, Domain when
+  configured). Applied→Teardown remains covered by additive-case cleanup (`14`/`15`/`16`).
 
 Domain Durable asserts run when Domains are in State (declare them in `config/environments/<cloud-slug>/domains.json` and Apply before the suite). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs. The Additive Domain case requires a non-empty committed Domain assignment (base apex for `lifecycle-test.<apex>`).
 
