@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Acceptance Test: Domain fronts + placeholder PEMs after ensure-components (#78)
-# Tier A shape: /healthcheck + :80 redirect with insecure trust (Tier B is #79).
+# Acceptance Test: Domain fronts + placeholder PEMs + /healthcheck Tier A+B (#78 / #79)
+# Tier A: shape via --resolve + insecure trust.
+# Tier B: live ACME staging via operator OpenSSL + vendored staging roots (when DNS-ready).
 # No Workload Setup.
 set -euo pipefail
 # shellcheck source=lib.sh
@@ -12,19 +13,28 @@ acceptance_ssh_opts
 
 # shellcheck source=../../lib/domains.sh
 source "${REPO_ROOT}/lib/domains.sh"
+# shellcheck source=../../lib/domain_front_target.sh
+source "${REPO_ROOT}/lib/domain_front_target.sh"
+# shellcheck source=../../lib/domain_front_staging_hc.sh
+source "${REPO_ROOT}/lib/domain_front_staging_hc.sh"
 
 DATA_ROOT=/var/lib/prefect/components_data/edge
 DOMAINS_HOST="${DATA_ROOT}/domains"
 CERTS_HOST="${DATA_ROOT}/certs"
+STAGING_CA="${REPO_ROOT}/test/fixtures/le-staging-roots/le-staging-roots.pem"
 
 EXPECTED="$(domains_acme_fqdns_for "${PREFECT_ENV:-test}")"
 if [[ -z "${EXPECTED}" ]]; then
-  echo "SOFT-SKIP: empty Domain want-list — no Domain fronts to assert (#78)"
+  echo "SOFT-SKIP: empty Domain want-list — no Domain fronts for Tier A/B (#79)"
   exit 0
 fi
 
-FQDN="$(printf '%s\n' "${EXPECTED}" | LC_ALL=C sort | head -n 1)"
+SELECT_OUT="$(printf '%s\n' "${EXPECTED}" | domain_front_select_target "${IP}")"
+FQDN="$(printf '%s\n' "${SELECT_OUT}" | awk '{print $1}')"
+DNS_READY="$(printf '%s\n' "${SELECT_OUT}" | awk '{print $2}')"
 [[ -n "${FQDN}" ]] || fail "want-list non-empty but no FQDN selected"
+[[ "${DNS_READY}" == "ready" || "${DNS_READY}" == "not-ready" ]] \
+  || fail "unexpected DNS-ready flag '${DNS_READY}'"
 
 "${REPO_ROOT}/prefect/ensure-components.sh" --env "${PREFECT_ENV:-test}"
 
@@ -56,7 +66,8 @@ pass "re-ensure leaves complete PEMs and Domain-front drop-in untouched"
 
 # --- Tier A: /healthcheck over HTTPS (placeholder trust) ---
 HC_BODY_FILE="$(mktemp "${TMPDIR:-/tmp}/prefect-hc-XXXXXX")"
-trap 'rm -rf "${HC_BODY_FILE}"' EXIT
+STAGING_OUT="$(mktemp "${TMPDIR:-/tmp}/prefect-stg-XXXXXX")"
+trap 'rm -f "${HC_BODY_FILE}" "${STAGING_OUT}"' EXIT
 hc_code=""
 hc_ctype=""
 hc_body=""
@@ -87,6 +98,40 @@ redir_url="${redir#* }"
 echo "${redir_url}" | grep -q "^https://${FQDN}/healthcheck" \
   || fail "redirect target expected https://${FQDN}/healthcheck, got '${redir_url}'"
 pass ":80 redirects non-ACME to HTTPS for Domain front"
+
+# --- Tier B: live ACME staging (DNS-ready only) ---
+TIER_B_PROVEN=0
+if [[ "${DNS_READY}" != "ready" ]]; then
+  echo "SOFT-SKIP: Tier B — ${FQDN} A record does not answer at Reserved IP ${IP}; Domain-front shape only (not HTTPS+ACME proven) (#79)"
+else
+  [[ -f "${STAGING_CA}" ]] || fail "missing vendored staging roots: ${STAGING_CA}"
+  command -v openssl >/dev/null 2>&1 || fail "openssl required for Tier B staging-root verify"
+  tier_b_ok=0
+  for _ in $(seq 1 120); do
+    : >"${STAGING_OUT}"
+    set +e
+    printf 'GET /healthcheck HTTP/1.0\r\nHost: %s\r\n\r\n' "${FQDN}" \
+      | openssl s_client \
+        -connect "${IP}:443" \
+        -servername "${FQDN}" \
+        -CAfile "${STAGING_CA}" \
+        -verify_return_error \
+        -quiet \
+        2>/dev/null >"${STAGING_OUT}"
+    stg_rc=$?
+    set -e
+    if domain_front_staging_hc_ok "${stg_rc}" "${STAGING_OUT}"; then
+      tier_b_ok=1
+      break
+    fi
+    sleep 2
+  done
+  if [[ "${tier_b_ok}" -ne 1 ]]; then
+    fail "Tier B: ${FQDN} still not staging-trusted /healthcheck after ~240s (openssl rc last=${stg_rc:-?}; still placeholder or verify failure)"
+  fi
+  pass "Tier B: Domain-front /healthcheck verifies against Let’s Encrypt staging roots"
+  TIER_B_PROVEN=1
+fi
 
 # --- ACME HTTP-01 still works ---
 TOKEN="domain-front-acme-probe"
@@ -125,4 +170,8 @@ front_post_acme="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sha256sum '${DOMAINS_HOST}
   || fail "ACME must not mutate Domain-front drop-in"
 pass "ACME reload leaves Domain-front drop-in unchanged"
 
-echo "All Domain-front Acceptance checks passed."
+if [[ "${TIER_B_PROVEN}" -eq 1 ]]; then
+  echo "All Domain-front Acceptance checks passed (HTTPS+ACME staging proven)."
+else
+  echo "All Domain-front Acceptance checks passed (Tier A only; HTTPS+ACME not claimed)."
+fi
