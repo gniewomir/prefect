@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Unit tests: placeholder PEM create-if-missing (ADR-0029 / #78).
+# No cloud Apply — temp dirs only.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# shellcheck source=edge-domain-fronts-host.sh
+source "${REPO_ROOT}/prefect/lib/edge-domain-fronts-host.sh"
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+pass() { echo "PASS: $*"; }
+
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/edge-domain-fronts.XXXXXX")"
+trap 'rm -rf "${TMP}"' EXIT
+
+CERTS_DIR="${TMP}/certs"
+WANT_LIST="${TMP}/want-list"
+mkdir -p "${CERTS_DIR}"
+
+# --- create-if-missing: both absent → plant pair with CN+SAN = FQDN ---
+printf '%s\n' 'alpha.example.test' >"${WANT_LIST}"
+edge_plant_placeholder_pems
+[[ -f "${CERTS_DIR}/alpha.example.test/fullchain.pem" ]] \
+  || fail "expected fullchain.pem after plant"
+[[ -f "${CERTS_DIR}/alpha.example.test/privkey.pem" ]] \
+  || fail "expected privkey.pem after plant"
+subj="$(openssl x509 -in "${CERTS_DIR}/alpha.example.test/fullchain.pem" -noout -subject)"
+echo "${subj}" | grep -q 'CN[[:space:]]*=[[:space:]]*alpha.example.test' \
+  || fail "CN expected alpha.example.test, got '${subj}'"
+san="$(openssl x509 -in "${CERTS_DIR}/alpha.example.test/fullchain.pem" -noout -ext subjectAltName 2>/dev/null || true)"
+echo "${san}" | grep -Fq 'DNS:alpha.example.test' \
+  || fail "SAN expected DNS:alpha.example.test, got '${san}'"
+pass "plants self-signed pair with CN+SAN = FQDN when both missing"
+
+# --- complete pair never touched ---
+full_before="$(cat "${CERTS_DIR}/alpha.example.test/fullchain.pem")"
+key_before="$(cat "${CERTS_DIR}/alpha.example.test/privkey.pem")"
+edge_plant_placeholder_pems
+full_after="$(cat "${CERTS_DIR}/alpha.example.test/fullchain.pem")"
+key_after="$(cat "${CERTS_DIR}/alpha.example.test/privkey.pem")"
+[[ "${full_before}" == "${full_after}" ]] || fail "complete fullchain.pem must not be overwritten"
+[[ "${key_before}" == "${key_after}" ]] || fail "complete privkey.pem must not be overwritten"
+pass "never overwrites a complete fullchain+privkey pair"
+
+# --- incomplete pair (privkey missing) → fresh pair ---
+rm -f "${CERTS_DIR}/alpha.example.test/privkey.pem"
+printf 'stale-fullchain\n' >"${CERTS_DIR}/alpha.example.test/fullchain.pem"
+edge_plant_placeholder_pems
+[[ -f "${CERTS_DIR}/alpha.example.test/privkey.pem" ]] \
+  || fail "expected privkey after incomplete rewrite"
+grep -q 'BEGIN CERTIFICATE' "${CERTS_DIR}/alpha.example.test/fullchain.pem" \
+  || fail "incomplete rewrite should replace stale fullchain with a real cert"
+pass "rewrites incomplete pair (missing privkey) as a fresh pair"
+
+# --- incomplete pair (fullchain missing) → fresh pair ---
+rm -f "${CERTS_DIR}/alpha.example.test/fullchain.pem"
+edge_plant_placeholder_pems
+[[ -f "${CERTS_DIR}/alpha.example.test/fullchain.pem" ]] \
+  || fail "expected fullchain after incomplete rewrite"
+[[ -f "${CERTS_DIR}/alpha.example.test/privkey.pem" ]] \
+  || fail "expected privkey after incomplete rewrite"
+pass "rewrites incomplete pair (missing fullchain) as a fresh pair"
+
+# --- names leaving want-list are not pruned ---
+printf '%s\n' 'beta.example.test' >"${WANT_LIST}"
+edge_plant_placeholder_pems
+[[ -f "${CERTS_DIR}/alpha.example.test/fullchain.pem" ]] \
+  || fail "alpha PEMs must remain after leaving want-list"
+[[ -f "${CERTS_DIR}/beta.example.test/fullchain.pem" ]] \
+  || fail "beta PEMs expected for new want-list name"
+pass "does not prune PEMs when a name leaves the want-list"
+
+# --- Domain fronts: reconcile drop-ins for want-list + stub ---
+DOMAINS_DIR="${TMP}/domains"
+ROUTES_DIR="${TMP}/routes"
+mkdir -p "${DOMAINS_DIR}" "${ROUTES_DIR}"
+printf '%s\n' 'alpha.example.test' 'gamma.example.test' >"${WANT_LIST}"
+
+edge_reconcile_domain_fronts
+
+[[ -f "${DOMAINS_DIR}/00-empty.conf" ]] \
+  || fail "expected Component stub domains/00-empty.conf"
+[[ -f "${DOMAINS_DIR}/alpha.example.test.conf" ]] \
+  || fail "expected Domain front for alpha.example.test"
+[[ -f "${DOMAINS_DIR}/gamma.example.test.conf" ]] \
+  || fail "expected Domain front for gamma.example.test"
+
+front="$(cat "${DOMAINS_DIR}/alpha.example.test.conf")"
+echo "${front}" | grep -Fq 'server_name alpha.example.test;' \
+  || fail "Domain front must set server_name to FQDN"
+echo "${front}" | grep -Fq 'ssl_certificate     /etc/nginx/certs/alpha.example.test/fullchain.pem;' \
+  || fail "Domain front must pin stable fullchain path"
+echo "${front}" | grep -Fq 'ssl_certificate_key /etc/nginx/certs/alpha.example.test/privkey.pem;' \
+  || fail "Domain front must pin stable privkey path"
+echo "${front}" | grep -Fq 'location = /healthcheck' \
+  || fail "Domain front must publish /healthcheck"
+echo "${front}" | grep -Fq "include /etc/nginx/prefect-routes/*--alpha.example.test.conf;" \
+  || fail "Domain front must include Workload Route fragments by FQDN"
+echo "${front}" | grep -E -q 'return 301 https://\$host\$request_uri;' \
+  || fail "Domain front :80 must redirect non-ACME to HTTPS"
+echo "${front}" | grep -Fq 'location ^~ /.well-known/acme-challenge/' \
+  || fail "Domain front :80 must keep ACME HTTP-01"
+[[ -f "${ROUTES_DIR}/00-empty--alpha.example.test.conf" ]] \
+  || fail "expected include stub routes/00-empty--alpha.example.test.conf"
+[[ -f "${ROUTES_DIR}/00-empty--gamma.example.test.conf" ]] \
+  || fail "expected include stub routes/00-empty--gamma.example.test.conf"
+pass "reconciles Domain fronts with TLS paths, /healthcheck, redirect, ACME, and Route includes"
+
+# --- Domain-front bytes stay stable across re-reconcile (ACME must not churn drop-ins either) ---
+before="$(cat "${DOMAINS_DIR}/alpha.example.test.conf")"
+edge_reconcile_domain_fronts
+after="$(cat "${DOMAINS_DIR}/alpha.example.test.conf")"
+[[ "${before}" == "${after}" ]] || fail "re-reconcile must not churn Domain-front bytes"
+pass "Domain-front drop-ins are byte-stable across re-reconcile"
+
+echo "All Domain front helper checks passed."

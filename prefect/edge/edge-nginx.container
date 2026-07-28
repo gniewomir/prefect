@@ -6,6 +6,7 @@ After=network-online.target
 Image=docker.io/library/nginx:alpine
 Pod=edge.pod
 Volume=/var/lib/prefect/components/edge/nginx.conf:/etc/nginx/nginx.conf:ro
+Volume=/var/lib/prefect/components_data/edge/domains:/etc/nginx/prefect-domains:ro
 Volume=/var/lib/prefect/components_data/edge/routes:/etc/nginx/prefect-routes:ro
 Volume=/var/lib/prefect/components_data/edge/certs:/etc/nginx/certs:ro
 Volume=/var/lib/prefect/components_data/edge/acme-www:/var/www/acme:ro
