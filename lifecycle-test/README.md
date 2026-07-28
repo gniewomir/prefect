@@ -17,6 +17,9 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
   (case-owned Park; same override fixture; Apply with invalid
   `TF_VAR_DIGITALOCEAN_PUBLIC_KEY` after Durable converge; restore key → Apply;
   empty re-Apply; Teardown cleanup as in `15-additive-domain.sh`)
+- Subtractive Durable fail-closed: `17-subtractive-durable.sh`
+  (narrower `domains.override.json` drops lex-first committed apex; Apply fails with
+  `prevent_destroy`; Durables unchanged; drop override → committed re-Apply; empty re-Apply)
 - Teardown (Durables wiped, State empty): `20-teardown.sh` (Cloud Project, Reserved IP, Host Volume, Domain when configured)
 
 Domain Durable asserts run when Domains are in State (declare them in `config/environments/<cloud-slug>/domains.json` and Apply before the suite). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs. The Additive Domain case requires a non-empty committed Domain assignment (base apex for `lifecycle-test.<apex>`).

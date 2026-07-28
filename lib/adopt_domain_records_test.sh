@@ -45,7 +45,8 @@ url="${*: -1}"
 case "${url}" in
   *"/v2/domains?"*) printf '%s\n' '{"domains":[{"name":"gniewomir.pl"}]}' ;;
   *"/v2/domains/gniewomir.pl/records"*)
-    printf '%s\n' '{"domain_records":[{"id":1001,"type":"A","name":"@","data":"203.0.113.10"}]}'
+    printf '{"domain_records":[{"id":1001,"type":"A","name":"@","data":"%s"}]}\n' \
+      "${RECORD_DATA:-203.0.113.10}"
     ;;
   *) echo "unexpected provider request: ${url}" >&2; exit 1 ;;
 esac
@@ -57,6 +58,21 @@ export TERRAFORM_CALLS="${TMP_DIR}/terraform.calls"
 export DIGITALOCEAN_TOKEN="test-token"
 export TF_VAR_DIGITALOCEAN_PUBLIC_KEY="ssh-ed25519 test"
 
+: >"${TERRAFORM_CALLS}"
+export RECORD_DATA=198.51.100.99
+fail_out="$("${REPO_ROOT}/apply.sh" --yes --env test 2>&1)" && {
+  echo "${fail_out}" >&2
+  fail "Apply must fail closed when a declared Domain A record has a wrong endpoint"
+}
+grep -Fq "FAIL: Adopt: Domain gniewomir.pl record '@' exists with a wrong endpoint or conflicting type" <<<"${fail_out}" \
+  || fail "wrong-endpoint Adopt failure unclear (output: ${fail_out})"
+if grep -Eq '(^| )(plan |apply |import )' "${TERRAFORM_CALLS}"; then
+  fail "Apply must not plan, apply, or import after a Domain record endpoint conflict"
+fi
+pass "Apply fails closed on a wrong Domain A record endpoint"
+
+: >"${TERRAFORM_CALLS}"
+export RECORD_DATA=203.0.113.10
 "${REPO_ROOT}/apply.sh" --yes --env test >/dev/null
 
 import_call='import -input=false module.durables.digitalocean_record.a["gniewomir.pl:@"] gniewomir.pl,1001'

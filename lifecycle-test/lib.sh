@@ -381,6 +381,21 @@ write_additive_domain_override() {
   printf '%s\n' "${fixture}"
 }
 
+# Write domains.override.json = committed map minus the lex-first apex (subtractive Durable).
+# Prints the dropped apex on stdout. Fails if committed Domains are missing or empty.
+write_subtractive_domain_override() {
+  local committed override dropped
+  committed="$(domains_committed_path)"
+  override="$(domains_override_path)"
+  [[ -f "${committed}" ]] || fail "committed Domain assignment missing: ${committed}"
+  dropped="$(jq -er 'keys | sort | .[0] // empty' "${committed}")" \
+    || fail "could not read committed Domain apexes from ${committed}"
+  [[ -n "${dropped}" ]] || fail "committed Domains empty — need an apex to drop for subtractive fixture"
+  jq -e --arg dropped "${dropped}" 'del(.[$dropped])' "${committed}" >"${override}" \
+    || fail "could not write Domain override ${override}"
+  printf '%s\n' "${dropped}"
+}
+
 # Known-invalid SSH public key for Recreatable fault injection (#64).
 # Non-empty so ./apply.sh does not fail closed before planning; provider rejects at
 # digitalocean_ssh_key create (after Durables converge).
