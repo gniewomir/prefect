@@ -53,3 +53,4 @@ Stack HCL lives under `terraform/`. Formatting and lint are gated; lifecycle/dom
 ### Lifecycle and ownership (human)
 
 TFLint does **not** enforce Durable/Recreatable placement, `prevent_destroy`, membership ownership, or Apply/Park convergence. Those follow ADR-0025, `CONTEXT.md`, and `.cursor/rules/terraform-lifecycle-convergence.mdc` — reviewers and authors must.
+
