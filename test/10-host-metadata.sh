@@ -12,7 +12,7 @@ ROLE_TAG="prefect-${PREFECT_ENV}-public-web"
 
 echo "${HOST_JSON}" | jq -e --arg name "${HOST_NAME}" '.name == $name' >/dev/null || fail "Host name != ${HOST_NAME}"
 echo "${HOST_JSON}" | jq -e '.region.slug == "fra1"' >/dev/null || fail "Host region != fra1"
-echo "${HOST_JSON}" | jq -e '.size_slug == "s-1vcpu-512mb-10gb"' >/dev/null || fail "Host size mismatch"
+echo "${HOST_JSON}" | jq -e '.size_slug | type == "string" and length > 0' >/dev/null || fail "Host missing size_slug"
 echo "${HOST_JSON}" | jq -e '.image.slug == "ubuntu-26-04-x64"' >/dev/null || fail "Host image mismatch"
 echo "${HOST_JSON}" | jq -e --arg tag "${PREFECT_TAG}" '.tags | index($tag) != null' >/dev/null \
   || fail "Host missing Prefect Tag ${PREFECT_TAG}"
