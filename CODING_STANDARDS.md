@@ -38,5 +38,3 @@ ShellCheck (`shell=bash`) does **not** enforce this section — reviewers and au
 **Temp files:** `mktemp` / `mktemp -d` with an explicit `XXXXXX` template under `"${TMPDIR:-/tmp}"` (e.g. `mktemp -d "${TMPDIR:-/tmp}/foo.XXXXXX"`); `umask 077` when creating dirs.
 
 **NUL-safe file lists:** `find … -print0` with `read -d ''` or `xargs -0` when names may contain spaces/newlines.
-
-Google’s Shell Style Guide may inform taste; it is **not** this repo’s portability standard.
