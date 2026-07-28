@@ -1,0 +1,22 @@
+# ShellCheck project config — https://www.shellcheck.net/wiki/Directive
+# Comments are allowed; disable= silences a rule repo-wide. Prefer a short
+# reason on the same line or the line above. Per-line overrides still work:
+#   # shellcheck disable=SC####  # why
+
+shell=bash
+
+# Resolve `# shellcheck source=...` paths relative to each script.
+external-sources=true
+source-path=SCRIPTDIR
+
+# --- Baseline: intentional patterns / low signal in this tree ---------------
+
+# SSH payloads intentionally expand on the operator (client) before send.
+disable=SC2029  # unescaped vars in ssh remote command strings
+disable=SC2087  # unquoted heredoc delimiter so local vars expand into remote script
+
+# Acceptance loops often ssh while iterating; stdin is already diverted or unused.
+disable=SC2095  # ssh may swallow stdin
+
+# Nested `# shellcheck source=` paths are imperfect across test/lib layouts.
+disable=SC1091  # sourced file not found for analysis

@@ -15,3 +15,7 @@ Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
 ### Development posture
 
 Pre-stability: no backwards compatibility by default (ADR-0018; always-apply rule `.cursor/rules/no-backwards-compat-in-development.mdc`).
+
+### Coding standards
+
+See root `CODING_STANDARDS.md` (ShellCheck and related conventions).

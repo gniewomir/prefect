@@ -7,7 +7,6 @@
 set -euo pipefail
 
 DATA_ROOT=/var/lib/prefect/components_data/edge
-EDGE_DATA="${DATA_ROOT}"
 ROUTES_DIR="${DATA_ROOT}/routes"
 CERTS_DIR="${DATA_ROOT}/certs"
 ACME_DIR="${DATA_ROOT}/acme"

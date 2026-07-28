@@ -105,7 +105,7 @@ environment_select_workspace() {
     return 1
   fi
   (
-    cd "${stack_dir}"
+    cd "${stack_dir}" || exit 1
     if terraform workspace select "${workspace}" >/dev/null 2>&1; then
       exit 0
     fi
