@@ -4,6 +4,7 @@ description: >-
   Refine a GitHub ticket against current codebase, domain docs, parent, and
   blockers. Use when the user wants to refine a ticket, or mentions refining or
   grooming one.
+disable-model-invocation: true
 ---
 
 # Refine
