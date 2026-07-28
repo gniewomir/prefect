@@ -1,3 +1,8 @@
+locals {
+  # Twin of lib/ssh.sh PREFECT_SSH_PORT (ADR-0030).
+  ssh_port = 9417
+}
+
 resource "digitalocean_tag" "prefect" {
   name = var.names.prefect_tag
 }
@@ -17,7 +22,7 @@ resource "digitalocean_firewall" "public_web" {
 
   inbound_rule {
     protocol         = "tcp"
-    port_range       = "22"
+    port_range       = tostring(local.ssh_port)
     source_addresses = ["0.0.0.0/0"]
   }
 
@@ -76,6 +81,7 @@ resource "digitalocean_droplet" "web" {
   # before Host destroy without DigitalOcean dropping Durable project membership.
   user_data = templatefile("${path.module}/cloud-init/web.yaml", {
     volume_name = var.volume_name
+    ssh_port    = local.ssh_port
   })
 }
 

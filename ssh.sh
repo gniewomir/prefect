@@ -5,12 +5,15 @@
 # Optional: SSH_IDENTITY=/path/to/private_key (defaults to ssh agent / default identities).
 # Extra args after --env are forwarded to ssh (e.g. ./ssh.sh uptime).
 # Usage: ./ssh.sh [--env <slug>] [ssh args...]
+# SSH uses the Stack non-default port (lib/ssh.sh / ADR-0030) — prefer this helper over raw :22.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/terraform"
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/lib/environment.sh"
+# shellcheck source=lib/ssh.sh
+source "${REPO_ROOT}/lib/ssh.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -25,7 +28,7 @@ command -v ssh >/dev/null || fail "ssh not found"
 IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
 [[ -n "${IP}" ]] || fail "no reserved_ip output (apply the Stack first)"
 
-SSH_OPTS=(-o StrictHostKeyChecking=accept-new)
+SSH_OPTS=(-o "Port=${PREFECT_SSH_PORT}" -o StrictHostKeyChecking=accept-new)
 if [[ -n "${SSH_IDENTITY:-}" ]]; then
   SSH_OPTS+=(-i "${SSH_IDENTITY}" -o IdentitiesOnly=yes)
 fi

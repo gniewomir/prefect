@@ -16,6 +16,10 @@ write_files:
   - path: /etc/sysctl.d/99-unprivileged-port-start.conf
     content: |
       net.ipv4.ip_unprivileged_port_start=80
+  # Non-default SSH listen port (ADR-0030). Twin of Firewall inbound ssh_port.
+  - path: /etc/ssh/sshd_config.d/99-prefect-port.conf
+    content: |
+      Port ${ssh_port}
   # Linger file in config stage so Prefect User linger holds even if DigitalOcean
   # vendor scripts fail in final and skip scripts_user / runcmd (ADR-0008).
   - path: /var/lib/systemd/linger/prefect

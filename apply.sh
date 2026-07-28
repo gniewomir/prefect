@@ -33,6 +33,7 @@ WORKSPACE="$(environment_workspace_for "${ENVIRONMENT_RAW}")" || exit 1
 command -v terraform >/dev/null || fail "terraform not found"
 
 "${REPO_ROOT}/lib/check-cloud-init-ascii.sh"
+"${REPO_ROOT}/lib/check-ssh-port-twins.sh"
 
 [[ -n "${DIGITALOCEAN_TOKEN:-}" ]] || fail "DIGITALOCEAN_TOKEN is not set"
 [[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY is not set"

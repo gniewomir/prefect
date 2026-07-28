@@ -15,9 +15,10 @@ fi
 
 # Password auth must not be offered (BatchMode exit alone is a false positive).
 set +e
-SSH_PW_OUT="$(ssh -v -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
-  -o ConnectTimeout=10 -o PreferredAuthentications=password \
-  -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=0 \
+SSH_PW_OUT="$(ssh -v -o "Port=${PREFECT_SSH_PORT}" -o BatchMode=yes \
+  -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 \
+  -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+  -o NumberOfPasswordPrompts=0 \
   "root@${IP}" "true" 2>&1)"
 SSH_PW_RC=$?
 set -e
