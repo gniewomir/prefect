@@ -49,13 +49,16 @@ must_be_file "${COMPONENTS_ROOT}/network/setup.sh"
 must_be_file "${COMPONENTS_ROOT}/edge/setup.sh"
 must_be_file "${COMPONENTS_ROOT}/lib/quadlet-user-session.sh"
 must_be_file "${COMPONENTS_ROOT}/lib/edge-routes-host.sh"
+must_be_file "${COMPONENTS_ROOT}/lib/edge-domain-fronts-host.sh"
 must_not_exist "${COMPONENTS_ROOT}/edge/certs"
 
 must_be_dir "${DATA_ROOT}/edge/routes"
+must_be_dir "${DATA_ROOT}/edge/domains"
 must_be_dir "${DATA_ROOT}/edge/certs"
 must_be_dir "${DATA_ROOT}/edge/acme-www"
 must_be_dir "${DATA_ROOT}/edge/acme"
 must_be_file "${DATA_ROOT}/edge/routes/00-empty.conf"
+must_be_file "${DATA_ROOT}/edge/domains/00-empty.conf"
 must_be_file "${DATA_ROOT}/edge/acme/want-list"
 must_not_exist "${COMPONENTS_ROOT}/edge/acme-www"
 must_not_exist "${COMPONENTS_ROOT}/edge/acme"
@@ -68,6 +71,7 @@ for path in \
   "${DATA_ROOT}" \
   "${DATA_ROOT}/edge" \
   "${DATA_ROOT}/edge/routes" \
+  "${DATA_ROOT}/edge/domains" \
   "${DATA_ROOT}/edge/certs" \
   "${DATA_ROOT}/edge/acme-www" \
   "${DATA_ROOT}/edge/acme"

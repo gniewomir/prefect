@@ -8,18 +8,21 @@ USER_NAME="${PREFECT_USER:-prefect}"
 SRC="$(cd "$(dirname "$0")" && pwd)"
 DATA_ROOT=/var/lib/prefect/components_data/edge
 ROUTES_DIR="${DATA_ROOT}/routes"
+DOMAINS_DIR="${DATA_ROOT}/domains"
 CERTS_DIR="${DATA_ROOT}/certs"
 ACME_WWW="${DATA_ROOT}/acme-www"
 ACME_DIR="${DATA_ROOT}/acme"
 WANT_LIST="${ACME_DIR}/want-list"
 # shellcheck source=../lib/quadlet-user-session.sh
 source "${SRC}/../lib/quadlet-user-session.sh"
+# shellcheck source=../lib/edge-domain-fronts-host.sh
+source "${SRC}/../lib/edge-domain-fronts-host.sh"
 
 quadlet_user_session_begin
 SYSTEMD_USER_DIR="${HOME_DIR}/.config/systemd/user"
 mkdir -p "${SYSTEMD_USER_DIR}"
 
-mkdir -p "${ROUTES_DIR}" "${CERTS_DIR}" "${ACME_WWW}" "${ACME_DIR}"
+mkdir -p "${ROUTES_DIR}" "${DOMAINS_DIR}" "${CERTS_DIR}" "${ACME_WWW}" "${ACME_DIR}"
 [[ -f "${WANT_LIST}" ]] || : >"${WANT_LIST}"
 
 install -m 0644 "${SRC}/edge.pod" "${UNIT_DIR}/edge.pod"
@@ -34,6 +37,17 @@ if [[ -f "${SRC}/routes/00-empty.conf" ]]; then
 elif ! compgen -G "${ROUTES_DIR}/"*.conf >/dev/null; then
   printf '%s\n' '# no Workload Routes yet' >"${ROUTES_DIR}/00-empty.conf"
 fi
+
+# Ensure Domain-front stub only — never wipe other Domain fronts.
+if [[ -f "${SRC}/domains/00-empty.conf" ]]; then
+  install -m 0644 "${SRC}/domains/00-empty.conf" "${DOMAINS_DIR}/00-empty.conf"
+elif ! compgen -G "${DOMAINS_DIR}/"*.conf >/dev/null; then
+  printf '%s\n' '# no Domain fronts yet' >"${DOMAINS_DIR}/00-empty.conf"
+fi
+
+# Placeholders before Domain fronts that reference those paths (ADR-0029).
+edge_plant_placeholder_pems
+edge_reconcile_domain_fronts
 
 chown -R "${USER_NAME}:${USER_NAME}" \
   "${HOME_DIR}/.config" \
