@@ -3,8 +3,8 @@
 # No real mounts — PATH stubs only. Host-only script under test.
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
-SCRIPT="${REPO_ROOT}/terraform/modules/recreatables/cloud-init/ensure-host-volume-mount.sh"
+REPO_ROOT="$(cd "$(dirname "$0")/../../../../.." && pwd)"
+SCRIPT="${REPO_ROOT}/terraform/modules/recreatables/cloud-init/render/ensure-host-volume-mount.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }

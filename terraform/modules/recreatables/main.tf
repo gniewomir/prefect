@@ -3,6 +3,13 @@ locals {
   ssh_port = 9417
 }
 
+module "ihp_user_data" {
+  source = "./cloud-init/render"
+
+  volume_name = var.volume_name
+  ssh_port    = local.ssh_port
+}
+
 resource "digitalocean_tag" "prefect" {
   name = var.names.prefect_tag
 }
@@ -79,13 +86,7 @@ resource "digitalocean_droplet" "web" {
   # Initial Host Provisioning. Component Setup and Workloads remain outside it.
   # Host Volume attaches via digitalocean_volume_attachment so Park can detach
   # before Host destroy without DigitalOcean dropping Durable project membership.
-  user_data = templatefile("${path.module}/cloud-init/web.yaml", {
-    volume_name = var.volume_name
-    ssh_port    = local.ssh_port
-    # indent() does not prefix the first line; a leading newline makes every
-    # script line indented so the YAML literal block under content: | stays valid.
-    ensure_host_volume_mount_sh = indent(6, format("\n%s", file("${path.module}/cloud-init/ensure-host-volume-mount.sh")))
-  })
+  user_data = module.ihp_user_data.user_data
 }
 
 # This resource is the sole owner of Recreatable Cloud Project memberships.
