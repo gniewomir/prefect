@@ -62,16 +62,17 @@ Domains are optional (**0..N** per Environment). Declare them in committed `conf
 
 ## Operations
 
+Day-to-day operator surface (Environment lifecycle):
+
 | Script | What it does |
 |--------|----------------|
 | `./apply.sh [--yes] [--env <slug>]` | Bring the Stack up (or converge it). Interactive plan by default; `--yes` for automation. |
 | `./park.sh [--env <slug>]` | Tear down the Host and other non-durables; keep Durables. For development and other non-production Environments — so you are not billed for a Host you are not using. Confirm by typing `park`. |
 | `./teardown.sh [--env <slug>]` | Full wipe, including Durables. Stops Durable billing. Confirm by typing `teardown`. |
-| `./diagnostics.sh [--env <slug>] --bundle <id> [--out <dir>]` | Pull a named Host diagnostics bundle for local inspection. `--bundle` is required (`ihp` today). |
-| `./ssh.sh [--env <slug>] [ssh args…]` | SSH to the Host (root @ Reserved IP; Stack SSH port from `lib/ssh.sh` — not raw `:22` after ADR-0030 cutover). |
-| `./test.sh [--env <slug>] [selector]` | Acceptance Tests against an Applied Stack (non-destructive). |
-| `./lifecycle-test.sh [--env <slug>] [selector]` | Lifecycle Tests (Park / Teardown; opt-in, destructive). |
+| `./ssh.sh [--env <slug>] [ssh args…]` | SSH to the Host (root @ Reserved IP; Stack SSH port from `internals/lib/ssh.sh` — not raw `:22` after ADR-0030 cutover). |
 
-Host-side helpers under `prefect/` (`ensure-components.sh`, `workload-setup.sh`, `purge-workloads.sh`) use the same `--env` rule.
+Everything else lives under `internals/` (flat glanceable list): diagnostics, lint, Acceptance/Lifecycle runners, ensure-components, Workload Setup, Purge, Stack, Components, and helpers. Same `--env` rule. Layout and Host-local function names: [ADR-0032](docs/adr/0032-operator-surface-internals-and-host-function-names.md).
 
-Further reading: [ADR-0025](docs/adr/0025-lifecycle-convergence-by-structural-class.md) (lifecycle convergence), [ADR-0020](docs/adr/0020-domain-durable.md) (Domain Durable), [ADR-0021](docs/adr/0021-environment-domain-config.md) (Environment Domain config), [`docs/runbooks/domain-durable-add.md`](docs/runbooks/domain-durable-add.md), [`docs/runbooks/domain-durable-import.md`](docs/runbooks/domain-durable-import.md), [`test/README.md`](test/README.md), [`lifecycle-test/README.md`](lifecycle-test/README.md).
+**Cutover note:** Host Volume mount, Platform User, units, and Edge nginx paths renamed in ADR-0032 — already-Applied Environments need Host recreation (Park/Apply or equivalent); there is no dual-read of old Host paths.
+
+Further reading: [ADR-0025](docs/adr/0025-lifecycle-convergence-by-structural-class.md) (lifecycle convergence), [ADR-0020](docs/adr/0020-domain-durable.md) (Domain Durable), [ADR-0021](docs/adr/0021-environment-domain-config.md) (Environment Domain config), [`docs/runbooks/domain-durable-add.md`](docs/runbooks/domain-durable-add.md), [`docs/runbooks/domain-durable-import.md`](docs/runbooks/domain-durable-import.md), [`internals/acceptance-tests/README.md`](internals/acceptance-tests/README.md), [`internals/lifecycle-tests/README.md`](internals/lifecycle-tests/README.md).

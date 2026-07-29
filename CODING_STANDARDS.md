@@ -7,7 +7,7 @@ Background research for the portability rules: `docs/research/shell-linux-macos-
 ## Shell
 
 - **Dialect:** Bash. Executables use `#!/usr/bin/env bash` and `set -euo pipefail` (sourced libraries inherit the caller's `set`). Do not switch shared scripts to POSIX `sh` for portability theater.
-- **Lint:** ShellCheck is authoritative for SC* findings. Run `./lint-shell.sh` (optional paths as args). Config: `.shellcheckrc`.
+- **Lint:** ShellCheck is authoritative for SC* findings. Run `./internals/lint-shell.sh` (optional paths as args). Config: `.shellcheckrc`.
 - **Baseline disables** in `.shellcheckrc` are intentional (e.g. client-side expansion into SSH/heredoc payloads). Do not re-litigate them in review.
 - **One-off exceptions:** `# shellcheck disable=SC####  # why` next to the site — prefer that over widening the repo baseline.
 - **Optional checks** (`shellcheck --enable=all`) are not part of the gate; do not enable them in `.shellcheckrc` without revisiting the baseline.
@@ -41,11 +41,11 @@ ShellCheck (`shell=bash`) does **not** enforce this section — reviewers and au
 
 ## Terraform
 
-Stack HCL lives under `terraform/`. Formatting and lint are gated; lifecycle/domain rules are not.
+Stack HCL lives under `internals/terraform/`. Formatting and lint are gated; lifecycle/domain rules are not.
 
 - **Format:** Canonical `terraform fmt` style. The gate is `terraform fmt -check -recursive`.
 - **Validate:** `terraform validate` after `terraform init -backend=false` (no cloud backend / credentials required for the gate).
-- **Lint:** TFLint with the `terraform` plugin `recommended` preset is authoritative for TFLint findings. Run `./lint-terraform.sh`. Config: `terraform/.tflint.hcl`.
+- **Lint:** TFLint with the `terraform` plugin `recommended` preset is authoritative for TFLint findings. Run `./internals/lint-terraform.sh`. Config: `internals/terraform/.tflint.hcl`.
 - **Baseline disables** in `.tflint.hcl` are intentional (version pins live at Stack root). Do not re-litigate them in review.
 - **One-off exceptions:** `# tflint-ignore: rule_name  # why` next to the site — prefer that over widening the repo baseline.
 - **Security / policy scanners** (Checkov, Trivy, tfsec) are not part of the gate.

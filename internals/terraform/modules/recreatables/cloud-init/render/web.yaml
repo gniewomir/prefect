@@ -1,0 +1,81 @@
+#cloud-config
+ssh_pwauth: false
+# Host Image apt indexes are enough to install podman; skip apt-get update on
+# create (faster Park->Apply). Revisit when Prefect leaves dev-only.
+package_update: false
+packages:
+  - podman
+users:
+  - name: platform
+    lock_passwd: true
+    shell: /bin/bash
+# Apply port floor before packages/runcmd so early Edge install cannot race (ADR-0006).
+bootcmd:
+  - [ sysctl, -w, net.ipv4.ip_unprivileged_port_start=80 ]
+write_files:
+  - path: /etc/sysctl.d/99-unprivileged-port-start.conf
+    content: |
+      net.ipv4.ip_unprivileged_port_start=80
+  # Non-default SSH Port (ADR-0030). DO documented cutover: set Port, then reboot
+  # (power_state below). Firewall allows only ssh_port; :22 is DROPped after cutover.
+  - path: /etc/ssh/sshd_config.d/99-ssh-port.conf
+    content: |
+      Port ${ssh_port}
+  # Linger file in config stage so Platform User linger holds even if DigitalOcean
+  # vendor scripts fail in final and skip scripts_user / runcmd (ADR-0008).
+  - path: /var/lib/systemd/linger/platform
+    content: ""
+    permissions: "0644"
+  # Host Volume mount without scripts_user (ADR-0031).
+  - path: /usr/local/lib/host-volume/ensure-host-volume-mount.sh
+    permissions: "0755"
+    content: |
+${ensure_host_volume_mount_sh}
+  - path: /etc/systemd/system/host-volume.service
+    content: |
+      [Unit]
+      Description=Host Volume at /var/lib/host-volume
+      DefaultDependencies=no
+      After=local-fs-pre.target systemd-udev-settle.service
+      Before=multi-user.target
+      Conflicts=umount.target
+      StartLimitIntervalSec=300
+      StartLimitBurst=60
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/lib/host-volume/ensure-host-volume-mount.sh /dev/disk/by-id/scsi-0DO_Volume_${volume_name}
+      TimeoutStartSec=60
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+  # Config-stage WantedBy symlink (cloud-init write_files cannot create symlinks).
+  - path: /etc/tmpfiles.d/host-volume.conf
+    content: |
+      L+ /etc/systemd/system/multi-user.target.wants/host-volume.service - - - - /etc/systemd/system/host-volume.service
+  # Late attach after Host create: start the oneshot when the by-id device appears
+  # (first boot may finish multi-user before tmpfiles creates the WantedBy link).
+  - path: /etc/udev/rules.d/99-host-volume.rules
+    content: |
+      ACTION=="add", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", ENV{ID_SERIAL}=="0DO_Volume_${volume_name}", TAG+="systemd", ENV{SYSTEMD_WANTS}+="host-volume.service"
+mounts:
+  - [ /dev/disk/by-id/scsi-0DO_Volume_${volume_name}, /var/lib/host-volume, ext4, "defaults,nofail,discard,noatime", "0", "2" ]
+runcmd:
+  - sysctl --system
+  - loginctl enable-linger platform
+  # Optional accelerate when scripts_user runs; udev + tmpfiles cover vendor-skip.
+  - systemd-tmpfiles --create /etc/tmpfiles.d/host-volume.conf
+  - systemctl daemon-reload
+  - udevadm control --reload-rules
+  - udevadm trigger --action=add --subsystem-match=block
+  - systemctl start host-volume.service
+# DO documented SSH port cutover: reboot after Port is on disk so sshd-socket-generator
+# / ssh.socket pick it up. Module frequency is once per instance (no reboot loop).
+power_state:
+  mode: reboot
+  delay: now
+  message: Prefect ADR-0030 SSH port cutover
+  condition: true

@@ -8,11 +8,11 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
-STACK_DIR="${REPO_ROOT}/terraform"
-# shellcheck source=lib/environment.sh
-source "${REPO_ROOT}/lib/environment.sh"
-# shellcheck source=lib/adopt.sh
-source "${REPO_ROOT}/lib/adopt.sh"
+STACK_DIR="${REPO_ROOT}/internals/terraform"
+# shellcheck source=internals/lib/environment.sh
+source "${REPO_ROOT}/internals/lib/environment.sh"
+# shellcheck source=internals/lib/adopt.sh
+source "${REPO_ROOT}/internals/lib/adopt.sh"
 
 ABSENCE_VAR=(-var=recreatables_present=false)
 

@@ -43,7 +43,7 @@ To add another Domain or more labels later, widen the JSON and Apply again. **Na
 # or: ./apply.sh --env prod
 ```
 
-Bare `terraform` in `terraform/` is fine too once the correct workspace is selected — no `-var-file` / `TF_VAR_domains`; the workspace slug selects the file.
+Bare `terraform` in `internals/terraform/` is fine too once the correct workspace is selected — no `-var-file` / `TF_VAR_domains`; the workspace slug selects the file.
 
 Expect creation under `module.durables`: one `digitalocean_domain.this["example.com"]` and one `digitalocean_record.a` per declared name. **Do not Apply** if the plan wants to destroy or replace an unexpected existing Domain.
 

@@ -81,7 +81,7 @@ An executable check of Applied Stack external behavior (does the live Stack matc
 _Avoid_: Verify script, observability check, smoke test, integration test, Lifecycle Test (when you mean this concept)
 
 **Lifecycle Test**:
-An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Separate from Acceptance Tests; opt-in; may leave the Stack Parked or empty. Not part of `./test.sh`. Follows the same default-safe operator CLI Environment rule as other entrypoints (ADR-0019) — defaults to **test**; other Environments only with explicit `--env`.
+An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Separate from Acceptance Tests; opt-in; may leave the Stack Parked or empty. Not part of `./internals/acceptance-tests.sh`. Follows the same default-safe operator CLI Environment rule as other entrypoints (ADR-0019) — defaults to **test**; other Environments only with explicit `--env`.
 _Avoid_: Acceptance Test, destroy test, integration test (when you mean this concept)
 
 **Apply**:

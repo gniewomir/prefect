@@ -1,0 +1,18 @@
+[Unit]
+Description=Prefect Edge nginx
+After=network-online.target
+
+[Container]
+Image=docker.io/library/nginx:alpine
+Pod=edge.pod
+Volume=/var/lib/host-volume/components/edge/nginx.conf:/etc/nginx/nginx.conf:ro
+Volume=/var/lib/host-volume/components_data/edge/domains:/etc/nginx/edge-domains:ro
+Volume=/var/lib/host-volume/components_data/edge/routes:/etc/nginx/edge-routes:ro
+Volume=/var/lib/host-volume/components_data/edge/certs:/etc/nginx/certs:ro
+Volume=/var/lib/host-volume/components_data/edge/acme-www:/var/www/acme:ro
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

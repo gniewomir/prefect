@@ -16,7 +16,7 @@ Park keeps every Durable and its Cloud Project membership. They remain provider-
 
 ## Teardown
 
-`./teardown.sh [--env <slug>]` is the only normal operation that removes Durables. Terraform requires literal `prevent_destroy`, so Teardown temporarily installs the complete override in `terraform/modules/durables/` and pairs it with `allow_durable_destroy=true`. A module precondition rejects either half by itself, and the script removes the override on exit.
+`./teardown.sh [--env <slug>]` is the only normal operation that removes Durables. Terraform requires literal `prevent_destroy`, so Teardown temporarily installs the complete override in `internals/terraform/modules/durables/` and pairs it with `allow_durable_destroy=true`. A module precondition rejects either half by itself, and the script removes the override on exit.
 
 ## Structural-model adoption
 

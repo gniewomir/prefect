@@ -1,6 +1,6 @@
 ---
 description: Preserve frictionless Stack lifecycle convergence and additive changes
-globs: "{terraform/**,apply.sh,park.sh,teardown.sh,lifecycle-test.sh,lifecycle-test/**,config/environments/**}"
+globs: "{internals/terraform/**,apply.sh,park.sh,teardown.sh,internals/lifecycle-tests.sh,internals/lifecycle-tests/**,config/environments/**}"
 alwaysApply: false
 ---
 

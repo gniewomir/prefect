@@ -8,14 +8,14 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
-STACK_DIR="${REPO_ROOT}/terraform"
+STACK_DIR="${REPO_ROOT}/internals/terraform"
 OVERRIDE="${STACK_DIR}/modules/durables/durable_destroy_override.tf"
 OVERRIDE_EXAMPLE="${STACK_DIR}/modules/durables/durable_destroy_override.tf.example"
 UNLOCK_VAR=(-var=allow_durable_destroy=true)
-# shellcheck source=lib/environment.sh
-source "${REPO_ROOT}/lib/environment.sh"
-# shellcheck source=lib/adopt.sh
-source "${REPO_ROOT}/lib/adopt.sh"
+# shellcheck source=internals/lib/environment.sh
+source "${REPO_ROOT}/internals/lib/environment.sh"
+# shellcheck source=internals/lib/adopt.sh
+source "${REPO_ROOT}/internals/lib/adopt.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 

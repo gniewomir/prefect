@@ -10,12 +10,12 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
-STACK_DIR="${REPO_ROOT}/terraform"
+STACK_DIR="${REPO_ROOT}/internals/terraform"
 PRESENCE_VAR=(-var=recreatables_present=true)
-# shellcheck source=lib/environment.sh
-source "${REPO_ROOT}/lib/environment.sh"
-# shellcheck source=lib/adopt.sh
-source "${REPO_ROOT}/lib/adopt.sh"
+# shellcheck source=internals/lib/environment.sh
+source "${REPO_ROOT}/internals/lib/environment.sh"
+# shellcheck source=internals/lib/adopt.sh
+source "${REPO_ROOT}/internals/lib/adopt.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -32,8 +32,8 @@ WORKSPACE="$(environment_workspace_for "${ENVIRONMENT_RAW}")" || exit 1
 
 command -v terraform >/dev/null || fail "terraform not found"
 
-"${REPO_ROOT}/lib/check-cloud-init-ascii.sh"
-"${REPO_ROOT}/lib/check-ssh-port-twins.sh"
+"${REPO_ROOT}/internals/lib/check-cloud-init-ascii.sh"
+"${REPO_ROOT}/internals/lib/check-ssh-port-twins.sh"
 
 [[ -n "${DIGITALOCEAN_TOKEN:-}" ]] || fail "DIGITALOCEAN_TOKEN is not set"
 [[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY is not set"
