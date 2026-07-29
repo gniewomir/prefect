@@ -14,7 +14,7 @@ TMP_ENV="$(mktemp -d)"
 trap 'rm -rf "${TMP_ENV}"' EXIT
 export REPO_ROOT="${TMP_ENV}"
 
-mkdir -p "${TMP_ENV}/config/environments/alpha"
+mkdir -p "${TMP_ENV}/environments/alpha"
 
 # Neither file → empty stdout.
 got="$(domains_assignment_path alpha)" || fail "domains_assignment_path exited non-zero with no files"
@@ -23,17 +23,17 @@ pass "neither file → empty"
 
 # Only domains.json → that path.
 printf '%s\n' '{"example.com":{"names":["@"]}}' \
-  >"${TMP_ENV}/config/environments/alpha/domains.json"
+  >"${TMP_ENV}/environments/alpha/domains.json"
 got="$(domains_assignment_path alpha)" || fail "domains_assignment_path exited non-zero with domains.json"
-[[ "${got}" == "${TMP_ENV}/config/environments/alpha/domains.json" ]] \
+[[ "${got}" == "${TMP_ENV}/environments/alpha/domains.json" ]] \
   || fail "want committed domains.json, got '${got}'"
 pass "only domains.json → committed path"
 
 # Override present → override replaces committed.
 printf '%s\n' '{"lifecycle-test.example.com":{"names":["@"]}}' \
-  >"${TMP_ENV}/config/environments/alpha/domains.override.json"
+  >"${TMP_ENV}/environments/alpha/domains.override.json"
 got="$(domains_assignment_path alpha)" || fail "domains_assignment_path exited non-zero with override"
-[[ "${got}" == "${TMP_ENV}/config/environments/alpha/domains.override.json" ]] \
+[[ "${got}" == "${TMP_ENV}/environments/alpha/domains.override.json" ]] \
   || fail "want override path, got '${got}'"
 pass "override present → override path (replace)"
 

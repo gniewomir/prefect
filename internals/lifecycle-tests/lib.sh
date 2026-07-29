@@ -352,12 +352,12 @@ wait_until_volume_mounted() {
 
 # Absolute path to committed domains.json (never the override).
 domains_committed_path() {
-  printf '%s/config/environments/%s/domains.json\n' "${REPO_ROOT}" "${PLATFORM_ENV}"
+  printf '%s/environments/%s/domains.json\n' "${REPO_ROOT}" "${PLATFORM_ENV}"
 }
 
 # Absolute path to domains.override.json for the selected Environment.
 domains_override_path() {
-  printf '%s/config/environments/%s/domains.override.json\n' "${REPO_ROOT}" "${PLATFORM_ENV}"
+  printf '%s/environments/%s/domains.override.json\n' "${REPO_ROOT}" "${PLATFORM_ENV}"
 }
 
 # Remove internal Domain override if present.

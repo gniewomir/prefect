@@ -13,7 +13,7 @@ export REPO_ROOT="${TMP_DIR}/repo"
 export PLATFORM_ENV=test
 
 mkdir -p "${REPO_ROOT}/internals/lib" "${REPO_ROOT}/internals/acceptance-tests" \
-  "${REPO_ROOT}/config/environments/test"
+  "${REPO_ROOT}/environments/test"
 cp "${REAL_ROOT}/internals/lib/environment.sh" "${REPO_ROOT}/internals/lib/environment.sh"
 cat >"${REPO_ROOT}/internals/acceptance-tests/lib.sh" <<'EOF'
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -25,7 +25,7 @@ EOF
 printf '%s\n' '{
   "zebra.example": {"names": ["@"]},
   "alpha.example": {"names": ["@", "www"]}
-}' >"${REPO_ROOT}/config/environments/test/domains.json"
+}' >"${REPO_ROOT}/environments/test/domains.json"
 
 # shellcheck source=lib.sh
 source "${REAL_ROOT}/internals/lifecycle-tests/lib.sh"

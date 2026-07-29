@@ -16,7 +16,7 @@ If the zone already exists on the provider (“name already exists”) and the a
 Edit the Environment’s Domain file (cloud slug — `test`, not workspace `default`):
 
 ```text
-config/environments/<slug>/domains.json
+environments/<slug>/domains.json
 ```
 
 Example for **test**:

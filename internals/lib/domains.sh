@@ -17,8 +17,8 @@ domains_assignment_path() {
     echo "FAIL: domains_assignment_path requires REPO_ROOT" >&2
     return 1
   fi
-  local override="${REPO_ROOT}/config/environments/${slug}/domains.override.json"
-  local committed="${REPO_ROOT}/config/environments/${slug}/domains.json"
+  local override="${REPO_ROOT}/environments/${slug}/domains.override.json"
+  local committed="${REPO_ROOT}/environments/${slug}/domains.json"
   if [[ -f "${override}" ]]; then
     printf '%s\n' "${override}"
     return 0

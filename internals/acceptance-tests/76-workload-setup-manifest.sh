@@ -8,13 +8,15 @@ require_ip
 acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
-FIX_DIR="$(mktemp -d)"
-trap 'rm -rf "${FIX_DIR}"' EXIT
+FIX_DIR="$(acceptance_env_dir)"
+mkdir -p "${FIX_DIR}"
+acceptance_wl_track alpha legacy named upstreamed sourced zero clash owner-a owner-b
+trap 'acceptance_wl_cleanup' EXIT
 
 ROUTE_FQDN="$(acceptance_route_fqdn)"
 
 mkdir -p "${FIX_DIR}/alpha/quadlets"
-cat >"${FIX_DIR}/alpha/manifest.json" <<'EOF'
+cat >"alpha" <<'EOF'
 {
   "intent": "run",
   "description": "alpha probe — ignored by automation"
@@ -32,7 +34,7 @@ EOF
 fi
 
 mkdir -p "${FIX_DIR}/legacy/routes"
-cat >"${FIX_DIR}/legacy/manifest.json" <<'EOF'
+cat >"legacy" <<'EOF'
 {
   "intent": "run",
   "public_hostnames": ["legacy.example.test"]
@@ -40,7 +42,7 @@ cat >"${FIX_DIR}/legacy/manifest.json" <<'EOF'
 EOF
 
 mkdir -p "${FIX_DIR}/named"
-cat >"${FIX_DIR}/named/manifest.json" <<'EOF'
+cat >"named" <<'EOF'
 {
   "name": "named",
   "intent": "run"
@@ -48,7 +50,7 @@ cat >"${FIX_DIR}/named/manifest.json" <<'EOF'
 EOF
 
 mkdir -p "${FIX_DIR}/upstreamed"
-cat >"${FIX_DIR}/upstreamed/manifest.json" <<'EOF'
+cat >"upstreamed" <<'EOF'
 {
   "intent": "run",
   "upstream": "upstreamed:8080"
@@ -56,7 +58,7 @@ cat >"${FIX_DIR}/upstreamed/manifest.json" <<'EOF'
 EOF
 
 mkdir -p "${FIX_DIR}/sourced"
-cat >"${FIX_DIR}/sourced/manifest.json" <<'EOF'
+cat >"sourced" <<'EOF'
 {
   "intent": "run",
   "source": "https://example.test/bundle.tar"
@@ -64,14 +66,14 @@ cat >"${FIX_DIR}/sourced/manifest.json" <<'EOF'
 EOF
 
 mkdir -p "${FIX_DIR}/zero"
-cat >"${FIX_DIR}/zero/manifest.json" <<'EOF'
+cat >"zero" <<'EOF'
 {
   "intent": "run"
 }
 EOF
 
 mkdir -p "${FIX_DIR}/clash/quadlets"
-cat >"${FIX_DIR}/clash/manifest.json" <<'EOF'
+cat >"clash" <<'EOF'
 {
   "intent": "run"
 }
@@ -94,10 +96,10 @@ WantedBy=default.target
 EOF
 
 mkdir -p "${FIX_DIR}/owner-a/quadlets" "${FIX_DIR}/owner-b/quadlets"
-cat >"${FIX_DIR}/owner-a/manifest.json" <<'EOF'
+cat >"owner-a" <<'EOF'
 { "intent": "run" }
 EOF
-cat >"${FIX_DIR}/owner-b/manifest.json" <<'EOF'
+cat >"owner-b" <<'EOF'
 { "intent": "run" }
 EOF
 cat >"${FIX_DIR}/owner-a/quadlets/shared-name.container" <<'EOF'
@@ -141,7 +143,7 @@ host_ssh \
          /home/platform/.config/containers/systemd/legacy.container \
          /home/platform/.config/containers/systemd/shared-name.container"
 
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/alpha/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "alpha"
 
 if [[ -n "${ROUTE_FQDN}" ]]; then
   sot="$(host_ssh \
@@ -174,10 +176,10 @@ pass "Workload Setup leaves Domain ACME want-list unchanged"
 
 reject_thick() {
   local label="$1"
-  local path="$2"
+  local name="$2"
   local needle="$3"
   set +e
-  "${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${path}" >/tmp/thick-setup.out 2>&1
+  "${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${name}" >/tmp/thick-setup.out 2>&1
   local rc=$?
   set -e
   [[ ${rc} -ne 0 ]] || fail "expected failure for ${label}"
@@ -185,13 +187,13 @@ reject_thick() {
     || fail "${label} rejection did not mention ${needle} (output: $(cat /tmp/thick-setup.out))"
 }
 
-reject_thick "public_hostnames" "${FIX_DIR}/legacy/manifest.json" "public_hostnames\|unknown keys\|allowlist"
-reject_thick "name" "${FIX_DIR}/named/manifest.json" "name\|unknown keys\|allowlist"
-reject_thick "upstream" "${FIX_DIR}/upstreamed/manifest.json" "upstream\|unknown keys\|allowlist"
-reject_thick "source" "${FIX_DIR}/sourced/manifest.json" "source\|unknown keys\|allowlist"
+reject_thick "public_hostnames" "legacy" "public_hostnames\|unknown keys\|allowlist"
+reject_thick "name" "named" "name\|unknown keys\|allowlist"
+reject_thick "upstream" "upstreamed" "upstream\|unknown keys\|allowlist"
+reject_thick "source" "sourced" "source\|unknown keys\|allowlist"
 pass "Workload Setup rejects thick Manifest keys (ADR-0024 allowlist)"
 
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/zero/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "zero"
 zero_installed="$(host_ssh \
   "ls /var/lib/host-volume/components_data/edge/routes/zero--* 2>/dev/null || true")"
 [[ -z "${zero_installed}" ]] || fail "zero-Route Workload must not install Edge Route files (got: ${zero_installed})"
@@ -200,7 +202,7 @@ host_ssh "test -f /var/lib/host-volume/components_data/workloads/zero/manifest.j
 pass "Workload Setup succeeds with Intent run and no routes/ directory"
 
 set +e
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/clash/manifest.json" >/tmp/clash-setup.out 2>&1
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "clash" >/tmp/clash-setup.out 2>&1
 clash_rc=$?
 set -e
 [[ ${clash_rc} -ne 0 ]] || fail "expected failure when quadlet basename collides with Component unit"
@@ -208,9 +210,9 @@ grep -qi 'edge-nginx\|already exists\|not owned' /tmp/clash-setup.out \
   || fail "collision rejection unclear (output: $(cat /tmp/clash-setup.out))"
 pass "Workload Setup refuses Quadlet basename colliding with Component unit"
 
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/owner-a/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "owner-a"
 set +e
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/owner-b/manifest.json" >/tmp/owner-b-setup.out 2>&1
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "owner-b" >/tmp/owner-b-setup.out 2>&1
 owner_b_rc=$?
 set -e
 [[ ${owner_b_rc} -ne 0 ]] || fail "expected failure when second Workload claims same quadlet basename"

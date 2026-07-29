@@ -8,15 +8,17 @@ require_ip
 acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
-FIX_DIR="$(mktemp -d)"
-trap 'rm -rf "${FIX_DIR}"' EXIT
+FIX_DIR="$(acceptance_env_dir)"
+mkdir -p "${FIX_DIR}"
+acceptance_wl_track trash-a reclaim-b keep-me purge-me
+trap 'acceptance_wl_cleanup' EXIT
 
 ROUTE_FQDN="$(acceptance_route_fqdn)"
 
 stage_wl() {
   local name="$1" intent="$2"
   mkdir -p "${FIX_DIR}/${name}/quadlets"
-  cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
+  cat >"${name}" <<EOF
 {
   "intent": "${intent}"
 }
@@ -72,31 +74,31 @@ REMOTE
 for name in trash-a keep-me purge-me; do
   stage_wl "${name}" trash
   write_purge_route
-  "${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/${name}/manifest.json" 2>/dev/null || true
+  "${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${name}" 2>/dev/null || true
 done
 "${REPO_ROOT}/internals/purge-workloads.sh" --env "${PLATFORM_ENV:-test}"
 
 stage_wl trash-a run
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/trash-a/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "trash-a"
 stage_wl trash-a trash
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/trash-a/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "trash-a"
 
 host_ssh "test -f /var/lib/host-volume/components_data/workloads/trash-a/manifest.json" \
   || fail "Intent trash Workload data should remain until Purge"
 pass "Intent trash retains Workload data until Purge"
 
 stage_wl reclaim-b run
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/reclaim-b/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "reclaim-b"
 host_ssh \
   "test -f /var/lib/host-volume/components_data/workloads/reclaim-b/manifest.json" \
   || fail "second Intent run Workload should Setup"
 pass "Intent run Workload Setup does not depend on hostname claims"
 
 stage_wl keep-me stop
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/keep-me/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "keep-me"
 stage_wl purge-me run
 write_purge_route
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/purge-me/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "purge-me"
 
 ROUTE_INSTALLED_NAME=""
 if [[ -n "${ROUTE_FQDN}" ]]; then
@@ -118,7 +120,7 @@ fi
 
 stage_wl purge-me trash
 write_purge_route
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/purge-me/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "purge-me"
 
 if [[ -n "${ROUTE_FQDN}" ]]; then
   host_ssh bash -s <<REMOTE

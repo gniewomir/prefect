@@ -16,11 +16,13 @@ if [[ -z "${HOST}" ]]; then
 fi
 
 WL="acme-refresh"
-FIX_DIR="$(mktemp -d)"
-trap 'rm -rf "${FIX_DIR}"' EXIT
+FIX_DIR="$(acceptance_env_dir)"
+mkdir -p "${FIX_DIR}"
+acceptance_wl_track "${WL}"
+trap 'acceptance_wl_cleanup' EXIT
 
 mkdir -p "${FIX_DIR}/${WL}/routes"
-cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
+cat >"${WL}" <<EOF
 {
   "intent": "run"
 }
@@ -39,7 +41,7 @@ host_ssh \
           /var/lib/host-volume/components_data/edge/routes/${WL}--* \
           /var/lib/host-volume/components_data/workloads/${WL}"
 
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
 
 route_before="$(host_ssh \
   "cat /var/lib/host-volume/components_data/edge/routes/${WL}--${HOST}.conf")"

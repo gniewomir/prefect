@@ -140,8 +140,8 @@ _Avoid_: Reverse proxy, ingress, gateway, nginx (when you mean this Prefect role
 Edge-owned per-FQDN drop-in for one want-list name: the HTTPS `server` that terminates TLS for that Domain name and includes matching Workload Routes. Publishes Edge baseline `/healthcheck` and the per-name `:80`→HTTPS redirect without a Workload Route. Lives under Edge data `domains/` (not Workload `routes/`); reconciled by ensure-components with the want-list; never Workload-owned and never ACME-mutated.
 _Avoid_: Domain Route, Edge Route, vhost (when you mean this Edge-owned front); Workload Route
 
-**Workload**:
-An optional containerized service that runs on a Host. Identified by the basename of its Workload definition tree (the directory that holds the Manifest), not by a Manifest field. Not part of Prefect’s mandatory Host shape, not a Component, and never installed during Initial Host Provisioning; typically reached only via the Edge, not by publishing 80/443 itself.
+**Workload** (alias **workflow**):
+An optional containerized service that runs on a Host. Identified by the basename of its Workload definition tree (the directory that holds the Manifest), not by a Manifest field. Not part of Prefect’s mandatory Host shape, not a Component, and never installed during Initial Host Provisioning; typically reached only via the Edge, not by publishing 80/443 itself. **Workload** is canonical in docs and code; **workflow** is an accepted conversational alias for the same concept.
 _Avoid_: App, service, container, backend (when you mean this concept)
 
 **Workload Manifest**:

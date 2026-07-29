@@ -7,7 +7,7 @@
 # No fault injection (contrast 16-parked-additive-partial-apply.sh / #64).
 # Leftover Stack state on success: Applied (committed Domains only; no fixture Durable).
 # On failure: may leave Parked, Applied with override, empty after Teardown, or mid-Apply —
-# remove config/environments/<slug>/domains.override.json if present, then
+# remove environments/<slug>/domains.override.json if present, then
 # ./apply.sh or ./teardown.sh as needed.
 set -euo pipefail
 

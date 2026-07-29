@@ -58,7 +58,7 @@ Safe by default: nothing touches a non-test Environment unless you pass `--env` 
 
 **Durables** are the Cloud Project, Reserved IP, Host Volume, **Domain** (provider DNS zone plus Stack-authored A records → Reserved IP), and their preserved Cloud Project relationships. They survive **Park**. **Recreatables** are the Host and its Applied-only companions and relationships; Park removes them and Apply restores them. Durables may continue to incur charges while Parked. **Teardown** removes the complete Stack.
 
-Domains are optional (**0..N** per Environment). Declare them in committed `config/environments/<cloud-slug>/domains.json` (map of apex FQDN → `{ "names": ["@", "www", …] }`). Missing file = no Domains. The Stack loads the file for the current Environment (workspace / `--env`); no `TF_VAR_domains`. Registrar purchase and NS delegation stay **out of band**. New Domains: [add a Domain](docs/runbooks/domain-durable-add.md). Adopting an existing provider zone: [domain Durable import](docs/runbooks/domain-durable-import.md). Declaration mechanism: [ADR-0021](docs/adr/0021-environment-domain-config.md).
+Domains are optional (**0..N** per Environment). Declare them in committed `environments/<cloud-slug>/domains.json` (map of apex FQDN → `{ "names": ["@", "www", …] }`). Missing file = no Domains. The Stack loads the file for the current Environment (workspace / `--env`); no `TF_VAR_domains`. Registrar purchase and NS delegation stay **out of band**. New Domains: [add a Domain](docs/runbooks/domain-durable-add.md). Adopting an existing provider zone: [domain Durable import](docs/runbooks/domain-durable-import.md). Declaration mechanism: [ADR-0021](docs/adr/0021-environment-domain-config.md).
 
 ## Operations
 

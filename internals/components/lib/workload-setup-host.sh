@@ -75,6 +75,26 @@ workload_quadlet_sot_basenames "${QUADLETS_STAGE}" >"${STAGE_QUADLETS_LIST}" || 
 
 quadlet_user_session_begin
 
+# Noop when definition tree equals Host Volume SoT (ADR-0033). Intent run still
+# converges if required Quadlet unit files are missing (e.g. Host recreated).
+SOT_TREE="${WORKLOADS_ROOT}/${WL_NAME}"
+if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${TREE}" "${SOT_TREE}" >/dev/null 2>&1; then
+  units_ok=1
+  if [[ "${WL_INTENT}" == "run" ]]; then
+    while IFS= read -r base; do
+      [[ -n "${base}" ]] || continue
+      if [[ ! -e "${UNIT_DIR}/${base}" ]]; then
+        units_ok=0
+        break
+      fi
+    done <"${STAGE_QUADLETS_LIST}"
+  fi
+  if [[ "${units_ok}" -eq 1 ]]; then
+    echo "Workload Setup noop: '${WL_NAME}' already matches Host Volume SoT"
+    exit 0
+  fi
+fi
+
 # Collision check before mutating Host Volume SoT / unit files.
 while IFS= read -r base; do
   [[ -n "${base}" ]] || continue

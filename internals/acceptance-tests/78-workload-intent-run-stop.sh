@@ -11,8 +11,10 @@ acceptance_host_session
 
 HOST="$(acceptance_route_fqdn)"
 WL=app
-FIX_DIR="$(mktemp -d)"
-trap 'rm -rf "${FIX_DIR}"' EXIT
+FIX_DIR="$(acceptance_env_dir)"
+mkdir -p "${FIX_DIR}"
+acceptance_wl_track "${WL}"
+trap 'acceptance_wl_cleanup' EXIT
 
 mkdir -p "${FIX_DIR}/${WL}/quadlets"
 if [[ -n "${HOST}" ]]; then
@@ -20,7 +22,7 @@ if [[ -n "${HOST}" ]]; then
 fi
 write_manifest() {
   local intent="$1"
-  cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
+  cat >"${WL}" <<EOF
 {
   "intent": "${intent}"
 }
@@ -60,7 +62,7 @@ host_ssh \
    rm -f /home/platform/.config/containers/systemd/${WL}.container"
 
 write_manifest run
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
 
 host_ssh \
   "test -f /var/lib/host-volume/components_data/workloads/${WL}/quadlets/${WL}.container" \
@@ -80,7 +82,7 @@ else
 fi
 
 write_manifest stop
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
 
 if [[ -n "${HOST}" ]]; then
   stop_routes="$(host_ssh \

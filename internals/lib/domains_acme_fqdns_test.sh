@@ -42,17 +42,17 @@ assert_fqdns test \
 # Missing domains.json → empty set.
 TMP_ENV="$(mktemp -d)"
 trap 'rm -rf "${TMP_ENV}"' EXIT
-mkdir -p "${TMP_ENV}/config/environments/empty-env"
+mkdir -p "${TMP_ENV}/environments/empty-env"
 # Point helper at temp tree via REPO_ROOT override
 REPO_ROOT="${TMP_ENV}"
 assert_fqdns empty-env
 
 # Override replaces committed assignment for ACME want-list.
-mkdir -p "${TMP_ENV}/config/environments/overridden"
+mkdir -p "${TMP_ENV}/environments/overridden"
 printf '%s\n' '{"committed.example":{"names":["@","www"]}}' \
-  >"${TMP_ENV}/config/environments/overridden/domains.json"
+  >"${TMP_ENV}/environments/overridden/domains.json"
 printf '%s\n' '{"lifecycle-test.committed.example":{"names":["@"]}}' \
-  >"${TMP_ENV}/config/environments/overridden/domains.override.json"
+  >"${TMP_ENV}/environments/overridden/domains.override.json"
 assert_fqdns overridden lifecycle-test.committed.example
 
 echo "All domains ACME FQDN helper checks passed."

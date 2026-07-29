@@ -5,7 +5,7 @@
 # removes the override, and re-Applies committed Domains.
 # Leftover Stack state on success: Applied (committed Domains; empty repeated Apply).
 # On failure: may leave Applied with override — remove
-# config/environments/<slug>/domains.override.json if present, then ./apply.sh.
+# environments/<slug>/domains.override.json if present, then ./apply.sh.
 set -euo pipefail
 
 # shellcheck source=lib.sh

@@ -13,7 +13,7 @@ Registrar NS → provider stays out of band and is unchanged by import.
 3. Declare the Domain in that Environment’s file so Terraform expects it:
 
 ```text
-config/environments/<slug>/domains.json
+environments/<slug>/domains.json
 ```
 
 Example for **test**:

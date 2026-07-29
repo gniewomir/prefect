@@ -136,3 +136,21 @@ acceptance_route_fqdn() {
   fi
   domains_acme_fqdns_for "${PLATFORM_ENV:-test}" | awk 'NF { print; exit }'
 }
+
+# Ephemeral Workload trees under environments/<slug>/ (ADR-0033).
+acceptance_env_dir() {
+  printf '%s/environments/%s\n' "${REPO_ROOT}" "${PLATFORM_ENV:-test}"
+}
+
+ACCEPTANCE_WL_TRACKED=()
+acceptance_wl_track() {
+  ACCEPTANCE_WL_TRACKED+=("$@")
+}
+
+acceptance_wl_cleanup() {
+  local root name
+  root="$(acceptance_env_dir)"
+  for name in "${ACCEPTANCE_WL_TRACKED[@]+"${ACCEPTANCE_WL_TRACKED[@]}"}"; do
+    rm -rf "${root:?}/${name}"
+  done
+}

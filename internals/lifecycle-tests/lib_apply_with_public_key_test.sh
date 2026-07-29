@@ -16,7 +16,7 @@ export DIGITALOCEAN_TOKEN=test-token
 export TF_VAR_DIGITALOCEAN_PUBLIC_KEY="ssh-ed25519 PARENTKEY parent@test"
 
 mkdir -p "${REPO_ROOT}/internals/lib" "${REPO_ROOT}/internals/acceptance-tests" \
-  "${REPO_ROOT}/config/environments/test"
+  "${REPO_ROOT}/environments/test"
 cp "${REAL_ROOT}/internals/lib/environment.sh" "${REPO_ROOT}/internals/lib/environment.sh"
 cat >"${REPO_ROOT}/internals/acceptance-tests/lib.sh" <<'EOF'
 fail() { echo "FAIL: $*" >&2; exit 1; }

@@ -10,8 +10,10 @@ acceptance_host_session
 
 HOST="$(acceptance_route_fqdn)"
 WL="intent-trash"
-FIX_DIR="$(mktemp -d)"
-trap 'rm -rf "${FIX_DIR}"' EXIT
+FIX_DIR="$(acceptance_env_dir)"
+mkdir -p "${FIX_DIR}"
+acceptance_wl_track "${WL}" reclaim-intent
+trap 'acceptance_wl_cleanup' EXIT
 
 mkdir -p "${FIX_DIR}/${WL}/quadlets"
 if [[ -n "${HOST}" ]]; then
@@ -19,7 +21,7 @@ if [[ -n "${HOST}" ]]; then
 fi
 write_manifest() {
   local intent="$1"
-  cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
+  cat >"${WL}" <<EOF
 {
   "intent": "${intent}"
 }
@@ -65,7 +67,7 @@ rm -f /home/platform/.config/containers/systemd/${WL}.container \
 REMOTE
 
 write_manifest run
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
 
 if [[ -n "${HOST}" ]]; then
   host_ssh \
@@ -79,7 +81,7 @@ host_ssh \
   || fail "Intent run should install authored Quadlet"
 
 write_manifest trash
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
 
 host_ssh "test -f /var/lib/host-volume/components_data/workloads/${WL}/manifest.json" \
   || fail "Intent trash Workload data should remain until Purge"
@@ -114,12 +116,12 @@ want_after="$(host_ssh \
 pass "Intent trash uninstalls Routes; stops Quadlets; data retained until Purge; want-list unchanged"
 
 mkdir -p "${FIX_DIR}/reclaim-intent"
-cat >"${FIX_DIR}/reclaim-intent/manifest.json" <<EOF
+cat >"reclaim-intent" <<EOF
 {
   "intent": "run"
 }
 EOF
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${FIX_DIR}/reclaim-intent/manifest.json"
+"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "reclaim-intent"
 host_ssh \
   "test -f /var/lib/host-volume/components_data/workloads/reclaim-intent/manifest.json" \
   || fail "second Workload Setup with Intent run should succeed"
