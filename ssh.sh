@@ -5,7 +5,7 @@
 # Optional: SSH_IDENTITY=/path/to/private_key (defaults to ssh agent / default identities).
 # Extra args after --env are forwarded to ssh (e.g. ./ssh.sh uptime).
 # Usage: ./ssh.sh [--env <slug>] [ssh args...]
-# SSH uses the Stack non-default port (lib/ssh.sh / ADR-0030) — prefer this helper over raw :22.
+# SSH port from lib/ssh.sh (twin of Terraform ssh_port / ADR-0030).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"

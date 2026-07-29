@@ -68,7 +68,7 @@ Domains are optional (**0..N** per Environment). Declare them in committed `conf
 | `./park.sh [--env <slug>]` | Tear down the Host and other non-durables; keep Durables. For development and other non-production Environments — so you are not billed for a Host you are not using. Confirm by typing `park`. |
 | `./teardown.sh [--env <slug>]` | Full wipe, including Durables. Stops Durable billing. Confirm by typing `teardown`. |
 | `./diagnostics.sh [--env <slug>] --bundle <id> [--out <dir>]` | Pull a named Host diagnostics bundle for local inspection. `--bundle` is required (`ihp` today). |
-| `./ssh.sh [--env <slug>] [ssh args…]` | SSH to the Host (root @ Reserved IP; Stack non-default port — use this helper, not raw `:22`). |
+| `./ssh.sh [--env <slug>] [ssh args…]` | SSH to the Host (root @ Reserved IP; Stack SSH port from `lib/ssh.sh` — not raw `:22` after ADR-0030 cutover). |
 | `./test.sh [--env <slug>] [selector]` | Acceptance Tests against an Applied Stack (non-destructive). |
 | `./lifecycle-test.sh [--env <slug>] [selector]` | Lifecycle Tests (Park / Teardown; opt-in, destructive). |
 

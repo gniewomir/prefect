@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Acceptance Test: Firewall inbound — ICMP allowed; TCP SSH/80/443 not filtered;
-# classic :22 and TCP 25 filtered (ADR-0030).
+# Acceptance Test: Firewall inbound — ICMP allowed; TCP Prefect-SSH/80/443
+# not filtered; classic :22 and TCP 25 filtered (ADR-0030).
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"

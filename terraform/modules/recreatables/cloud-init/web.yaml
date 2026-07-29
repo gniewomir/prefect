@@ -16,7 +16,8 @@ write_files:
   - path: /etc/sysctl.d/99-unprivileged-port-start.conf
     content: |
       net.ipv4.ip_unprivileged_port_start=80
-  # Non-default SSH listen port (ADR-0030). Twin of Firewall inbound ssh_port.
+  # Non-default SSH Port (ADR-0030). DO documented cutover: set Port, then reboot
+  # (power_state below). Firewall allows only ssh_port; :22 is DROPped after cutover.
   - path: /etc/ssh/sshd_config.d/99-prefect-port.conf
     content: |
       Port ${ssh_port}
@@ -71,3 +72,10 @@ runcmd:
   - udevadm control --reload-rules
   - udevadm trigger --action=add --subsystem-match=block
   - systemctl start prefect-host-volume.service
+# DO documented SSH port cutover: reboot after Port is on disk so sshd-socket-generator
+# / ssh.socket pick it up. Module frequency is once per instance (no reboot loop).
+power_state:
+  mode: reboot
+  delay: now
+  message: Prefect ADR-0030 SSH port cutover
+  condition: true

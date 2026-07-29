@@ -44,7 +44,7 @@ export IP RESERVED_IP_JSON HOST_JSON REPO_ROOT PREFECT_ENV
 export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"
 
 # Reserved IP survives Host recreate; host keys do not — drop stale known_hosts before any SSH case.
-ssh-keygen -R "${IP}" >/dev/null 2>&1 || true
+prefect_ssh_forget_host "${IP}"
 
 echo "Checking Reserved IP ${IP} (Environment ${PREFECT_ENV}) ..."
 

@@ -85,7 +85,7 @@ DOMAINS_AFTER="$(stack_domain_names)"
 assert_domains_present "${AFTER_IP}"
 
 export IP="${AFTER_IP}"
-ssh-keygen -R "${IP}" >/dev/null 2>&1 || true
+prefect_ssh_forget_host "${IP}"
 wait_until_ssh_reachable
 wait_until_volume_mounted
 

@@ -80,9 +80,11 @@ resource "digitalocean_droplet" "web" {
   # Host Volume attaches via digitalocean_volume_attachment so Park can detach
   # before Host destroy without DigitalOcean dropping Durable project membership.
   user_data = templatefile("${path.module}/cloud-init/web.yaml", {
-    volume_name                 = var.volume_name
-    ssh_port                    = local.ssh_port
-    ensure_host_volume_mount_sh = indent(6, file("${path.module}/cloud-init/ensure-host-volume-mount.sh"))
+    volume_name = var.volume_name
+    ssh_port    = local.ssh_port
+    # indent() does not prefix the first line; a leading newline makes every
+    # script line indented so the YAML literal block under content: | stays valid.
+    ensure_host_volume_mount_sh = indent(6, format("\n%s", file("${path.module}/cloud-init/ensure-host-volume-mount.sh")))
   })
 }
 
