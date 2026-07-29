@@ -297,8 +297,8 @@ write_host_volume_file() {
   local path="$1"
   local body="$2"
   require_ip
-  acceptance_ssh_opts
-  ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<EOF
+  acceptance_host_session
+  host_ssh bash -s <<EOF
 set -euo pipefail
 findmnt --mountpoint /var/lib/prefect >/dev/null \
   || { echo "FAIL: /var/lib/prefect not mounted" >&2; exit 1; }
@@ -318,12 +318,12 @@ EOF
 # Optional: SSH_READY_TIMEOUT_SECONDS (default 300).
 wait_until_ssh_reachable() {
   require_ip
-  acceptance_ssh_opts
+  acceptance_host_session
   local timeout="${SSH_READY_TIMEOUT_SECONDS:-300}"
   local deadline=$((SECONDS + timeout))
   echo "Waiting for SSH at ${IP} (up to ${timeout}s) ..."
   while ((SECONDS < deadline)); do
-    if ssh "${SSH_OPTS[@]}" "root@${IP}" "true" >/dev/null 2>&1; then
+    if host_ssh "true" >/dev/null 2>&1; then
       pass "SSH reachable at ${IP}"
       return 0
     fi
@@ -336,12 +336,12 @@ wait_until_ssh_reachable() {
 # Optional: VOLUME_MOUNT_TIMEOUT_SECONDS (default 300).
 wait_until_volume_mounted() {
   require_ip
-  acceptance_ssh_opts
+  acceptance_host_session
   local timeout="${VOLUME_MOUNT_TIMEOUT_SECONDS:-300}"
   local deadline=$((SECONDS + timeout))
   echo "Waiting for Host Volume mount at ${IP}:/var/lib/prefect (up to ${timeout}s) ..."
   while ((SECONDS < deadline)); do
-    if ssh "${SSH_OPTS[@]}" "root@${IP}" "findmnt --mountpoint /var/lib/prefect" >/dev/null 2>&1; then
+    if host_ssh "findmnt --mountpoint /var/lib/prefect" >/dev/null 2>&1; then
       pass "Host Volume mounted at /var/lib/prefect"
       return 0
     fi

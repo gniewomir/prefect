@@ -5,7 +5,7 @@
 # Optional: SSH_IDENTITY=/path/to/private_key (defaults to ssh agent / default identities).
 # Extra args after --env are forwarded to ssh (e.g. ./ssh.sh uptime).
 # Usage: ./ssh.sh [--env <slug>] [ssh args...]
-# SSH port from lib/ssh.sh (twin of Terraform ssh_port / ADR-0030).
+# Host-session: lib/ssh.sh (port twin ADR-0030).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -20,17 +20,8 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 environment_activate "${STACK_DIR}" "$@" || exit 1
 set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
 
-cd "${STACK_DIR}"
-
 command -v terraform >/dev/null || fail "terraform not found"
 command -v ssh >/dev/null || fail "ssh not found"
 
-IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
-[[ -n "${IP}" ]] || fail "no reserved_ip output (apply the Stack first)"
-
-SSH_OPTS=(-o "Port=${PREFECT_SSH_PORT}" -o StrictHostKeyChecking=accept-new)
-if [[ -n "${SSH_IDENTITY:-}" ]]; then
-  SSH_OPTS+=(-i "${SSH_IDENTITY}" -o IdentitiesOnly=yes)
-fi
-
-exec ssh "${SSH_OPTS[@]}" "root@${IP}" "$@"
+host_session_open operator "${STACK_DIR}" || exit 1
+host_ssh "$@"

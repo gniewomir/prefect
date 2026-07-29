@@ -5,20 +5,20 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
 # shellcheck source=../../lib/domains.sh
 source "${REPO_ROOT}/lib/domains.sh"
 EXPECTED="$(domains_acme_fqdns_for "${PREFECT_ENV:-test}")"
 
-before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+before="$(host_ssh \
   "cat /var/lib/prefect/components_data/edge/acme/last-run 2>/dev/null || echo none")"
 sleep 2
 
 "${REPO_ROOT}/prefect/ensure-components.sh" --env "${PREFECT_ENV:-test}"
 
-want="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat /var/lib/prefect/components_data/edge/acme/want-list")"
+want="$(host_ssh "cat /var/lib/prefect/components_data/edge/acme/want-list")"
 if [[ -n "${EXPECTED}" ]]; then
   while IFS= read -r fqdn; do
     [[ -n "${fqdn}" ]] || continue
@@ -34,7 +34,7 @@ fi
 
 after="missing"
 for _ in $(seq 1 30); do
-  after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+  after="$(host_ssh \
     "cat /var/lib/prefect/components_data/edge/acme/last-run 2>/dev/null || echo missing")"
   if [[ "${after}" != "missing" && "${after}" != "${before}" ]]; then
     break
@@ -45,7 +45,7 @@ done
 [[ "${after}" != "${before}" ]] || fail "ACME oneshot was not triggered (last-run unchanged: ${after})"
 pass "ensure-components starts Edge ACME oneshot after Domain want-list install"
 
-timer="$(ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<'REMOTE'
+timer="$(host_ssh bash -s <<'REMOTE'
 UID_NUM=$(id -u prefect)
 export XDG_RUNTIME_DIR=/run/user/${UID_NUM}
 if runuser -u prefect -- env XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
@@ -76,7 +76,7 @@ while IFS= read -r fqdn; do
   fi
   pem_ok=0
   for _ in $(seq 1 120); do
-    if ssh "${SSH_OPTS[@]}" "root@${IP}" \
+    if host_ssh \
       "test -f /var/lib/prefect/components_data/edge/certs/${fqdn}/fullchain.pem \
        && test -f /var/lib/prefect/components_data/edge/certs/${fqdn}/privkey.pem"; then
       pem_ok=1
@@ -94,7 +94,7 @@ echo "${want}" | grep -qx "unmanaged.example.test" \
   && fail "unmanaged name must not be on ACME want-list" || true
 pass "unmanaged names are absent from ACME want-list"
 
-publishers="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+publishers="$(host_ssh \
   "ss -ltnp | grep -E ':80|:443' || true")"
 echo "${publishers}" | grep -qi 'acme\|lego\|certbot' \
   && fail "ACME client appears to be listening on :80/:443" || true

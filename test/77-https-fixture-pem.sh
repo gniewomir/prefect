@@ -6,7 +6,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
 HOST="$(acceptance_route_fqdn)"
@@ -32,21 +32,21 @@ location = /tlsprobe {
 }
 EOF
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "rm -rf /var/lib/prefect/components_data/edge/routes/${WL}.conf \
           /var/lib/prefect/components_data/edge/routes/${WL}--* \
           /var/lib/prefect/components_data/workloads/${WL}"
 
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
 
-installed="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+installed="$(host_ssh \
   "cat /var/lib/prefect/components_data/edge/routes/${WL}--${HOST}.conf")"
 echo "${installed}" | grep -Fq 'location = /tlsprobe' \
   || fail "operator Route fragment must be installed as authored"
 pass "Operator Route fragment installed for Domain-front include (${HOST})"
 
 # Reload Edge so the Domain front picks up the new fragment.
-ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+host_ssh bash -s <<REMOTE
 set -euo pipefail
 UID_NUM="\$(id -u prefect)"
 export XDG_RUNTIME_DIR="/run/user/\${UID_NUM}"
@@ -69,7 +69,7 @@ done
 pass "Domain-front HTTPS serves Workload Route fragment"
 
 TOKEN="tls-acme-probe"
-ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+host_ssh bash -s <<REMOTE
 set -euo pipefail
 TOKEN_PATH=/var/lib/prefect/components_data/edge/acme-www/.well-known/acme-challenge/${TOKEN}
 mkdir -p "\$(dirname "\${TOKEN_PATH}")"

@@ -5,18 +5,18 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 
 USER_NAME="${PREFECT_USER:-prefect}"
 
 # Standalone runs may race IHP; gate then assert linger (beyond carrier id check).
 wait_until_carrier_ready
 
-if ! ssh "${SSH_OPTS[@]}" "root@${IP}" "id '${USER_NAME}'" >/dev/null 2>&1; then
+if ! host_ssh "id '${USER_NAME}'" >/dev/null 2>&1; then
   fail "Prefect user '${USER_NAME}' missing on Host"
 fi
 
-if ! linger="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "loginctl show-user '${USER_NAME}' -p Linger --value" 2>/dev/null)"; then
+if ! linger="$(host_ssh "loginctl show-user '${USER_NAME}' -p Linger --value" 2>/dev/null)"; then
   fail "loginctl show-user ${USER_NAME} failed on Host"
 fi
 

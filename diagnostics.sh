@@ -35,10 +35,8 @@ ENV_SLUG="${PREFECT_ENV}"
 command -v terraform >/dev/null || fail "terraform not found"
 command -v ssh >/dev/null || fail "ssh not found"
 
-cd "${STACK_DIR}"
-
-IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
-[[ -n "${IP}" ]] || fail "no reserved_ip output (apply the Stack first — Host diagnostics need a live Host)"
+host_session_open operator "${STACK_DIR}" || exit 1
+IP="$(host_session_ip)"
 
 OUT_DIR="${DIAGNOSTICS_OUT}"
 if [[ -z "${OUT_DIR}" ]]; then
@@ -48,20 +46,8 @@ fi
 mkdir -p "${OUT_DIR}"
 OUT_DIR="$(cd "${OUT_DIR}" && pwd)"
 
-SSH_OPTS=(
-  -o "Port=${PREFECT_SSH_PORT}"
-  -o BatchMode=yes
-  -o ConnectTimeout=15
-  -o ServerAliveInterval=5
-  -o ServerAliveCountMax=2
-  -o StrictHostKeyChecking=accept-new
-)
-if [[ -n "${SSH_IDENTITY:-}" ]]; then
-  SSH_OPTS+=(-i "${SSH_IDENTITY}" -o IdentitiesOnly=yes)
-fi
-
 # Probe: Host must answer (fail closed — Parked / unreachable is not an empty tarball).
-if ! ssh "${SSH_OPTS[@]}" "root@${IP}" "true" 2>/dev/null; then
+if ! host_ssh "true" 2>/dev/null; then
   fail "Host at ${IP} not reachable over SSH (Parked, never Applied, or SSH auth failed)"
 fi
 
@@ -70,14 +56,14 @@ got=0
 missing=""
 
 # Best-effort: copy each log file by basename via a short remote cat (skip if absent).
-# ssh -n: do not steal stdin from the while-read process substitution (would drop paths).
+# </dev/null: do not steal stdin from the while-read process substitution (would drop paths).
 while IFS= read -r remote_path; do
   [[ -n "${remote_path}" ]] || continue
   base="$(basename "${remote_path}")"
   local_path="${OUT_DIR}/${base}"
-  if ssh -n "${SSH_OPTS[@]}" "root@${IP}" \
+  if host_ssh \
     "test -f $(printf '%q' "${remote_path}") && cat $(printf '%q' "${remote_path}")" \
-    >"${local_path}" 2>/dev/null && [[ -f "${local_path}" ]]; then
+    </dev/null >"${local_path}" 2>/dev/null && [[ -f "${local_path}" ]]; then
     got=$((got + 1))
   else
     rm -f "${local_path}"
@@ -87,9 +73,9 @@ done < <(diagnostics_bundle_log_files "${BUNDLE}")
 
 if [[ -n "${STATUS_NAME}" ]]; then
   status_out="${OUT_DIR}/${STATUS_NAME}"
-  if ssh -n "${SSH_OPTS[@]}" "root@${IP}" "command -v cloud-init >/dev/null"; then
+  if host_ssh "command -v cloud-init >/dev/null" </dev/null; then
     set +e
-    ssh -n "${SSH_OPTS[@]}" "root@${IP}" "cloud-init status --long" >"${status_out}" 2>&1
+    host_ssh "cloud-init status --long" </dev/null >"${status_out}" 2>&1
     status_rc=$?
     set -e
     if [[ -s "${status_out}" ]]; then

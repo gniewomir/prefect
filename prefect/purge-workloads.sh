@@ -35,20 +35,8 @@ done
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
 
-cd "${STACK_DIR}"
-IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
-[[ -n "${IP}" ]] || { echo "no reserved_ip output (apply the Stack first)" >&2; exit 1; }
-
-SSH_OPTS=(
-  -o "Port=${PREFECT_SSH_PORT}"
-  -o BatchMode=yes
-  -o StrictHostKeyChecking=accept-new
-  -o ConnectTimeout=10
-  -o PreferredAuthentications=publickey
-)
-if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
-  SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
-fi
+host_session_open verify "${STACK_DIR}" || exit 1
+IP="$(host_session_ip)"
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
@@ -56,9 +44,9 @@ cp "${HOST_SCRIPT}" "${STAGE}/purge-workloads-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 
 COPYFILE_DISABLE=1 tar --format=ustar -C "${STAGE}" -cf - . \
-  | ssh "${SSH_OPTS[@]}" "root@${IP}" "rm -rf /tmp/prefect-purge && mkdir -p /tmp/prefect-purge && tar -C /tmp/prefect-purge -xf -"
+  | host_ssh "rm -rf /tmp/prefect-purge && mkdir -p /tmp/prefect-purge && tar -C /tmp/prefect-purge -xf -"
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "PREFECT_USER=${USER_NAME} bash /tmp/prefect-purge/purge-workloads-host.sh"
 
 echo "Purge completed on ${IP}."

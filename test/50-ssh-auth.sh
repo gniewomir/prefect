@@ -5,9 +5,9 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 
-if ssh "${SSH_OPTS[@]}" "root@${IP}" "true" 2>/dev/null; then
+if host_ssh "true" 2>/dev/null; then
   pass "SSH public-key auth to root@${IP}"
 else
   fail "SSH public-key auth to root@${IP} failed (set VERIFY_SSH_IDENTITY or load the matching key)"

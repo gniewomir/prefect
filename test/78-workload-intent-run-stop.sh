@@ -6,7 +6,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
 HOST="$(acceptance_route_fqdn)"
@@ -50,10 +50,10 @@ Restart=on-failure
 WantedBy=default.target
 EOF
 
-want_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+want_before="$(host_ssh \
   "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "rm -rf /var/lib/prefect/components_data/edge/routes/${WL}.conf \
           /var/lib/prefect/components_data/edge/routes/${WL}--* \
           /var/lib/prefect/components_data/workloads/${WL}; \
@@ -62,16 +62,16 @@ ssh "${SSH_OPTS[@]}" "root@${IP}" \
 write_manifest run
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "test -f /var/lib/prefect/components_data/workloads/${WL}/quadlets/${WL}.container" \
   || fail "Intent run should store authored Quadlet SoT"
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "test -f /home/prefect/.config/containers/systemd/${WL}.container" \
   || fail "Intent run should install authored Quadlet unit file"
 pass "Intent run installs authored Quadlet"
 
 if [[ -n "${HOST}" ]]; then
-  ssh "${SSH_OPTS[@]}" "root@${IP}" \
+  host_ssh \
     "test -f /var/lib/prefect/components_data/edge/routes/${WL}--${HOST}.conf" \
     || fail "Intent run should install Route fragment ${WL}--${HOST}.conf"
   pass "Intent run installs FQDN-keyed Route fragment"
@@ -83,16 +83,16 @@ write_manifest stop
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
 
 if [[ -n "${HOST}" ]]; then
-  stop_routes="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+  stop_routes="$(host_ssh \
     "ls /var/lib/prefect/components_data/edge/routes/${WL}.conf /var/lib/prefect/components_data/edge/routes/${WL}--* 2>/dev/null || true")"
   [[ -z "${stop_routes}" ]] || fail "Intent stop must remove Workload installed Routes (got: ${stop_routes})"
   pass "Intent stop removes Workload installed Routes from Edge"
 fi
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "test -f /home/prefect/.config/containers/systemd/${WL}.container" \
   || fail "Intent stop should retain unit file until Purge"
-active="$(ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+active="$(host_ssh bash -s <<REMOTE
 UID_NUM=\$(id -u prefect)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
 if runuser -u prefect -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
@@ -106,7 +106,7 @@ REMOTE
 [[ "${active}" == "inactive" ]] || fail "Intent stop: Workload Quadlet should not be active"
 pass "Intent stop: Workload Quadlets are inactive; unit file retained"
 
-want_after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+want_after="$(host_ssh \
   "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
 [[ "${want_after}" == "${want_before}" ]] \
   || fail "Intent stop must not rewrite ACME want-list"
@@ -114,7 +114,7 @@ pass "Intent stop leaves Domain ACME want-list unchanged"
 
 if [[ -n "${HOST}" ]]; then
   # Fragment gone; Domain front /healthcheck remains (83). Probe path should miss.
-  ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+  host_ssh bash -s <<REMOTE
 set -euo pipefail
 UID_NUM="\$(id -u prefect)"
 export XDG_RUNTIME_DIR="/run/user/\${UID_NUM}"

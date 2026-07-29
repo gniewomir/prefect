@@ -108,29 +108,21 @@ probe_denied_tcp() {
   fi
 }
 
-# Populate SSH_OPTS for pubkey BatchMode sessions. Optional: VERIFY_SSH_IDENTITY.
-acceptance_ssh_opts() {
-  SSH_OPTS=(
-    -o "Port=${PREFECT_SSH_PORT}"
-    -o BatchMode=yes
-    -o StrictHostKeyChecking=accept-new
-    -o ConnectTimeout=10
-    -o PreferredAuthentications=publickey
-  )
-  if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
-    SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
-  fi
+# Bind verify Host-session for Acceptance (fixture IP from test.sh). Optional: VERIFY_SSH_IDENTITY.
+acceptance_host_session() {
+  require_ip
+  host_session_bind verify "${IP}" || fail "host_session_bind verify failed for ${IP}"
 }
 
 # Run the Host-local carrier-ready gate over SSH (IHP done, floor, Prefect User, mount).
-# Requires: IP, SSH_OPTS (acceptance_ssh_opts), REPO_ROOT. Optional: PREFECT_USER.
+# Requires: ambient verify Host-session (acceptance_host_session), REPO_ROOT. Optional: PREFECT_USER.
 wait_until_carrier_ready() {
   require_ip
   [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
   local script="${REPO_ROOT}/prefect/lib/wait-until-carrier-ready.sh"
   [[ -f "${script}" ]] || fail "missing ${script}"
   local user="${PREFECT_USER:-prefect}"
-  if ! ssh "${SSH_OPTS[@]}" "root@${IP}" "PREFECT_USER=${user} bash -s" <"${script}"; then
+  if ! host_ssh "PREFECT_USER=${user} bash -s" <"${script}"; then
     fail "Host not ready for Component Setup (see Host output above)"
   fi
 }

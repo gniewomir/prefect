@@ -28,7 +28,7 @@ DOMAINS_BEFORE="$(stack_domain_names)"
 
 wait_until_ssh_reachable
 wait_until_volume_mounted
-acceptance_ssh_opts
+acceptance_host_session
 
 write_host_volume_file "${MARKER_PATH}" "${MARKER_BODY}"
 pass "marker written and synced on Host Volume"
@@ -94,7 +94,7 @@ assert_host_membership present
 assert_reserved_ip_membership "${IP}"
 assert_durables_in_cloud_project "${IP}"
 
-got="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat '${MARKER_PATH}' 2>/dev/null || true")"
+got="$(host_ssh "cat '${MARKER_PATH}' 2>/dev/null || true")"
 [[ "${got}" == "${MARKER_BODY}" ]] || fail "marker missing or changed after Park→Apply (got: '${got}')"
 pass "Host Volume marker survived Park→Apply"
 

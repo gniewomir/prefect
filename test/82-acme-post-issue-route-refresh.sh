@@ -6,7 +6,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
 HOST="$(acceptance_route_fqdn)"
@@ -34,20 +34,20 @@ location = /acme-refresh-probe {
 }
 EOF
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "rm -rf /var/lib/prefect/components_data/edge/routes/${WL}.conf \
           /var/lib/prefect/components_data/edge/routes/${WL}--* \
           /var/lib/prefect/components_data/workloads/${WL}"
 
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
 
-route_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+route_before="$(host_ssh \
   "cat /var/lib/prefect/components_data/edge/routes/${WL}--${HOST}.conf")"
 echo "${route_before}" | grep -q "${MARKER}" \
   || fail "operator Route marker missing before ACME"
 pass "Operator Route fragment installed before ACME"
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+host_ssh bash -s <<REMOTE
 set -euo pipefail
 UID_NUM="\$(id -u prefect)"
 export XDG_RUNTIME_DIR="/run/user/\${UID_NUM}"
@@ -58,7 +58,7 @@ runuser -u prefect -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" PREFECT_ACME_ISSUE
   /var/lib/prefect/components/edge/acme-run.sh
 REMOTE
 
-route_after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+route_after="$(host_ssh \
   "cat /var/lib/prefect/components_data/edge/routes/${WL}--${HOST}.conf")"
 [[ "${route_after}" == "${route_before}" ]] \
   || fail "ACME must not rewrite operator Route file contents"

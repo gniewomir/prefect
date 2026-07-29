@@ -29,10 +29,8 @@ command -v ping >/dev/null || fail "ping not found"
 command -v curl >/dev/null || fail "curl not found"
 require_do_token
 
-cd "${STACK_DIR}"
-
-IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
-[[ -n "${IP}" ]] || fail "no reserved_ip output (apply the Stack first)"
+host_session_open verify "${STACK_DIR}" || exit 1
+IP="$(host_session_ip)"
 
 RESERVED_IP_JSON="$(do_api_get "/v2/reserved_ips/${IP}" | jq -c '.reserved_ip')"
 HOST_ID="$(echo "${RESERVED_IP_JSON}" | jq -r '.droplet.id // empty')"

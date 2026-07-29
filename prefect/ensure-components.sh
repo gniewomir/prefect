@@ -27,22 +27,11 @@ done
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
+command -v scp >/dev/null || { echo "scp not found" >&2; exit 1; }
 command -v tar >/dev/null || { echo "tar not found" >&2; exit 1; }
 
-cd "${STACK_DIR}"
-IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
-[[ -n "${IP}" ]] || { echo "no reserved_ip output (apply the Stack first)" >&2; exit 1; }
-
-SSH_OPTS=(
-  -o "Port=${PREFECT_SSH_PORT}"
-  -o BatchMode=yes
-  -o StrictHostKeyChecking=accept-new
-  -o ConnectTimeout=10
-  -o PreferredAuthentications=publickey
-)
-if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
-  SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
-fi
+host_session_open verify "${STACK_DIR}" || exit 1
+IP="$(host_session_ip)"
 
 CARRIER_READY="${REPO_ROOT}/prefect/lib/wait-until-carrier-ready.sh"
 QUADLET_SESSION="${REPO_ROOT}/prefect/lib/quadlet-user-session.sh"
@@ -67,20 +56,20 @@ for component in "${COMPONENTS[@]}"; do
 done
 
 # Host-local carrier gate (IHP done, floor, Prefect User, Host Volume mount).
-ssh "${SSH_OPTS[@]}" "root@${IP}" "PREFECT_USER=${USER_NAME} bash -s" <"${CARRIER_READY}"
+host_ssh "PREFECT_USER=${USER_NAME} bash -s" <"${CARRIER_READY}"
 
 # Domain-derived ACME want-list (ADR-0023): install before Edge Setup oneshot.
 WANT_TMP="$(mktemp)"
 domains_acme_fqdns_for "${PREFECT_ENV}" >"${WANT_TMP}"
-scp "${SSH_OPTS[@]}" "${WANT_TMP}" "root@${IP}:/tmp/prefect-acme-want-list"
+host_scp "${WANT_TMP}" /tmp/prefect-acme-want-list
 rm -f "${WANT_TMP}"
 
 # Stage Component trees plus shared Host-local lib (sourced by Component Setup).
 COPYFILE_DISABLE=1 tar --format=ustar -C "${REPO_ROOT}/prefect" -cf - \
   lib "${COMPONENTS[@]}" \
-  | ssh "${SSH_OPTS[@]}" "root@${IP}" "cat > /tmp/prefect-components.tar"
+  | host_ssh "cat > /tmp/prefect-components.tar"
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s -- "${USER_NAME}" "${COMPONENTS[@]}" <<'REMOTE'
+host_ssh bash -s -- "${USER_NAME}" "${COMPONENTS[@]}" <<'REMOTE'
 set -euo pipefail
 USER_NAME="$1"
 shift

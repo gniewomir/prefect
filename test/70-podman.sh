@@ -5,9 +5,9 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 
-if ssh "${SSH_OPTS[@]}" "root@${IP}" "podman --version" 2>/dev/null; then
+if host_ssh "podman --version" 2>/dev/null; then
   pass "podman available on Host"
 else
   fail "podman --version failed on Host"

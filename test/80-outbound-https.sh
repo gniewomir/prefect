@@ -5,9 +5,9 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 
-if ssh "${SSH_OPTS[@]}" "root@${IP}" "curl -fsS -o /dev/null -w '%{http_code}' --connect-timeout 10 https://example.com" 2>/dev/null | grep -Eq '^[23][0-9][0-9]$'; then
+if host_ssh "curl -fsS -o /dev/null -w '%{http_code}' --connect-timeout 10 https://example.com" 2>/dev/null | grep -Eq '^[23][0-9][0-9]$'; then
   pass "outbound HTTPS from Host"
 else
   fail "outbound HTTPS from Host failed"

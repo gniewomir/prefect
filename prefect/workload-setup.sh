@@ -43,20 +43,8 @@ command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 not found" >&2; exit 1; }
 
-cd "${STACK_DIR}"
-IP="$(terraform output -raw reserved_ip 2>/dev/null || true)"
-[[ -n "${IP}" ]] || { echo "no reserved_ip output (apply the Stack first)" >&2; exit 1; }
-
-SSH_OPTS=(
-  -o "Port=${PREFECT_SSH_PORT}"
-  -o BatchMode=yes
-  -o StrictHostKeyChecking=accept-new
-  -o ConnectTimeout=10
-  -o PreferredAuthentications=publickey
-)
-if [[ -n "${VERIFY_SSH_IDENTITY:-}" ]]; then
-  SSH_OPTS+=(-i "${VERIFY_SSH_IDENTITY}" -o IdentitiesOnly=yes)
-fi
+host_session_open verify "${STACK_DIR}" || exit 1
+IP="$(host_session_ip)"
 
 MANIFEST_DIR="$(cd "$(dirname "${MANIFEST_PATH}")" && pwd)"
 MANIFEST_ABS="${MANIFEST_DIR}/$(basename "${MANIFEST_PATH}")"
@@ -92,9 +80,9 @@ if [[ -d "${QUADLETS_SRC}" ]]; then
 fi
 
 COPYFILE_DISABLE=1 tar --format=ustar -C "${STAGE}" -cf - . \
-  | ssh "${SSH_OPTS[@]}" "root@${IP}" "rm -rf /tmp/prefect-workload-setup && mkdir -p /tmp/prefect-workload-setup && tar -C /tmp/prefect-workload-setup -xf -"
+  | host_ssh "rm -rf /tmp/prefect-workload-setup && mkdir -p /tmp/prefect-workload-setup && tar -C /tmp/prefect-workload-setup -xf -"
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "PREFECT_USER=${USER_NAME} bash /tmp/prefect-workload-setup/workload-setup-host.sh /tmp/prefect-workload-setup/${WL_NAME}"
 
 echo "Workload Setup applied on ${IP}."

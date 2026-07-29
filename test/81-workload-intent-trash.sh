@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
 HOST="$(acceptance_route_fqdn)"
@@ -49,10 +49,10 @@ Restart=on-failure
 WantedBy=default.target
 EOF
 
-want_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+want_before="$(host_ssh \
   "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+host_ssh bash -s <<REMOTE
 set -euo pipefail
 rm -rf /var/lib/prefect/components_data/workloads/${WL} \
   /var/lib/prefect/components_data/workloads/reclaim-intent
@@ -68,34 +68,34 @@ write_manifest run
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
 
 if [[ -n "${HOST}" ]]; then
-  ssh "${SSH_OPTS[@]}" "root@${IP}" \
+  host_ssh \
     "test -f /var/lib/prefect/components_data/edge/routes/${WL}--${HOST}.conf" \
     || fail "Intent run should install operator Route ${WL}--${HOST}.conf"
 else
   echo "SOFT-SKIP: empty Domain want-list — Route install assertions"
 fi
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "test -f /home/prefect/.config/containers/systemd/${WL}.container" \
   || fail "Intent run should install authored Quadlet"
 
 write_manifest trash
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/workloads/${WL}/manifest.json" \
+host_ssh "test -f /var/lib/prefect/components_data/workloads/${WL}/manifest.json" \
   || fail "Intent trash Workload data should remain until Purge"
 if [[ -n "${HOST}" ]]; then
-  ssh "${SSH_OPTS[@]}" "root@${IP}" \
+  host_ssh \
     "test -f /var/lib/prefect/components_data/workloads/${WL}/routes/${HOST}.conf" \
     || fail "Intent trash should retain Route SoT under Workload tree until Purge"
 fi
-ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/workloads/${WL}/quadlets/${WL}.container" \
+host_ssh "test -f /var/lib/prefect/components_data/workloads/${WL}/quadlets/${WL}.container" \
   || fail "Intent trash should retain Quadlet SoT until Purge"
-ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /home/prefect/.config/containers/systemd/${WL}.container" \
+host_ssh "test -f /home/prefect/.config/containers/systemd/${WL}.container" \
   || fail "Intent trash should retain unit file until Purge"
-trash_routes="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+trash_routes="$(host_ssh \
   "ls /var/lib/prefect/components_data/edge/routes/${WL}.conf /var/lib/prefect/components_data/edge/routes/${WL}--* 2>/dev/null || true")"
 [[ -z "${trash_routes}" ]] || fail "Intent trash should remove Workload installed Routes (got: ${trash_routes})"
-active="$(ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+active="$(host_ssh bash -s <<REMOTE
 UID_NUM=\$(id -u prefect)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
 if runuser -u prefect -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
@@ -107,7 +107,7 @@ fi
 REMOTE
 )"
 [[ "${active}" == "inactive" ]] || fail "Intent trash: Workload Quadlet should not be active"
-want_after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+want_after="$(host_ssh \
   "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
 [[ "${want_after}" == "${want_before}" ]] \
   || fail "Intent trash must not rewrite ACME want-list"
@@ -120,7 +120,7 @@ cat >"${FIX_DIR}/reclaim-intent/manifest.json" <<EOF
 }
 EOF
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/reclaim-intent/manifest.json"
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "test -f /var/lib/prefect/components_data/workloads/reclaim-intent/manifest.json" \
   || fail "second Workload Setup with Intent run should succeed"
 pass "another Workload can Setup Intent run without hostname claims"

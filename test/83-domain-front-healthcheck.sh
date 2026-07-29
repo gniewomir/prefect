@@ -8,7 +8,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
 # shellcheck source=../../lib/domains.sh
@@ -39,26 +39,26 @@ DNS_READY="$(printf '%s\n' "${SELECT_OUT}" | awk '{print $2}')"
 "${REPO_ROOT}/prefect/ensure-components.sh" --env "${PREFECT_ENV:-test}"
 
 # --- Host layout: Domain front + placeholder PEMs ---
-ssh "${SSH_OPTS[@]}" "root@${IP}" "test ! -e '${DOMAINS_HOST}/00-empty.conf'" \
+host_ssh "test ! -e '${DOMAINS_HOST}/00-empty.conf'" \
   || fail "legacy domains/00-empty.conf stub must be absent"
-ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f '${DOMAINS_HOST}/${FQDN}.conf'" \
+host_ssh "test -f '${DOMAINS_HOST}/${FQDN}.conf'" \
   || fail "Domain front missing for ${FQDN}"
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
+host_ssh \
   "test -f '${CERTS_HOST}/${FQDN}/fullchain.pem' && test -f '${CERTS_HOST}/${FQDN}/privkey.pem'" \
   || fail "placeholder PEMs missing for ${FQDN}"
-front="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "cat '${DOMAINS_HOST}/${FQDN}.conf'")"
+front="$(host_ssh "cat '${DOMAINS_HOST}/${FQDN}.conf'")"
 echo "${front}" | grep -Fq "include /etc/nginx/prefect-routes/*--${FQDN}.conf;" \
   || fail "Domain front must include Workload Route fragments for ${FQDN}"
 pass "Domain front and placeholder PEMs present for ${FQDN}"
 
 # Complete pair survives re-ensure (ADR-0029).
-full_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sha256sum '${CERTS_HOST}/${FQDN}/fullchain.pem'")"
-key_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sha256sum '${CERTS_HOST}/${FQDN}/privkey.pem'")"
-front_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
+full_before="$(host_ssh "sha256sum '${CERTS_HOST}/${FQDN}/fullchain.pem'")"
+key_before="$(host_ssh "sha256sum '${CERTS_HOST}/${FQDN}/privkey.pem'")"
+front_before="$(host_ssh "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
 "${REPO_ROOT}/prefect/ensure-components.sh" --env "${PREFECT_ENV:-test}"
-full_after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sha256sum '${CERTS_HOST}/${FQDN}/fullchain.pem'")"
-key_after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sha256sum '${CERTS_HOST}/${FQDN}/privkey.pem'")"
-front_after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
+full_after="$(host_ssh "sha256sum '${CERTS_HOST}/${FQDN}/fullchain.pem'")"
+key_after="$(host_ssh "sha256sum '${CERTS_HOST}/${FQDN}/privkey.pem'")"
+front_after="$(host_ssh "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
 [[ "${full_before}" == "${full_after}" ]] || fail "re-ensure clobbered complete fullchain.pem"
 [[ "${key_before}" == "${key_after}" ]] || fail "re-ensure clobbered complete privkey.pem"
 [[ "${front_before}" == "${front_after}" ]] || fail "re-ensure churned Domain-front drop-in"
@@ -135,7 +135,7 @@ fi
 
 # --- ACME HTTP-01 still works ---
 TOKEN="domain-front-acme-probe"
-ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+host_ssh bash -s <<REMOTE
 set -euo pipefail
 TOKEN_PATH=${DATA_ROOT}/acme-www/.well-known/acme-challenge/${TOKEN}
 mkdir -p "\$(dirname "\${TOKEN_PATH}")"
@@ -154,8 +154,8 @@ done
 pass "ACME HTTP-01 on :80 still works alongside Domain-front redirect"
 
 # --- ACME reload does not mutate Domain-front drop-in ---
-front_pre_acme="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
-ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+front_pre_acme="$(host_ssh "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
+host_ssh bash -s <<REMOTE
 set -euo pipefail
 UID_NUM="\$(id -u prefect)"
 export XDG_RUNTIME_DIR="/run/user/\${UID_NUM}"
@@ -165,7 +165,7 @@ runuser -u prefect -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" \
 runuser -u prefect -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" PREFECT_ACME_ISSUE=0 \
   /var/lib/prefect/components/edge/acme-run.sh
 REMOTE
-front_post_acme="$(ssh "${SSH_OPTS[@]}" "root@${IP}" "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
+front_post_acme="$(host_ssh "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
 [[ "${front_pre_acme}" == "${front_post_acme}" ]] \
   || fail "ACME must not mutate Domain-front drop-in"
 pass "ACME reload leaves Domain-front drop-in unchanged"

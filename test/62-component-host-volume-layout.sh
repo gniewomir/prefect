@@ -5,33 +5,33 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 
 USER_NAME="${PREFECT_USER:-prefect}"
 COMPONENTS_ROOT=/var/lib/prefect/components
 DATA_ROOT=/var/lib/prefect/components_data
 
 owner_of() {
-  ssh "${SSH_OPTS[@]}" "root@${IP}" "stat -c '%U:%G' '$1'" 2>/dev/null || true
+  host_ssh "stat -c '%U:%G' '$1'" 2>/dev/null || true
 }
 
 must_be_dir() {
   local path="$1"
-  if ! ssh "${SSH_OPTS[@]}" "root@${IP}" "test -d '${path}'"; then
+  if ! host_ssh "test -d '${path}'"; then
     fail "expected directory missing: ${path}"
   fi
 }
 
 must_be_file() {
   local path="$1"
-  if ! ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f '${path}'"; then
+  if ! host_ssh "test -f '${path}'"; then
     fail "expected file missing: ${path}"
   fi
 }
 
 must_not_exist() {
   local path="$1"
-  if ssh "${SSH_OPTS[@]}" "root@${IP}" "test -e '${path}'"; then
+  if host_ssh "test -e '${path}'"; then
     fail "path must not exist: ${path}"
   fi
 }

@@ -6,7 +6,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 require_ip
-acceptance_ssh_opts
+acceptance_host_session
 
 USER_NAME="${PREFECT_USER:-prefect}"
 DATA_ROOT=/var/lib/prefect/components_data/edge
@@ -19,7 +19,7 @@ TOKEN_PATH="${ACME_WWW}/.well-known/acme-challenge/${TOKEN}"
 # Retry: ensure-components may briefly bounce the Edge Pod.
 listening=0
 for _ in $(seq 1 30); do
-  if ssh "${SSH_OPTS[@]}" "root@${IP}" "ss -ltn | grep -qE ':443[[:space:]]'"; then
+  if host_ssh "ss -ltn | grep -qE ':443[[:space:]]'"; then
     listening=1
     break
   fi
@@ -38,7 +38,7 @@ fi
 pass "empty Edge still returns HTTP 404 on /"
 
 # :80 serves the ACME HTTP-01 webroot path
-ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+host_ssh bash -s <<REMOTE
 set -euo pipefail
 mkdir -p "$(dirname "${TOKEN_PATH}")"
 printf '%s\n' '${TOKEN}' >"${TOKEN_PATH}"
@@ -52,12 +52,12 @@ fi
 pass "Edge serves ACME HTTP-01 webroot on :80"
 
 # ensure-components installs the Domain-derived want-list. Test 80 owns its exact contents.
-ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f '${WANT_LIST}'" \
+host_ssh "test -f '${WANT_LIST}'" \
   || fail "ACME want-list file missing"
 pass "ACME want-list is present"
 
 # Oneshot + timer installed under Prefect User; exercise the unit without CA contact.
-ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+host_ssh bash -s <<REMOTE
 set -euo pipefail
 UID_NUM="\$(id -u ${USER_NAME})"
 export XDG_RUNTIME_DIR="/run/user/\${UID_NUM}"
