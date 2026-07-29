@@ -17,6 +17,7 @@ source "${REPO_ROOT}/internals/lib/environment.sh"
 "${REPO_ROOT}/internals/lib/check-stack-names.sh"
 "${REPO_ROOT}/internals/lib/check-cloud-init-ascii.sh"
 "${REPO_ROOT}/internals/lib/check-ssh-port-twins.sh"
+"${REPO_ROOT}/internals/lib/check-domains-config-path.sh"
 
 environment_activate "${STACK_DIR}" "$@" || exit 1
 set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
