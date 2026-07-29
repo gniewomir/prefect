@@ -22,7 +22,7 @@ if [[ -n "${HOST}" ]]; then
 fi
 write_manifest() {
   local intent="$1"
-  cat >"${WL}" <<EOF
+  cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
   "intent": "${intent}"
 }

@@ -22,7 +22,7 @@ acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
 mkdir -p "${FIX_DIR}/${WL}/routes"
-cat >"${WL}" <<EOF
+cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
   "intent": "run"
 }

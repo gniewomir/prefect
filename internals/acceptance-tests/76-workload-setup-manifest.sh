@@ -16,7 +16,7 @@ trap 'acceptance_wl_cleanup' EXIT
 ROUTE_FQDN="$(acceptance_route_fqdn)"
 
 mkdir -p "${FIX_DIR}/alpha/quadlets"
-cat >"alpha" <<'EOF'
+cat >"${FIX_DIR}/alpha/manifest.json" <<'EOF'
 {
   "intent": "run",
   "description": "alpha probe — ignored by automation"
@@ -34,7 +34,7 @@ EOF
 fi
 
 mkdir -p "${FIX_DIR}/legacy/routes"
-cat >"legacy" <<'EOF'
+cat >"${FIX_DIR}/legacy/manifest.json" <<'EOF'
 {
   "intent": "run",
   "public_hostnames": ["legacy.example.test"]
@@ -42,7 +42,7 @@ cat >"legacy" <<'EOF'
 EOF
 
 mkdir -p "${FIX_DIR}/named"
-cat >"named" <<'EOF'
+cat >"${FIX_DIR}/named/manifest.json" <<'EOF'
 {
   "name": "named",
   "intent": "run"
@@ -50,7 +50,7 @@ cat >"named" <<'EOF'
 EOF
 
 mkdir -p "${FIX_DIR}/upstreamed"
-cat >"upstreamed" <<'EOF'
+cat >"${FIX_DIR}/upstreamed/manifest.json" <<'EOF'
 {
   "intent": "run",
   "upstream": "upstreamed:8080"
@@ -58,7 +58,7 @@ cat >"upstreamed" <<'EOF'
 EOF
 
 mkdir -p "${FIX_DIR}/sourced"
-cat >"sourced" <<'EOF'
+cat >"${FIX_DIR}/sourced/manifest.json" <<'EOF'
 {
   "intent": "run",
   "source": "https://example.test/bundle.tar"
@@ -66,14 +66,14 @@ cat >"sourced" <<'EOF'
 EOF
 
 mkdir -p "${FIX_DIR}/zero"
-cat >"zero" <<'EOF'
+cat >"${FIX_DIR}/zero/manifest.json" <<'EOF'
 {
   "intent": "run"
 }
 EOF
 
 mkdir -p "${FIX_DIR}/clash/quadlets"
-cat >"clash" <<'EOF'
+cat >"${FIX_DIR}/clash/manifest.json" <<'EOF'
 {
   "intent": "run"
 }
@@ -96,10 +96,10 @@ WantedBy=default.target
 EOF
 
 mkdir -p "${FIX_DIR}/owner-a/quadlets" "${FIX_DIR}/owner-b/quadlets"
-cat >"owner-a" <<'EOF'
+cat >"${FIX_DIR}/owner-a/manifest.json" <<'EOF'
 { "intent": "run" }
 EOF
-cat >"owner-b" <<'EOF'
+cat >"${FIX_DIR}/owner-b/manifest.json" <<'EOF'
 { "intent": "run" }
 EOF
 cat >"${FIX_DIR}/owner-a/quadlets/shared-name.container" <<'EOF'

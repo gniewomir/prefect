@@ -21,7 +21,7 @@ if [[ -n "${HOST}" ]]; then
 fi
 write_manifest() {
   local intent="$1"
-  cat >"${WL}" <<EOF
+  cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
   "intent": "${intent}"
 }
@@ -116,7 +116,7 @@ want_after="$(host_ssh \
 pass "Intent trash uninstalls Routes; stops Quadlets; data retained until Purge; want-list unchanged"
 
 mkdir -p "${FIX_DIR}/reclaim-intent"
-cat >"reclaim-intent" <<EOF
+cat >"${FIX_DIR}/reclaim-intent/manifest.json" <<EOF
 {
   "intent": "run"
 }
