@@ -5,15 +5,9 @@
 #
 # ADR-0028 / ADR-0029 / #78.
 
-# Print non-comment want-list FQDNs, one per line.
-_edge_want_list_fqdns() {
-  local fqdn
-  [[ -f "${WANT_LIST}" ]] || : >"${WANT_LIST}"
-  while IFS= read -r fqdn || [[ -n "${fqdn}" ]]; do
-    [[ "${fqdn}" =~ ^[[:space:]]*(#|$) ]] && continue
-    printf '%s\n' "${fqdn}"
-  done <"${WANT_LIST}"
-}
+_edge_domain_fronts_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=edge-want-list-host.sh
+source "${_edge_domain_fronts_lib_dir}/edge-want-list-host.sh"
 
 # Create-if-missing self-signed PEMs for each want-list FQDN (ADR-0029).
 # Both fullchain.pem + privkey.pem present → never touch.
@@ -117,18 +111,19 @@ EOF
 }
 
 # Reconcile Domain-front drop-ins for the want-list under DOMAINS_DIR (ADR-0028).
-# Ensures Component stub 00-empty.conf and per-FQDN include stubs in ROUTES_DIR
-# so nginx wildcard includes always match.
-# Does not prune Domain fronts or Route stubs for names that left the want-list.
+# Empty nginx wildcard includes are valid (parent dirs exist); no 00-empty stubs.
+# Does not prune Domain fronts for names that left the want-list.
+# Removes legacy include stubs from earlier Setup generations.
 edge_reconcile_domain_fronts() {
-  local fqdn stub
+  local fqdn
   local -a names=()
 
   mkdir -p "${DOMAINS_DIR}" "${ROUTES_DIR}"
 
-  # Stub so include …/prefect-domains/*.conf matches when the want-list is empty.
-  if [[ ! -f "${DOMAINS_DIR}/00-empty.conf" ]]; then
-    printf '%s\n' '# no Domain fronts yet' >"${DOMAINS_DIR}/00-empty.conf"
+  # Drop legacy empty-glob stubs (ADR-0028 attachment cutover).
+  rm -f "${DOMAINS_DIR}/00-empty.conf" "${ROUTES_DIR}/00-empty.conf"
+  if compgen -G "${ROUTES_DIR}/00-empty--*" >/dev/null; then
+    rm -f "${ROUTES_DIR}/00-empty--"*.conf
   fi
 
   while IFS= read -r fqdn || [[ -n "${fqdn}" ]]; do
@@ -138,11 +133,6 @@ edge_reconcile_domain_fronts() {
 
   for fqdn in "${names[@]+"${names[@]}"}"; do
     _edge_write_domain_front "${fqdn}"
-    # nginx rejects wildcard includes with zero matches; Edge-owned stub per FQDN.
-    stub="${ROUTES_DIR}/00-empty--${fqdn}.conf"
-    if [[ ! -f "${stub}" ]]; then
-      printf '%s\n' "# Edge include stub for Domain front ${fqdn}" >"${stub}"
-    fi
   done
 
   if [[ -n "${USER_NAME:-}" ]]; then

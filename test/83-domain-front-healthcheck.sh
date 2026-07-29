@@ -39,8 +39,8 @@ DNS_READY="$(printf '%s\n' "${SELECT_OUT}" | awk '{print $2}')"
 "${REPO_ROOT}/prefect/ensure-components.sh" --env "${PREFECT_ENV:-test}"
 
 # --- Host layout: Domain front + placeholder PEMs ---
-ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f '${DOMAINS_HOST}/00-empty.conf'" \
-  || fail "Domain-front Component stub missing"
+ssh "${SSH_OPTS[@]}" "root@${IP}" "test ! -e '${DOMAINS_HOST}/00-empty.conf'" \
+  || fail "legacy domains/00-empty.conf stub must be absent"
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f '${DOMAINS_HOST}/${FQDN}.conf'" \
   || fail "Domain front missing for ${FQDN}"
 ssh "${SSH_OPTS[@]}" "root@${IP}" \

@@ -134,3 +134,13 @@ wait_until_carrier_ready() {
     fail "Host not ready for Component Setup (see Host output above)"
   fi
 }
+
+# First Domain want-list FQDN for this Environment (operator config SoT), or empty.
+# Soft-skip Route attach assertions when empty (ADR-0028 fail-closed needs a want-list name).
+acceptance_route_fqdn() {
+  if ! declare -F domains_acme_fqdns_for >/dev/null 2>&1; then
+    # shellcheck source=../lib/domains.sh
+    source "${REPO_ROOT}/lib/domains.sh"
+  fi
+  domains_acme_fqdns_for "${PREFECT_ENV:-test}" | awk 'NF { print; exit }'
+}

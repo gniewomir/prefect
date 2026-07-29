@@ -70,16 +70,25 @@ edge_plant_placeholder_pems
   || fail "beta PEMs expected for new want-list name"
 pass "does not prune PEMs when a name leaves the want-list"
 
-# --- Domain fronts: reconcile drop-ins for want-list + stub ---
+# --- Domain fronts: reconcile drop-ins for want-list (no empty-glob stubs) ---
 DOMAINS_DIR="${TMP}/domains"
 ROUTES_DIR="${TMP}/routes"
 mkdir -p "${DOMAINS_DIR}" "${ROUTES_DIR}"
 printf '%s\n' 'alpha.example.test' 'gamma.example.test' >"${WANT_LIST}"
 
+# Legacy stubs must be cleared on reconcile.
+printf '%s\n' '# legacy' >"${DOMAINS_DIR}/00-empty.conf"
+printf '%s\n' '# legacy' >"${ROUTES_DIR}/00-empty.conf"
+printf '%s\n' '# legacy' >"${ROUTES_DIR}/00-empty--alpha.example.test.conf"
+
 edge_reconcile_domain_fronts
 
-[[ -f "${DOMAINS_DIR}/00-empty.conf" ]] \
-  || fail "expected Component stub domains/00-empty.conf"
+[[ ! -f "${DOMAINS_DIR}/00-empty.conf" ]] \
+  || fail "domains/00-empty.conf stub must be removed"
+[[ ! -f "${ROUTES_DIR}/00-empty.conf" ]] \
+  || fail "routes/00-empty.conf stub must be removed"
+[[ ! -f "${ROUTES_DIR}/00-empty--alpha.example.test.conf" ]] \
+  || fail "per-FQDN route stub must be removed"
 [[ -f "${DOMAINS_DIR}/alpha.example.test.conf" ]] \
   || fail "expected Domain front for alpha.example.test"
 [[ -f "${DOMAINS_DIR}/gamma.example.test.conf" ]] \
@@ -100,10 +109,6 @@ echo "${front}" | grep -E -q 'return 301 https://\$host\$request_uri;' \
   || fail "Domain front :80 must redirect non-ACME to HTTPS"
 echo "${front}" | grep -Fq 'location ^~ /.well-known/acme-challenge/' \
   || fail "Domain front :80 must keep ACME HTTP-01"
-[[ -f "${ROUTES_DIR}/00-empty--alpha.example.test.conf" ]] \
-  || fail "expected include stub routes/00-empty--alpha.example.test.conf"
-[[ -f "${ROUTES_DIR}/00-empty--gamma.example.test.conf" ]] \
-  || fail "expected include stub routes/00-empty--gamma.example.test.conf"
 pass "reconciles Domain fronts with TLS paths, /healthcheck, redirect, ACME, and Route includes"
 
 # --- Domain-front bytes stay stable across re-reconcile (ACME must not churn drop-ins either) ---

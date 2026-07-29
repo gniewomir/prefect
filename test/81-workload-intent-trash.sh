@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Intent trash uninstalls Routes; data retained until Purge (#57 / ADR-0024)
+# Acceptance Test: Intent trash uninstalls Routes; data retained until Purge (ADR-0024 / ADR-0028)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -8,12 +8,15 @@ require_ip
 acceptance_ssh_opts
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh)"
 
-HOST="intent-trash.example.test"
+HOST="$(acceptance_route_fqdn)"
 WL="intent-trash"
 FIX_DIR="$(mktemp -d)"
 trap 'rm -rf "${FIX_DIR}"' EXIT
 
-mkdir -p "${FIX_DIR}/${WL}/routes" "${FIX_DIR}/${WL}/quadlets"
+mkdir -p "${FIX_DIR}/${WL}/quadlets"
+if [[ -n "${HOST}" ]]; then
+  mkdir -p "${FIX_DIR}/${WL}/routes"
+fi
 write_manifest() {
   local intent="$1"
   cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
@@ -22,17 +25,14 @@ write_manifest() {
 }
 EOF
 }
-cat >"${FIX_DIR}/${WL}/routes/http.conf" <<EOF
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${HOST};
-    location / {
-        return 200 "trash-probe\n";
-        add_header Content-Type text/plain;
-    }
+if [[ -n "${HOST}" ]]; then
+  cat >"${FIX_DIR}/${WL}/routes/${HOST}.conf" <<EOF
+location = /trash-probe {
+    default_type text/plain;
+    return 200 'trash-probe';
 }
 EOF
+fi
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
 [Unit]
 Description=Prefect Workload ${WL}
@@ -52,7 +52,6 @@ EOF
 want_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
 
-# Drop durable leftovers from prior Acceptance Runs for these names.
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
 set -euo pipefail
 rm -rf /var/lib/prefect/components_data/workloads/${WL} \
@@ -68,9 +67,13 @@ REMOTE
 write_manifest run
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${WL}/manifest.json"
 
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
-  "test -f /var/lib/prefect/components_data/edge/routes/${WL}--http.conf" \
-  || fail "Intent run should install operator Route ${WL}--http.conf"
+if [[ -n "${HOST}" ]]; then
+  ssh "${SSH_OPTS[@]}" "root@${IP}" \
+    "test -f /var/lib/prefect/components_data/edge/routes/${WL}--${HOST}.conf" \
+    || fail "Intent run should install operator Route ${WL}--${HOST}.conf"
+else
+  echo "SOFT-SKIP: empty Domain want-list — Route install assertions"
+fi
 ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "test -f /home/prefect/.config/containers/systemd/${WL}.container" \
   || fail "Intent run should install authored Quadlet"
@@ -80,8 +83,11 @@ write_manifest trash
 
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/workloads/${WL}/manifest.json" \
   || fail "Intent trash Workload data should remain until Purge"
-ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/workloads/${WL}/routes/http.conf" \
-  || fail "Intent trash should retain Route source-of-truth files under Workload tree until Purge"
+if [[ -n "${HOST}" ]]; then
+  ssh "${SSH_OPTS[@]}" "root@${IP}" \
+    "test -f /var/lib/prefect/components_data/workloads/${WL}/routes/${HOST}.conf" \
+    || fail "Intent trash should retain Route SoT under Workload tree until Purge"
+fi
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/workloads/${WL}/quadlets/${WL}.container" \
   || fail "Intent trash should retain Quadlet SoT until Purge"
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /home/prefect/.config/containers/systemd/${WL}.container" \
@@ -107,7 +113,6 @@ want_after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
   || fail "Intent trash must not rewrite ACME want-list"
 pass "Intent trash uninstalls Routes; stops Quadlets; data retained until Purge; want-list unchanged"
 
-# Another Workload can take Intent run (directory identity).
 mkdir -p "${FIX_DIR}/reclaim-intent"
 cat >"${FIX_DIR}/reclaim-intent/manifest.json" <<EOF
 {

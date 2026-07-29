@@ -31,21 +31,8 @@ chmod a+x "${SRC}/acme-run.sh"
 install -m 0644 "${SRC}/edge-acme.service" "${SYSTEMD_USER_DIR}/edge-acme.service"
 install -m 0644 "${SRC}/edge-acme.timer" "${SYSTEMD_USER_DIR}/edge-acme.timer"
 
-# Ensure stub only — never wipe other Route files (Workload Setup owns those).
-if [[ -f "${SRC}/routes/00-empty.conf" ]]; then
-  install -m 0644 "${SRC}/routes/00-empty.conf" "${ROUTES_DIR}/00-empty.conf"
-elif ! compgen -G "${ROUTES_DIR}/"*.conf >/dev/null; then
-  printf '%s\n' '# no Workload Routes yet' >"${ROUTES_DIR}/00-empty.conf"
-fi
-
-# Ensure Domain-front stub only — never wipe other Domain fronts.
-if [[ -f "${SRC}/domains/00-empty.conf" ]]; then
-  install -m 0644 "${SRC}/domains/00-empty.conf" "${DOMAINS_DIR}/00-empty.conf"
-elif ! compgen -G "${DOMAINS_DIR}/"*.conf >/dev/null; then
-  printf '%s\n' '# no Domain fronts yet' >"${DOMAINS_DIR}/00-empty.conf"
-fi
-
 # Placeholders before Domain fronts that reference those paths (ADR-0029).
+# Domain-front reconcile also drops legacy 00-empty include stubs (empty globs OK).
 edge_plant_placeholder_pems
 edge_reconcile_domain_fronts
 

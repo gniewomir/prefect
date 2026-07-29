@@ -17,6 +17,7 @@ DATA_ROOT=/var/lib/prefect/components_data
 EDGE_DATA="${DATA_ROOT}/edge"
 WORKLOADS_ROOT="${DATA_ROOT}/workloads"
 ROUTES_DIR="${EDGE_DATA}/routes"
+WANT_LIST="${EDGE_DATA}/acme/want-list"
 
 # shellcheck source=quadlet-user-session.sh
 source /var/lib/prefect/components/lib/quadlet-user-session.sh

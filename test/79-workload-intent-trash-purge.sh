@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Intent trash + Purge; Domain-scoped certs survive (#54 / ADR-0024)
+# Acceptance Test: Intent trash + Purge; Domain-scoped certs survive (ADR-0024 / ADR-0028)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -10,6 +10,8 @@ acceptance_ssh_opts
 
 FIX_DIR="$(mktemp -d)"
 trap 'rm -rf "${FIX_DIR}"' EXIT
+
+ROUTE_FQDN="$(acceptance_route_fqdn)"
 
 stage_wl() {
   local name="$1" intent="$2"
@@ -36,41 +38,27 @@ WantedBy=default.target
 EOF
 }
 
-plant_fixture_pem() {
-  local host="$1"
-  ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
-set -euo pipefail
-CERT_DIR=/var/lib/prefect/components_data/edge/certs/${host}
-mkdir -p "\${CERT_DIR}"
-openssl req -x509 -newkey rsa:2048 -nodes \
-  -keyout "\${CERT_DIR}/privkey.pem" \
-  -out "\${CERT_DIR}/fullchain.pem" \
-  -days 2 -subj "/CN=${host}" >/dev/null 2>&1
-chown -R prefect:prefect /var/lib/prefect/components_data/edge/certs
-REMOTE
+write_purge_route() {
+  mkdir -p "${FIX_DIR}/purge-me/routes"
+  if [[ -n "${ROUTE_FQDN}" ]]; then
+    cat >"${FIX_DIR}/purge-me/routes/${ROUTE_FQDN}.conf" <<EOF
+location = /purge-probe {
+    default_type text/plain;
+    return 200 'purge-probe';
 }
-
-HOST_A="trash-a.example.test"
-HOST_B="trash-b.example.test"
+EOF
+  fi
+}
 
 stage_wl trash-a run
 stage_wl reclaim-b run
 stage_wl keep-me stop
 stage_wl purge-me run
-mkdir -p "${FIX_DIR}/purge-me/routes"
-cat >"${FIX_DIR}/purge-me/routes/http.conf" <<EOF
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${HOST_B};
-    location / { return 200 "purge-probe\n"; add_header Content-Type text/plain; }
-}
-EOF
+write_purge_route
 
 want_before="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
 
-# Drop leftover Workload trees and pre-ADR-0024 invented units for these fixtures.
 ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<'REMOTE'
 set -euo pipefail
 for n in trash-a reclaim-b keep-me purge-me; do
@@ -81,9 +69,9 @@ for n in trash-a reclaim-b keep-me purge-me; do
 done
 REMOTE
 
-# Prior runs leave durable Host Volume state — reset these fixtures first.
 for name in trash-a keep-me purge-me; do
   stage_wl "${name}" trash
+  write_purge_route
   "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/${name}/manifest.json" 2>/dev/null || true
 done
 "${REPO_ROOT}/prefect/purge-workloads.sh" --env "${PREFECT_ENV:-test}"
@@ -107,38 +95,39 @@ pass "Intent run Workload Setup does not depend on hostname claims"
 stage_wl keep-me stop
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/keep-me/manifest.json"
 stage_wl purge-me run
-mkdir -p "${FIX_DIR}/purge-me/routes"
-cat >"${FIX_DIR}/purge-me/routes/http.conf" <<EOF
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${HOST_B};
-    location / { return 200 "purge-probe\n"; add_header Content-Type text/plain; }
-}
-EOF
+write_purge_route
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/purge-me/manifest.json"
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
-  "test -f /var/lib/prefect/components_data/edge/routes/purge-me--http.conf" \
-  || fail "Intent run should install operator Route purge-me--http.conf"
-plant_fixture_pem "${HOST_B}"
-plant_fixture_pem "${HOST_A}"
+
+ROUTE_INSTALLED_NAME=""
+if [[ -n "${ROUTE_FQDN}" ]]; then
+  ROUTE_INSTALLED_NAME="purge-me--${ROUTE_FQDN}.conf"
+  ssh "${SSH_OPTS[@]}" "root@${IP}" \
+    "test -f /var/lib/prefect/components_data/edge/routes/${ROUTE_INSTALLED_NAME}" \
+    || fail "Intent run should install operator Route ${ROUTE_INSTALLED_NAME}"
+  pass "Intent run installs purge-me Route fragment"
+else
+  echo "SOFT-SKIP: empty Domain want-list — Route install/Purge Route assertions"
+fi
+
+# Snapshot Domain-front PEMs (want-list name) — Purge must not delete them.
+CERT_FQDN="${ROUTE_FQDN}"
+if [[ -z "${CERT_FQDN}" ]]; then
+  CERT_FQDN="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
+    "ls -1 /var/lib/prefect/components_data/edge/certs 2>/dev/null | head -1" || true)"
+fi
+
 stage_wl purge-me trash
-mkdir -p "${FIX_DIR}/purge-me/routes"
-cat >"${FIX_DIR}/purge-me/routes/http.conf" <<EOF
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${HOST_B};
-    location / { return 200 "purge-probe\n"; add_header Content-Type text/plain; }
-}
-EOF
+write_purge_route
 "${REPO_ROOT}/prefect/workload-setup.sh" --env "${PREFECT_ENV:-test}" "${FIX_DIR}/purge-me/manifest.json"
-# Intent trash Setup already uninstalls Routes; plant a leftover so Purge must clear it.
-ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
+
+if [[ -n "${ROUTE_FQDN}" ]]; then
+  ssh "${SSH_OPTS[@]}" "root@${IP}" bash -s <<REMOTE
 set -euo pipefail
-printf '%s\n' 'leftover-route' > /var/lib/prefect/components_data/edge/routes/purge-me--http.conf
-chown prefect:prefect /var/lib/prefect/components_data/edge/routes/purge-me--http.conf
+printf '%s\n' 'leftover-route' > /var/lib/prefect/components_data/edge/routes/purge-me--${ROUTE_FQDN}.conf
+chown prefect:prefect /var/lib/prefect/components_data/edge/routes/purge-me--${ROUTE_FQDN}.conf
 REMOTE
+fi
+
 "${REPO_ROOT}/prefect/purge-workloads.sh" --env "${PREFECT_ENV:-test}"
 
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test ! -e /var/lib/prefect/components_data/workloads/purge-me" \
@@ -155,15 +144,13 @@ ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/work
   || fail "Purge must not touch Intent stop keep-me"
 ssh "${SSH_OPTS[@]}" "root@${IP}" "test -f /var/lib/prefect/components_data/workloads/reclaim-b/manifest.json" \
   || fail "Purge must not touch Intent run reclaim-b"
-# Domain-scoped certificate material survives Purge (ADR-0022 / #54).
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
-  "test -f /var/lib/prefect/components_data/edge/certs/${HOST_B}/fullchain.pem \
-   && test -f /var/lib/prefect/components_data/edge/certs/${HOST_B}/privkey.pem" \
-  || fail "Purge must keep Domain-scoped certificates for ${HOST_B}"
-ssh "${SSH_OPTS[@]}" "root@${IP}" \
-  "test -f /var/lib/prefect/components_data/edge/certs/${HOST_A}/fullchain.pem \
-   && test -f /var/lib/prefect/components_data/edge/certs/${HOST_A}/privkey.pem" \
-  || fail "Purge must keep Domain-scoped certificates for ${HOST_A}"
+
+if [[ -n "${CERT_FQDN}" ]]; then
+  ssh "${SSH_OPTS[@]}" "root@${IP}" \
+    "test -f /var/lib/prefect/components_data/edge/certs/${CERT_FQDN}/fullchain.pem \
+     && test -f /var/lib/prefect/components_data/edge/certs/${CERT_FQDN}/privkey.pem" \
+    || fail "Purge must keep Domain-scoped certificates for ${CERT_FQDN}"
+fi
 want_after="$(ssh "${SSH_OPTS[@]}" "root@${IP}" \
   "cat /var/lib/prefect/components_data/edge/acme/want-list 2>/dev/null || true")"
 [[ "${want_after}" == "${want_before}" ]] \
