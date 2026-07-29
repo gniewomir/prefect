@@ -1,6 +1,6 @@
 # Prefect
 
-Prefect owns a reusable Host carrier and a thin Workload contract so a solo operator can ship many small projects, experiments, and MVPs without repeating platform work, paying for managed infrastructure too early, or becoming dependent on a PaaS that is costly to leave. It removes unproductive friction (platform TLS, repeated provisioning) and keeps productive friction (declaring how containers run). Host capacity changes should remain routine and low-disruption; scale vertically while the shared Host remains sufficient, then graduate a Workload to dedicated infrastructure.
+Prefect owns reusable Hosts and a thin Workload contract so a solo operator can ship many small projects, experiments, and MVPs without repeating platform work, paying for managed infrastructure too early, or becoming dependent on a PaaS that is costly to leave. It removes unproductive friction (platform TLS, repeated provisioning) and keeps productive friction (declaring how containers run). Host capacity changes should remain routine and low-disruption; scale vertically while the shared Host remains sufficient, then graduate a Workload to dedicated infrastructure.
 
 ## Language
 
@@ -41,15 +41,15 @@ The provider distribution image the Stack pins for a Host (today: Ubuntu 26.04 x
 _Avoid_: Droplet image, OS slug, AMI (when you mean this concept)
 
 **Initial Host Provisioning**:
-One-shot Host setup applied when the Host is created (delivered via the provider’s user-data / cloud-init). Prepares the Host as a carrier for Components (engine, Prefect User, SSH listen port, port floor, Host Volume mount) but does not run Component Setup and does not install Workloads. Not ongoing Host management and not Stack Bootstrap.
+One-shot Host setup applied when the Host is created (delivered via the provider’s user-data / cloud-init). Prepares the Host for Components (engine, Platform User, SSH listen port, port floor, Host Volume mount) but does not run Component Setup and does not install Workloads. Not ongoing Host management and not Stack Bootstrap.
 _Avoid_: User Data, cloud-init, userdata (when you mean this concept); provisioning (bare — ambiguous with Stack apply)
 
-**Carrier ready**:
-Host-local gate: wait until Initial Host Provisioning outcomes required for Component Setup hold on a public Host (IHP finished, port floor 80, Prefect User present, Host Volume mounted at `/var/lib/prefect`). Used by ensure-components and Acceptance Tests before asserting finer capability slices. Delivery mechanics (cloud-init) stay inside the gate’s implementation.
-_Avoid_: cloud-init ready, provisioned (bare), ready (bare)
+**Initial Host Provisioning Done** (alias **IHP Done**):
+Host-local gate: the Initial Host Provisioning contract outcomes required before Component Setup hold on a public Host (IHP finished, port floor 80, Platform User present, Host Volume mounted). Names what completed, not the next consumer. Used by ensure-components and Acceptance Tests before asserting finer capability slices. Delivery mechanics (cloud-init) stay inside the gate’s implementation.
+_Avoid_: Carrier ready, cloud-init ready, Component Setup ready, Component Setup Done, provisioned (bare), ready (bare)
 
 **Host diagnostics**:
-An operator pull of Host-local diagnostic artifacts for an Environment (named bundles of files and small command snapshots) for local inspection. Not Carrier ready, not an Acceptance Test, and not ongoing Host management.
+An operator pull of Host-local diagnostic artifacts for an Environment (named bundles of files and small command snapshots) for local inspection. Not IHP Done, not an Acceptance Test, and not ongoing Host management.
 _Avoid_: logs (bare), cloud-init logs (when you mean this operator capability); debug dump, support bundle (when you mean this Prefect operation)
 
 **Reserved IP**:
@@ -61,7 +61,7 @@ The Stack-managed DNS Durable for an Environment: the provider zone and the Stac
 _Avoid_: DNS zone, zone file, domain name (bare), subdomain (when you mean this Durable or part of it); Workload-owned certificate; Manifest hostname claim
 
 **Host Volume**:
-A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds and Park (Teardown removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Domain fronts, Workload Routes, certificates, and ACME HTTP-01 webroot, and later other Prefect/Workload paths) is owned by the Prefect User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Prefect User’s home. Not per-Workload volumes.
+A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds and Park (Teardown removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Domain fronts, Workload Routes, certificates, and ACME HTTP-01 webroot, and later other platform/Workload paths) is owned by the Platform User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Platform User’s home. Not per-Workload volumes.
 _Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Prefect resource)
 
 **Firewall**:
@@ -121,15 +121,15 @@ Permanently remove every resource the Stack currently manages, including Durable
 _Avoid_: Destroy, wipe, delete resources, terraform destroy (when you mean this full removal); Purge (Workload-only)
 
 **Component**:
-An installable unit of Prefect’s mandatory Host shape, owned as a directory under `prefect/` with its own idempotent Component Setup. Today’s Components are the Service Network and the Edge. Workloads are not Components.
+An installable unit of Prefect’s mandatory Host shape, owned as its own source tree with an idempotent Component Setup. Today’s Components are the Service Network and the Edge. Workloads are not Components.
 _Avoid_: Package, unit, service, module (when you mean this installable Prefect piece)
 
 **Component Setup**:
-The idempotent, declarative Host-side application of one Component’s desired state. After a successful Component Setup, that Component is in the correct state. Reads that Component’s source tree from the Host Volume (and may source shared Host-local helpers from `/var/lib/prefect/components/lib/`); runs on the Host only; does not discover the Stack, SSH, or copy itself onto the Host. Used for first bring-up after Initial Host Provisioning and for later re-runs without Host recreation.
+The idempotent, declarative Host-side application of one Component’s desired state. After a successful Component Setup, that Component is in the correct state. Reads that Component’s source tree from the Host Volume (and may source shared Host-local helpers from the components lib on that volume); runs on the Host only; does not discover the Stack, SSH, or copy itself onto the Host. Used for first bring-up after Initial Host Provisioning and for later re-runs without Host recreation.
 _Avoid_: Setup (bare), install, deploy, provision, Workload Setup (when you mean this Component action)
 
 **Workload Setup**:
-The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest: sync operator-authored Quadlets from the Workload definition tree’s `quadlets/` into the Prefect User unit directory under their authored basenames and apply them per Intent (**run** reconciles install/start and drops units removed from SoT; **stop** / **trash** stop those units — unit files retained until Purge), and reconcile of that Workload’s operator-authored Routes into the Edge routes directory for Domain fronts to include (**run** installs; **stop** / **trash** removes that Workload’s installed Routes) with an Edge reload when the installed set changes. Missing or empty `quadlets/` or `routes/` is valid (zero of either). Refuses to overwrite a unit basename already present in the unit directory unless this Workload’s stored `quadlets/` already owns it. Does not generate Route or Quadlet content from the Manifest; does not write Domain fronts. Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
+The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest: sync operator-authored Quadlets from the Workload definition tree’s `quadlets/` into the Platform User unit directory under their authored basenames and apply them per Intent (**run** reconciles install/start and drops units removed from SoT; **stop** / **trash** stop those units — unit files retained until Purge), and reconcile of that Workload’s operator-authored Routes into the Edge routes directory for Domain fronts to include (**run** installs; **stop** / **trash** removes that Workload’s installed Routes) with an Edge reload when the installed set changes. Missing or empty `quadlets/` or `routes/` is valid (zero of either). Refuses to overwrite a unit basename already present in the unit directory unless this Workload’s stored `quadlets/` already owns it. Does not generate Route or Quadlet content from the Manifest; does not write Domain fronts. Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
 _Avoid_: Setup (bare), Component Setup, install, deploy, Purge (when you mean this Workload action)
 
 **Edge**:
@@ -153,7 +153,7 @@ The Manifest’s post–Workload Setup expectation — what must be true after S
 _Avoid_: Workload Desired State, desired state, running, stopped, trashed, active, disabled, remove, status, phase, current state (when you mean this Manifest field)
 
 **Purge**:
-The operation that permanently removes every Workload whose Intent is **trash** and its Workload-associated data (that Workload’s installed Routes, Host Volume Workload tree including stored `routes/` and `quadlets/` SoT, and Prefect User unit files whose basenames appear in that Workload’s `quadlets/`). Does not delete Domains or Domain-scoped certificate material. Does not affect Workloads whose Intent is **run** or **stop**.
+The operation that permanently removes every Workload whose Intent is **trash** and its Workload-associated data (that Workload’s installed Routes, Host Volume Workload tree including stored `routes/` and `quadlets/` SoT, and Platform User unit files whose basenames appear in that Workload’s `quadlets/`). Does not delete Domains or Domain-scoped certificate material. Does not affect Workloads whose Intent is **run** or **stop**.
 _Avoid_: Teardown (Stack-level), Destroy, delete, cleanup, gc (when you mean this Workload operation)
 
 **Service Network**:
@@ -164,6 +164,6 @@ _Avoid_: Podman network, bridge, CNI (implementation); network (bare — ambiguo
 Operator-authored Edge config (native format, server-context only) whose source of truth is `workloads/<name>/routes/` on the Host Volume. Basename is the FQDN of the Domain front it attaches to (`<fqdn>.conf`); Workload Setup installs it as `<name>--<fqdn>.conf` into the Edge routes directory for that Domain front to include (**run** only; **stop** / **trash** remove that Workload’s installed files). Basename must match a want-list FQDN or Setup fails closed. Missing `routes/` is valid (zero Routes). Not a full TLS `server` block, not projected from the Manifest, and not a hostname claim field — the FQDN is the filename. Edge ACME does not generate or mutate Routes; Domain fronts remain Edge-owned; Workload Routes must not be cleared by Component Setup.
 _Avoid_: Vhost, upstream, location block, snippet, server block (when you mean this Workload attachment); Domain front; projected Route, generated shell, interior (removed Prefect Route features)
 
-**Prefect User**:
-The Host login account that runs Prefect’s rootless user Quadlets (linger enabled so user systemd stays up without an interactive session). Created by Initial Host Provisioning on public Hosts — account and linger only, not Quadlet units.
-_Avoid_: edge user, podman user, service account (when you mean this Host account)
+**Platform User**:
+The Host login account that runs the platform’s rootless user Quadlets (linger enabled so user systemd stays up without an interactive session). Created by Initial Host Provisioning on public Hosts — account and linger only, not Quadlet units. Unix account name: `platform`.
+_Avoid_: Prefect User, prefect (user), edge user, podman user, service account (when you mean this Host account)
