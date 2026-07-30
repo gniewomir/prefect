@@ -32,6 +32,10 @@ _Avoid_: Backend, tfstate (implementation jargon for the concept itself)
 A secret used to authenticate to a cloud provider. Supplied via the environment (never committed); for DigitalOcean that is the API token in `DIGITALOCEAN_TOKEN`.
 _Avoid_: Key, secret, password (when you mean the provider API token)
 
+**Environment Configuration**:
+The Environment-scoped bag of non-committed key/value pairs the operator supplies for Setup to resolve into Platform User installed units (Workloads and Components) — baseline from gitignored `environments/<slug>/.env` when present, current shell overriding any key, missing required keys fail closed. Distinct from Stack/Terraform configuration under that Environment directory, from the process environment as a concept, and from provider **Credential**.
+_Avoid_: Environment (the Prefect instance); Stack configuration / Terraform config (when you mean files under `environments/<slug>/` other than this bag); environment / env / environment variable (process/shell, when you mean this bag); Operator Configuration (operator-machine vars for Prefect tooling); Credential; secrets (when you mean the whole bag); dotenv / `.env` (when you mean the bag, not the file)
+
 **Host**:
 A virtual machine managed by a Stack. The first Host in this Stack is a public web host (HTTP/HTTPS plus SSH).
 _Avoid_: Droplet, instance, VM, box, server (when you mean this compute resource)
