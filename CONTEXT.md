@@ -121,15 +121,15 @@ Permanently remove every resource the Stack currently manages, including Durable
 _Avoid_: Destroy, wipe, delete resources, terraform destroy (when you mean this full removal); Purge (Workload-only)
 
 **Component**:
-An installable unit of Prefect’s mandatory Host shape, owned as its own source tree with an idempotent Component Setup. Today’s Components are the Service Network and the Edge. Workloads are not Components.
+An installable unit of Prefect’s mandatory Host shape, owned as its own source tree with an idempotent Component Setup. Today’s Components are the Service Network and the Edge. Workloads are not Components. Component unit trees keep **shape parity** with Workloads (`quadlets/` + `systemd/` by consumer) but have no Manifest — the platform owns Component lifecycle.
 _Avoid_: Package, unit, service, module (when you mean this installable Prefect piece)
 
 **Component Setup**:
-The idempotent, declarative Host-side application of one Component’s desired state. After a successful Component Setup, that Component is in the correct state. Reads that Component’s source tree from the Host Volume (and may source shared Host-local helpers from the components lib on that volume); runs on the Host only; does not discover the Stack, SSH, or copy itself onto the Host. Used for first bring-up after Initial Host Provisioning and for later re-runs without Host recreation.
+The idempotent, declarative Host-side application of one Component’s desired state. After a successful Component Setup, that Component is in the correct state. Reads that Component’s source tree from the Host Volume (and may source shared Host-local helpers from the components lib on that volume); runs on the Host only; does not discover the Stack, SSH, or copy itself onto the Host. Used for first bring-up after Initial Host Provisioning and for later re-runs without Host recreation. Installs authored `quadlets/` into the Platform User Quadlet directory and authored `systemd/` into the Platform User native systemd directory (same consumer split as Workload Setup).
 _Avoid_: Setup (bare), install, deploy, provision, Workload Setup (when you mean this Component action)
 
 **Workload Setup**:
-The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest: sync operator-authored Quadlets from the Workload definition tree’s `quadlets/` into the Platform User unit directory under their authored basenames and apply them per Intent (**run** reconciles install, starts Always-on units, Arms On-demand units, and drops units removed from SoT; **stop** / **trash** stop Always-on and Disarm On-demand — unit files retained until Purge), and reconcile of that Workload’s operator-authored Routes into the Edge routes directory for Domain fronts to include (**run** installs; **stop** / **trash** removes that Workload’s installed Routes) with an Edge reload when the installed set changes. Missing or empty `quadlets/` or `routes/` is valid (zero of either). Refuses to overwrite a unit basename already present in the unit directory unless this Workload’s stored `quadlets/` already owns it. Does not generate Route or Quadlet content from the Manifest; does not write Domain fronts. Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
+The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest: sync operator-authored units from the Workload definition tree’s `quadlets/` and `systemd/` into the matching Platform User directories under their authored basenames (`quadlets/` → `~/.config/containers/systemd`; `systemd/` → `~/.config/systemd/user`) and apply them per Intent (**run** reconciles install, starts Always-on units, Arms On-demand units, ensures Ensure units, and drops units removed from SoT; **stop** / **trash** stop Always-on, Disarm On-demand, and leave Ensure resources in place — unit files retained until Purge), and reconcile of that Workload’s operator-authored Routes into the Edge routes directory for Domain fronts to include (**run** installs; **stop** / **trash** removes that Workload’s installed Routes) with an Edge reload when the installed set changes. Missing or empty `quadlets/`, `systemd/`, or `routes/` is valid (zero of that kind). Basename ownership spans both Host unit directories; refuses to overwrite a basename already present unless this Workload’s stored SoT already owns it; fails closed if a file is authored in the wrong consumer directory. Does not generate Route or unit content from the Manifest; does not write Domain fronts. Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
 _Avoid_: Setup (bare), Component Setup, install, deploy, Purge (when you mean this Workload action)
 
 **Edge**:
@@ -145,36 +145,44 @@ An optional containerized service that runs on a Host. Identified by the basenam
 _Avoid_: App, service, container, backend (when you mean this concept)
 
 **Workload Manifest**:
-A Workload-owned declaration that is the source of truth for that Workload’s Intent (**run**, **stop**, or **trash**), with an optional human-only `description` ignored by all automation. It does not name the Workload, claim DNS names, feed ACME, or carry runtime/Quadlet config; operator-authored Routes and Quadlets live in the Workload definition tree alongside the Manifest (`routes/` and `quadlets/` siblings).
+A Workload-owned declaration that is the source of truth for that Workload’s Intent (**run**, **stop**, or **trash**), with an optional human-only `description` ignored by all automation. It does not name the Workload, claim DNS names, feed ACME, or carry runtime/unit config; operator-authored Routes and units live in the Workload definition tree alongside the Manifest (`routes/`, `quadlets/`, and `systemd/` siblings).
 _Avoid_: Manifest (bare), spec, compose file, workload config (when you mean this declaration)
 
 **Workload Intent**:
-The Manifest’s post–Workload Setup expectation — what must be true after Setup succeeds; never Host status or a report of what is currently on the server. Applies to the whole Workload-owned `quadlets/` set and that Workload’s Routes. **run** (Always-on Quadlets started; On-demand Quadlets Armed; operator-authored Routes installed for Domain fronts to include when present — zero Route files is valid; HTTP semantics are whatever those fragments declare inside the Domain front, not Prefect-generated shells; reachability is not a Setup success criterion), **stop** (Always-on stopped; On-demand Disarmed; that Workload’s Routes are not installed, so the Domain front serves only its Edge baseline — today `/healthcheck` and miss behaviour as configured there — not a Prefect-managed 503), or **trash** (same unit expectation as **stop**; eligible for Purge; associated Workload data retained until Purge).
+The Manifest’s post–Workload Setup expectation — what must be true after Setup succeeds; never Host status or a report of what is currently on the server. Applies to the whole Workload-owned unit set (`quadlets/` + `systemd/`) and that Workload’s Routes. **run** (Always-on units started; On-demand units Armed; Ensure units ensured; operator-authored Routes installed for Domain fronts to include when present — zero Route files is valid; HTTP semantics are whatever those fragments declare inside the Domain front, not Prefect-generated shells; reachability is not a Setup success criterion), **stop** (Always-on stopped; On-demand Disarmed; Ensure resources left in place; that Workload’s Routes are not installed, so the Domain front serves only its Edge baseline — today `/healthcheck` and miss behaviour as configured there — not a Prefect-managed 503), or **trash** (same unit expectation as **stop**; eligible for Purge; associated Workload data retained until Purge).
 _Avoid_: Workload Desired State, desired state, running, stopped, trashed, active, disabled, remove, status, phase, current state (when you mean this Manifest field)
 
 **Always-on**:
-A Workload Quadlet unit kind expected to stay started while Intent is **run** (typically `.pod` / `.container`).
+A Workload unit kind expected to stay started while Intent is **run** (`.pod`, long-running `.container` / `.kube`). Classified by authored file kind; a `.container` with `StartWithPod=false` is On-demand, not Always-on.
 _Avoid_: long-running, daemon, continuous (when you mean this kind)
 
 **On-demand**:
-A Workload Quadlet unit kind expected to fire on a condition while Intent is **run**, not to stay continuously executing (typically timers and oneshot services). systemd `Type=oneshot` is an implementation detail of some On-demand units, not the domain term.
+A Workload unit kind expected to fire on a condition while Intent is **run**, not to stay continuously executing (native `.timer` / oneshot `.service` under `systemd/`; job `.container` with `StartWithPod=false` under `quadlets/`). Supported timer-job pattern uses `StartWithPod=false` — not an Always-on member left dead in the pod. systemd `Type=oneshot` is an implementation detail of some On-demand units, not the domain term.
 _Avoid_: oneshot (when you mean this kind), scheduled job, triggered job
 
+**Ensure**:
+A Workload Quadlet unit kind expected to exist as a provisioned resource while Intent is **run** (`.volume`, `.network`, `.image`, `.build`, `.artifact`) — create/pull/build once; not left as a long-running process. **stop** / **trash** do not tear the resource down; unit files remain until Purge.
+_Avoid_: On-install, provision, oneshot (when you mean this kind)
+
 **Armed**:
-The Intent-**run** expectation for an On-demand unit: installed and enabled so its condition can fire.
+The Intent-**run** expectation for an On-demand unit: installed and enabled so its condition can fire; job payloads installed but not started by Workload Setup.
 _Avoid_: enabled, active, started (when you mean this expectation)
 
 **Disarmed**:
-The Intent-**stop** / **trash** expectation for an On-demand unit: not enabled to fire.
+The Intent-**stop** / **trash** expectation for an On-demand unit: not enabled to fire; any in-flight job instance stopped.
 _Avoid_: disabled, stopped, inactive (when you mean this expectation)
 
 **Purge**:
-The operation that permanently removes every Workload whose Intent is **trash** and its Workload-associated data (that Workload’s installed Routes, Host Volume Workload tree including stored `routes/` and `quadlets/` SoT, and Platform User unit files whose basenames appear in that Workload’s `quadlets/`). Does not delete Domains or Domain-scoped certificate material. Does not affect Workloads whose Intent is **run** or **stop**.
+The operation that permanently removes every Workload whose Intent is **trash** and its Workload-associated data (that Workload’s installed Routes, Host Volume Workload tree including stored `routes/`, `quadlets/`, and `systemd/` SoT, and Platform User unit files whose basenames appear in that Workload’s `quadlets/` or `systemd/`, from both Host unit directories). Does not delete Domains or Domain-scoped certificate material. Does not affect Workloads whose Intent is **run** or **stop**.
 _Avoid_: Teardown (Stack-level), Destroy, delete, cleanup, gc (when you mean this Workload operation)
 
 **Service Network**:
 The private container network on a Host that the Edge and Workloads join so they can reach each other by name. Owned by Prefect as its own Component (not by the Edge). Distinct from the provider Firewall.
 _Avoid_: Podman network, bridge, CNI (implementation); network (bare — ambiguous with Firewall / provider networking)
+
+**Escape Hatch**:
+An operator-owned deviation from a soft Workload interaction convention that remains possible on the Host but is unsupported: Prefect does not teach, scaffold, or Acceptance-test it, and ownership/Setup/Purge stay on the default contract. Not a supported alternate pattern, not a way around a hard Host-shape floor, and not a compatibility promise if soft conventions later gain optional enforcement.
+_Avoid_: workaround, exception, override, unsupported pattern (when you mean this named stance); supported deviation, documented alternate (those imply Prefect owns the pattern)
 
 **Route**:
 Operator-authored Edge config (native format, server-context only) whose source of truth is `workloads/<name>/routes/` on the Host Volume. Basename is the FQDN of the Domain front it attaches to (`<fqdn>.conf`); Workload Setup installs it as `<name>--<fqdn>.conf` into the Edge routes directory for that Domain front to include (**run** only; **stop** / **trash** remove that Workload’s installed files). Basename must match a want-list FQDN or Setup fails closed. Missing `routes/` is valid (zero Routes). Not a full TLS `server` block, not projected from the Manifest, and not a hostname claim field — the FQDN is the filename. Edge ACME does not generate or mutate Routes; Domain fronts remain Edge-owned; Workload Routes must not be cleared by Component Setup.
