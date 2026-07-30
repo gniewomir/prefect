@@ -61,7 +61,7 @@ The Stack-managed DNS Durable for an Environment: the provider zone and the Stac
 _Avoid_: DNS zone, zone file, domain name (bare), subdomain (when you mean this Durable or part of it); Workload-owned certificate; Manifest hostname claim
 
 **Host Volume**:
-A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds and Park (Teardown removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Domain fronts, Workload Routes, certificates, and ACME HTTP-01 webroot, and later other platform/Workload paths) is owned by the Platform User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Platform User’s home. Not per-Workload volumes.
+A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds and Park (Teardown removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Domain fronts, Workload Routes, certificates, and ACME HTTP-01 webroot, and each Workload’s ownership tree) is owned by the Platform User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Platform User’s home. One Host Volume per Host — not a separate volume resource per Workload; Workloads own trees under it.
 _Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Prefect resource)
 
 **Firewall**:
@@ -141,7 +141,7 @@ Edge-owned per-FQDN drop-in for one want-list name: the HTTPS `server` that term
 _Avoid_: Domain Route, Edge Route, vhost (when you mean this Edge-owned front); Workload Route
 
 **Workload** (alias **workflow**):
-An optional containerized service that runs on a Host. Identified by the basename of its Workload definition tree (the directory that holds the Manifest), not by a Manifest field. Not part of Prefect’s mandatory Host shape, not a Component, and never installed during Initial Host Provisioning; typically reached only via the Edge, not by publishing 80/443 itself. **Workload** is canonical in docs and code; **workflow** is an accepted conversational alias for the same concept.
+An optional containerized service that runs on a Host. Identified by the basename of its Workload definition tree (the directory that holds the Manifest), not by a Manifest field. Owns that tree’s unit set (`quadlets/` + `systemd/`) and one Host Volume ownership tree for that basename; its canonical Service Network hostname is that basename. Not part of Prefect’s mandatory Host shape, not a Component, and never installed during Initial Host Provisioning; typically reached only via the Edge, not by publishing 80/443 itself. **Workload** is canonical in docs and code; **workflow** is an accepted conversational alias for the same concept.
 _Avoid_: App, service, container, backend (when you mean this concept)
 
 **Workload Manifest**:
