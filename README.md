@@ -1,6 +1,6 @@
 # Prefect
 
-Reproducible Environments on a vertically scaled cloud Host — Podman pods and containers as first-class citizens, but without full orchestration. Ready to graduate to dedicated infrastructure with thin adaptation.
+Reproducible Environments on a vertically scaled cloud Hosts — Podman pods and containers as first-class citizens, without full orchestration. Ready to graduate to dedicated infrastructure with thin adaptation.
 
 Domain language: [`CONTEXT.md`](CONTEXT.md). Decisions: [`docs/adr/`](docs/adr/).
 
