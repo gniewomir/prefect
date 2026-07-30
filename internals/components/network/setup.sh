@@ -11,7 +11,7 @@ source "${SRC}/../lib/quadlet-user-session.sh"
 
 quadlet_user_session_begin
 
-install -m 0644 "${SRC}/service-network.network" "${UNIT_DIR}/service-network.network"
+install -m 0644 "${SRC}/quadlets/service-network.network" "${UNIT_DIR}/service-network.network"
 chown -R "${USER_NAME}:${USER_NAME}" "${HOME_DIR}/.config"
 
 quadlet_user_session_reload

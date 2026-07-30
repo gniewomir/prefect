@@ -44,9 +44,17 @@ fi
 must_be_dir "${COMPONENTS_ROOT}/network"
 must_be_dir "${COMPONENTS_ROOT}/edge"
 must_be_dir "${COMPONENTS_ROOT}/lib"
+must_be_dir "${COMPONENTS_ROOT}/network/quadlets"
+must_be_dir "${COMPONENTS_ROOT}/edge/quadlets"
+must_be_dir "${COMPONENTS_ROOT}/edge/systemd"
 must_be_file "${COMPONENTS_ROOT}/edge/nginx.conf"
 must_be_file "${COMPONENTS_ROOT}/network/setup.sh"
 must_be_file "${COMPONENTS_ROOT}/edge/setup.sh"
+must_be_file "${COMPONENTS_ROOT}/network/quadlets/service-network.network"
+must_be_file "${COMPONENTS_ROOT}/edge/quadlets/edge.pod"
+must_be_file "${COMPONENTS_ROOT}/edge/quadlets/edge-nginx.container"
+must_be_file "${COMPONENTS_ROOT}/edge/systemd/edge-acme.service"
+must_be_file "${COMPONENTS_ROOT}/edge/systemd/edge-acme.timer"
 must_be_file "${COMPONENTS_ROOT}/lib/quadlet-user-session.sh"
 must_be_file "${COMPONENTS_ROOT}/lib/edge-routes-host.sh"
 must_be_file "${COMPONENTS_ROOT}/lib/edge-want-list-host.sh"
@@ -67,7 +75,10 @@ must_not_exist "${COMPONENTS_ROOT}/edge/acme"
 for path in \
   "${COMPONENTS_ROOT}" \
   "${COMPONENTS_ROOT}/network" \
+  "${COMPONENTS_ROOT}/network/quadlets" \
   "${COMPONENTS_ROOT}/edge" \
+  "${COMPONENTS_ROOT}/edge/quadlets" \
+  "${COMPONENTS_ROOT}/edge/systemd" \
   "${COMPONENTS_ROOT}/lib" \
   "${DATA_ROOT}" \
   "${DATA_ROOT}/edge" \

@@ -25,11 +25,11 @@ mkdir -p "${SYSTEMD_USER_DIR}"
 mkdir -p "${ROUTES_DIR}" "${DOMAINS_DIR}" "${CERTS_DIR}" "${ACME_WWW}" "${ACME_DIR}"
 [[ -f "${WANT_LIST}" ]] || : >"${WANT_LIST}"
 
-install -m 0644 "${SRC}/edge.pod" "${UNIT_DIR}/edge.pod"
-install -m 0644 "${SRC}/edge-nginx.container" "${UNIT_DIR}/edge-nginx.container"
+install -m 0644 "${SRC}/quadlets/edge.pod" "${UNIT_DIR}/edge.pod"
+install -m 0644 "${SRC}/quadlets/edge-nginx.container" "${UNIT_DIR}/edge-nginx.container"
 chmod a+x "${SRC}/acme-run.sh"
-install -m 0644 "${SRC}/edge-acme.service" "${SYSTEMD_USER_DIR}/edge-acme.service"
-install -m 0644 "${SRC}/edge-acme.timer" "${SYSTEMD_USER_DIR}/edge-acme.timer"
+install -m 0644 "${SRC}/systemd/edge-acme.service" "${SYSTEMD_USER_DIR}/edge-acme.service"
+install -m 0644 "${SRC}/systemd/edge-acme.timer" "${SYSTEMD_USER_DIR}/edge-acme.timer"
 
 # Placeholders before Domain fronts that reference those paths (ADR-0029).
 # Domain-front reconcile also drops legacy 00-empty include stubs (empty globs OK).
