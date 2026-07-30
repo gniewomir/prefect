@@ -1,0 +1,4 @@
+{
+  "intent": "run",
+  "description": "Minimal Always-on one-pod default (ADR-0034 soft conventions)."
+}

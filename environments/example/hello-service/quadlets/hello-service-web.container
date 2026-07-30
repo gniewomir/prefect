@@ -1,0 +1,14 @@
+[Unit]
+Description=Prefect example hello-service web
+
+[Container]
+Image=docker.io/library/nginx:alpine
+ContainerName=hello-service-web
+Pod=hello-service.pod
+Volume=/var/lib/host-volume/components_data/workloads/hello-service:/var/lib/workload:rw
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
