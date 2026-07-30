@@ -129,7 +129,7 @@ The idempotent, declarative Host-side application of one Component’s desired s
 _Avoid_: Setup (bare), install, deploy, provision, Workload Setup (when you mean this Component action)
 
 **Workload Setup**:
-The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest: sync operator-authored Quadlets from the Workload definition tree’s `quadlets/` into the Platform User unit directory under their authored basenames and apply them per Intent (**run** reconciles install/start and drops units removed from SoT; **stop** / **trash** stop those units — unit files retained until Purge), and reconcile of that Workload’s operator-authored Routes into the Edge routes directory for Domain fronts to include (**run** installs; **stop** / **trash** removes that Workload’s installed Routes) with an Edge reload when the installed set changes. Missing or empty `quadlets/` or `routes/` is valid (zero of either). Refuses to overwrite a unit basename already present in the unit directory unless this Workload’s stored `quadlets/` already owns it. Does not generate Route or Quadlet content from the Manifest; does not write Domain fronts. Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
+The idempotent, declarative Host-side application of one Workload’s Intent from its Manifest: sync operator-authored Quadlets from the Workload definition tree’s `quadlets/` into the Platform User unit directory under their authored basenames and apply them per Intent (**run** reconciles install, starts Always-on units, Arms On-demand units, and drops units removed from SoT; **stop** / **trash** stop Always-on and Disarm On-demand — unit files retained until Purge), and reconcile of that Workload’s operator-authored Routes into the Edge routes directory for Domain fronts to include (**run** installs; **stop** / **trash** removes that Workload’s installed Routes) with an Edge reload when the installed set changes. Missing or empty `quadlets/` or `routes/` is valid (zero of either). Refuses to overwrite a unit basename already present in the unit directory unless this Workload’s stored `quadlets/` already owns it. Does not generate Route or Quadlet content from the Manifest; does not write Domain fronts. Distinct from Component Setup; not part of ensuring Components. Distinct from Purge.
 _Avoid_: Setup (bare), Component Setup, install, deploy, Purge (when you mean this Workload action)
 
 **Edge**:
@@ -149,8 +149,24 @@ A Workload-owned declaration that is the source of truth for that Workload’s I
 _Avoid_: Manifest (bare), spec, compose file, workload config (when you mean this declaration)
 
 **Workload Intent**:
-The Manifest’s post–Workload Setup expectation — what must be true after Setup succeeds; never Host status or a report of what is currently on the server. **run** (Quadlets up; that Workload’s operator-authored Routes installed for Domain fronts to include when present — zero Route files is valid; HTTP semantics are whatever those fragments declare inside the Domain front, not Prefect-generated shells; reachability is not a Setup success criterion), **stop** (no Quadlets; that Workload’s Routes are not installed, so the Domain front serves only its Edge baseline — today `/healthcheck` and miss behaviour as configured there — not a Prefect-managed 503), or **trash** (eligible for Purge; associated Workload data retained until Purge).
+The Manifest’s post–Workload Setup expectation — what must be true after Setup succeeds; never Host status or a report of what is currently on the server. Applies to the whole Workload-owned `quadlets/` set and that Workload’s Routes. **run** (Always-on Quadlets started; On-demand Quadlets Armed; operator-authored Routes installed for Domain fronts to include when present — zero Route files is valid; HTTP semantics are whatever those fragments declare inside the Domain front, not Prefect-generated shells; reachability is not a Setup success criterion), **stop** (Always-on stopped; On-demand Disarmed; that Workload’s Routes are not installed, so the Domain front serves only its Edge baseline — today `/healthcheck` and miss behaviour as configured there — not a Prefect-managed 503), or **trash** (same unit expectation as **stop**; eligible for Purge; associated Workload data retained until Purge).
 _Avoid_: Workload Desired State, desired state, running, stopped, trashed, active, disabled, remove, status, phase, current state (when you mean this Manifest field)
+
+**Always-on**:
+A Workload Quadlet unit kind expected to stay started while Intent is **run** (typically `.pod` / `.container`).
+_Avoid_: long-running, daemon, continuous (when you mean this kind)
+
+**On-demand**:
+A Workload Quadlet unit kind expected to fire on a condition while Intent is **run**, not to stay continuously executing (typically timers and oneshot services). systemd `Type=oneshot` is an implementation detail of some On-demand units, not the domain term.
+_Avoid_: oneshot (when you mean this kind), scheduled job, triggered job
+
+**Armed**:
+The Intent-**run** expectation for an On-demand unit: installed and enabled so its condition can fire.
+_Avoid_: enabled, active, started (when you mean this expectation)
+
+**Disarmed**:
+The Intent-**stop** / **trash** expectation for an On-demand unit: not enabled to fire.
+_Avoid_: disabled, stopped, inactive (when you mean this expectation)
 
 **Purge**:
 The operation that permanently removes every Workload whose Intent is **trash** and its Workload-associated data (that Workload’s installed Routes, Host Volume Workload tree including stored `routes/` and `quadlets/` SoT, and Platform User unit files whose basenames appear in that Workload’s `quadlets/`). Does not delete Domains or Domain-scoped certificate material. Does not affect Workloads whose Intent is **run** or **stop**.
