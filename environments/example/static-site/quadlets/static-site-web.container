@@ -1,0 +1,14 @@
+[Unit]
+Description=Prefect example static-site web
+
+[Container]
+Image=docker.io/library/nginx:alpine
+ContainerName=static-site-web
+Pod=static-site.pod
+Volume=/var/lib/host-volume/components_data/workloads/static-site:/var/lib/workload:rw
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
