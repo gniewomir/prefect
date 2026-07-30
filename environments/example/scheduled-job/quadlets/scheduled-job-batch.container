@@ -1,0 +1,14 @@
+[Unit]
+Description=Prefect example scheduled-job batch
+
+[Container]
+Image=docker.io/library/busybox:latest
+ContainerName=scheduled-job-batch
+Exec=echo scheduled-job-batch
+StartWithPod=false
+
+[Service]
+Type=oneshot
+
+[Install]
+WantedBy=default.target

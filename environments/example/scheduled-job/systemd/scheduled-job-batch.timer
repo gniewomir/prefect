@@ -1,0 +1,9 @@
+[Unit]
+Description=Prefect example scheduled-job batch timer
+
+[Timer]
+OnBootSec=1h
+Unit=scheduled-job-batch.service
+
+[Install]
+WantedBy=timers.target
