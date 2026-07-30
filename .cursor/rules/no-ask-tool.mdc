@@ -1,0 +1,6 @@
+---
+description: Never use the AskQuestion / Ask tool
+alwaysApply: true
+---
+
+Do **not** call `AskQuestion` (the Ask tool), or any equivalent structured-question UI.
