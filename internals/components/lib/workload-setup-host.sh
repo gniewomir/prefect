@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Host-local Workload Setup. Invoked by internals/workload-setup.sh (not an operator entrypoint).
 # Usage: PLATFORM_USER=platform bash workload-setup-host.sh /path/to/workload-tree
-# Workload tree must contain manifest.json; optional routes/ and quadlets/ (ADR-0024).
+# Workload tree must contain manifest.json; optional routes/, quadlets/, systemd/ (ADR-0024).
 # Identity is the basename of the Workload tree directory.
 # Does not build ACME want-list, claim hostnames, or start ACME (ADR-0023).
 set -euo pipefail
@@ -12,6 +12,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST="${TREE}/manifest.json"
 ROUTES_STAGE="${TREE}/routes"
 QUADLETS_STAGE="${TREE}/quadlets"
+SYSTEMD_STAGE="${TREE}/systemd"
 
 DATA_ROOT=/var/lib/host-volume/components_data
 EDGE_DATA="${DATA_ROOT}/edge"
@@ -68,26 +69,41 @@ PY
 mkdir -p "${ROUTES_DIR}" "${WORKLOADS_ROOT}/${WL_NAME}"
 
 PREV_QUADLETS="$(mktemp "${TMPDIR:-/tmp}/platform-prev-quadlets.XXXXXX")"
-STAGE_QUADLETS_LIST="$(mktemp "${TMPDIR:-/tmp}/platform-stage-quadlets.XXXXXX")"
-trap 'rm -f "${PREV_QUADLETS}" "${STAGE_QUADLETS_LIST}"' EXIT
+PREV_SYSTEMD="$(mktemp "${TMPDIR:-/tmp}/platform-prev-systemd.XXXXXX")"
+PREV_OWNED="$(mktemp "${TMPDIR:-/tmp}/platform-prev-owned.XXXXXX")"
+STAGE_UNITS="$(mktemp "${TMPDIR:-/tmp}/platform-stage-units.XXXXXX")"
+trap 'rm -f "${PREV_QUADLETS}" "${PREV_SYSTEMD}" "${PREV_OWNED}" "${STAGE_UNITS}"' EXIT
+
 workload_quadlet_sot_basenames "${WORKLOADS_ROOT}/${WL_NAME}/quadlets" >"${PREV_QUADLETS}" || true
-workload_quadlet_sot_basenames "${QUADLETS_STAGE}" >"${STAGE_QUADLETS_LIST}" || true
+workload_quadlet_sot_basenames "${WORKLOADS_ROOT}/${WL_NAME}/systemd" >"${PREV_SYSTEMD}" || true
+{
+  cat "${PREV_QUADLETS}"
+  cat "${PREV_SYSTEMD}"
+} | LC_ALL=C sort -u >"${PREV_OWNED}"
+
+workload_unit_validate_consumer_dir quadlets "${QUADLETS_STAGE}"
+workload_unit_validate_consumer_dir systemd "${SYSTEMD_STAGE}"
+
+{
+  workload_quadlet_sot_basenames "${QUADLETS_STAGE}"
+  workload_quadlet_sot_basenames "${SYSTEMD_STAGE}"
+} | LC_ALL=C sort -u >"${STAGE_UNITS}"
 
 quadlet_user_session_begin
 
 # Noop when definition tree equals Host Volume SoT (ADR-0033). Intent run still
-# converges if required Quadlet unit files are missing (e.g. Host recreated).
+# converges if required unit files are missing (e.g. Host recreated).
 SOT_TREE="${WORKLOADS_ROOT}/${WL_NAME}"
 if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${TREE}" "${SOT_TREE}" >/dev/null 2>&1; then
   units_ok=1
   if [[ "${WL_INTENT}" == "run" ]]; then
     while IFS= read -r base; do
       [[ -n "${base}" ]] || continue
-      if [[ ! -e "${UNIT_DIR}/${base}" ]]; then
+      if ! workload_unit_basename_exists_on_host "${base}"; then
         units_ok=0
         break
       fi
-    done <"${STAGE_QUADLETS_LIST}"
+    done <"${STAGE_UNITS}"
   fi
   if [[ "${units_ok}" -eq 1 ]]; then
     echo "Workload Setup noop: '${WL_NAME}' already matches Host Volume SoT"
@@ -95,21 +111,11 @@ if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${TREE}" "${SOT_TREE}" >/de
   fi
 fi
 
-# Collision check before mutating Host Volume SoT / unit files.
+# Collision check before mutating Host Volume SoT / unit files (spans both Host dirs).
 while IFS= read -r base; do
   [[ -n "${base}" ]] || continue
-  dest="${UNIT_DIR}/${base}"
-  owned_before=0
-  while IFS= read -r p; do
-    [[ "${p}" == "${base}" ]] || continue
-    owned_before=1
-    break
-  done <"${PREV_QUADLETS}"
-  if [[ -e "${dest}" && "${owned_before}" -eq 0 ]]; then
-    echo "workload quadlet basename '${base}' already exists in unit directory (not owned by Workload '${WL_NAME}')" >&2
-    exit 1
-  fi
-done <"${STAGE_QUADLETS_LIST}"
+  workload_unit_refuse_foreign_basename "${WL_NAME}" "${base}" "${PREV_OWNED}" || exit 1
+done <"${STAGE_UNITS}"
 
 install -m 0644 "${MANIFEST}" "${WORKLOADS_ROOT}/${WL_NAME}/manifest.json"
 rm -f "${WORKLOADS_ROOT}/${WL_NAME}/interior.conf"
@@ -122,15 +128,16 @@ if [[ -d "${ROUTES_STAGE}" ]]; then
   done
 fi
 
-workload_quadlet_sync_sot "${WL_NAME}" "${QUADLETS_STAGE}"
+workload_unit_sync_sot "${WL_NAME}" quadlets "${QUADLETS_STAGE}"
+workload_unit_sync_sot "${WL_NAME}" systemd "${SYSTEMD_STAGE}"
 
 chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}"
 
 edge_reconcile_workload_routes "${WL_NAME}" "${WL_INTENT}" "${WORKLOADS_ROOT}/${WL_NAME}/routes"
 
-workload_quadlet_reconcile_unit_files "${WL_NAME}" <"${PREV_QUADLETS}"
+workload_unit_reconcile_dual "${WL_NAME}" "${PREV_OWNED}" "${PREV_QUADLETS}" "${PREV_SYSTEMD}"
 
 quadlet_user_session_reload
-workload_quadlet_apply_intent "${WL_NAME}" "${WL_INTENT}"
+workload_unit_apply_intent "${WL_NAME}" "${WL_INTENT}"
 
 edge_reload_front_door_if_routes_changed

@@ -1,9 +1,9 @@
-# Shared rootless Quadlet user-session helpers for Component Setup.
+# Shared rootless Quadlet / native systemd user-session helpers for Component Setup.
 # Sourced on the Host only (not an operator entrypoint).
 # Requires: USER_NAME (Platform User login name)
-# Exports: HOME_DIR, UID_NUM, UNIT_DIR, XDG_RUNTIME_DIR
+# Exports: HOME_DIR, UID_NUM, UNIT_DIR, SYSTEMD_USER_DIR, XDG_RUNTIME_DIR
 #
-# quadlet_user_session_begin  — resolve paths; ensure UNIT_DIR exists
+# quadlet_user_session_begin  — resolve paths; ensure UNIT_DIR + SYSTEMD_USER_DIR exist
 # quadlet_user_session_reload — start user@, wait XDG_RUNTIME_DIR, daemon-reload
 # quadlet_user CMD...         — runuser as Platform User with XDG_RUNTIME_DIR
 
@@ -12,7 +12,8 @@ quadlet_user_session_begin() {
   HOME_DIR="$(getent passwd "${USER_NAME}" | cut -d: -f6)"
   UID_NUM="$(id -u "${USER_NAME}")"
   UNIT_DIR="${HOME_DIR}/.config/containers/systemd"
-  mkdir -p "${UNIT_DIR}"
+  SYSTEMD_USER_DIR="${HOME_DIR}/.config/systemd/user"
+  mkdir -p "${UNIT_DIR}" "${SYSTEMD_USER_DIR}"
 }
 
 quadlet_user() {

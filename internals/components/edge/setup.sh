@@ -19,8 +19,6 @@ source "${SRC}/../lib/quadlet-user-session.sh"
 source "${SRC}/../lib/edge-domain-fronts-host.sh"
 
 quadlet_user_session_begin
-SYSTEMD_USER_DIR="${HOME_DIR}/.config/systemd/user"
-mkdir -p "${SYSTEMD_USER_DIR}"
 
 mkdir -p "${ROUTES_DIR}" "${DOMAINS_DIR}" "${CERTS_DIR}" "${ACME_WWW}" "${ACME_DIR}"
 [[ -f "${WANT_LIST}" ]] || : >"${WANT_LIST}"

@@ -208,7 +208,7 @@ set -e
 [[ ${clash_rc} -ne 0 ]] || fail "expected failure when quadlet basename collides with Component unit"
 grep -qi 'edge-nginx\|already exists\|not owned' /tmp/clash-setup.out \
   || fail "collision rejection unclear (output: $(cat /tmp/clash-setup.out))"
-pass "Workload Setup refuses Quadlet basename colliding with Component unit"
+pass "Workload Setup refuses unit basename colliding with Component unit"
 
 "${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "owner-a"
 set +e

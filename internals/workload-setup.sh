@@ -63,6 +63,7 @@ IP="$(host_session_ip)"
 
 ROUTES_SRC="${MANIFEST_DIR}/routes"
 QUADLETS_SRC="${MANIFEST_DIR}/quadlets"
+SYSTEMD_SRC="${MANIFEST_DIR}/systemd"
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
@@ -82,6 +83,13 @@ if [[ -d "${QUADLETS_SRC}" ]]; then
   for src in "${QUADLETS_SRC}"/*; do
     [[ -f "${src}" ]] || continue
     cp "${src}" "${STAGE}/${WL_NAME}/quadlets/$(basename "${src}")"
+  done
+fi
+if [[ -d "${SYSTEMD_SRC}" ]]; then
+  mkdir -p "${STAGE}/${WL_NAME}/systemd"
+  for src in "${SYSTEMD_SRC}"/*; do
+    [[ -f "${src}" ]] || continue
+    cp "${src}" "${STAGE}/${WL_NAME}/systemd/$(basename "${src}")"
   done
 fi
 

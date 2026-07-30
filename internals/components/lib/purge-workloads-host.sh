@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Host-local Purge. Invoked by internals/purge-workloads.sh.
 # Removes every Workload whose Intent is trash and Workload-associated data
-# (installed Routes, SoT-named Quadlet units, Host Volume Workload tree).
+# (installed Routes, SoT-named units from both Host unit directories, Host Volume tree).
 # Does not delete Domains or Domain-scoped certificate material (ADR-0022 / #54).
-# Does not rebuild ACME want-list (ADR-0023). Thin Manifest / authored Quadlets: ADR-0024.
+# Does not rebuild ACME want-list (ADR-0023). Thin Manifest / authored units: ADR-0024.
 set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
@@ -51,12 +51,15 @@ PY
 
     while IFS= read -r base; do
       [[ -n "${base}" ]] || continue
-      svc="$(workload_quadlet_service_name "${base}")"
-      if [[ -n "${svc}" ]]; then
-        quadlet_user systemctl --user stop "${svc}" 2>/dev/null || true
-      fi
+      workload_unit_stop_basename quadlets "${base}"
       rm -f "${UNIT_DIR}/${base}"
     done < <(workload_quadlet_sot_basenames "${wl_dir}/quadlets")
+
+    while IFS= read -r base; do
+      [[ -n "${base}" ]] || continue
+      workload_unit_stop_basename systemd "${base}"
+      rm -f "${SYSTEMD_USER_DIR}/${base}"
+    done < <(workload_quadlet_sot_basenames "${wl_dir}/systemd")
 
     edge_remove_workload_installed_routes "${WL_NAME}"
 
