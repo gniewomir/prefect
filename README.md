@@ -1,6 +1,6 @@
 # Prefect
 
-Prefect is a self-hosted platform that lets a solo operator reuse infrastructure across small projects through a thin Workload contract—without paying for managed infrastructure too early or becoming dependent on a PaaS that is costly to leave.
+Reproducible Environments on a vertically scaled cloud Host — Podman pods and containers as first-class citizens, but without full orchestration. Ready to graduate to dedicated infrastructure with thin adaptation.
 
 Domain language: [`CONTEXT.md`](CONTEXT.md). Decisions: [`docs/adr/`](docs/adr/).
 
