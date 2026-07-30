@@ -1,0 +1,18 @@
+[Unit]
+Description=Prefect example web-api-with-db private DB sidecar
+
+[Container]
+Image=docker.io/library/postgres:16-alpine
+ContainerName=web-api-with-db-db
+Pod=web-api-with-db.pod
+Environment=POSTGRES_USER=app
+Environment=POSTGRES_PASSWORD=example
+Environment=POSTGRES_DB=app
+Environment=PGDATA=/var/lib/workload/pgdata
+Volume=/var/lib/host-volume/components_data/workloads/web-api-with-db:/var/lib/workload:U
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
