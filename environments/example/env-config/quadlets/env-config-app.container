@@ -1,0 +1,15 @@
+[Unit]
+Description=Prefect example env-config app
+
+[Container]
+Image=docker.io/library/busybox:latest
+ContainerName=env-config-app
+Pod=env-config.pod
+Exec=sleep infinity
+Volume=/var/lib/host-volume/components_data/workloads/env-config:/var/lib/workload:rw
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

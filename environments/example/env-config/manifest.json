@@ -1,0 +1,5 @@
+{
+  "intent": "run",
+  "description": "Environment Configuration via Manifest environment + EnvironmentFile (ADR-0035).",
+  "environment": ["EXAMPLE_GREETING", "EXAMPLE_MODE"]
+}

@@ -37,3 +37,5 @@ Non-committed key/value pairs for Workload containers ([ADR-0035](../docs/adr/00
 **Key names:** operator-owned. Prefer not to use `PLATFORM_*` or Credential names (today `DIGITALOCEAN_TOKEN`) in Manifest `environment` lists or `.env.example`, so you do not collide with platform/Credential conventions by habit. Setup does not reserve or reject names.
 
 Provider **Credential** stays orthogonal — not part of this bag. Components do not consume Environment Configuration in v1.
+
+**Teaching example:** `environments/example/env-config` — Manifest `environment` lists `EXAMPLE_GREETING` / `EXAMPLE_MODE` (also named in `example/.env.example`); after Workload Setup with a local `.env` or shell exports, the Always-on container process environment exposes those keys via Setup-owned EnvironmentFile wiring.
