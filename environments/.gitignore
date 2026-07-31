@@ -1,3 +1,6 @@
 # Internal Domain assignment override (ADR-0021). Lifecycle Tests may write this;
 # never commit it — a leftover file silently changes Apply/Park/Adopt Domain loading.
 */domains.override.json
+
+# Environment Configuration bag (ADR-0035). Local values only; commit `.env.example`.
+*/.env

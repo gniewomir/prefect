@@ -54,6 +54,8 @@ Every operator script takes an optional `--env <slug>`.
 
 Safe by default: nothing touches a non-test Environment unless you pass `--env` explicitly. Details: [ADR-0019](docs/adr/0019-environments.md).
 
+Layout, Domains, and **Environment Configuration** (gitignored `.env`, committed `.env.example`, Manifest `environment`): [`environments/README.md`](environments/README.md), [ADR-0035](docs/adr/0035-environment-configuration-injection.md).
+
 ## Durables
 
 **Durables** are the Cloud Project, Reserved IP, Host Volume, **Domain** (provider DNS zone plus Stack-authored A records → Reserved IP), and their preserved Cloud Project relationships. They survive **Park**. **Recreatables** are the Host and its Applied-only companions and relationships; Park removes them and Apply restores them. Durables may continue to incur charges while Parked. **Teardown** removes the complete Stack.

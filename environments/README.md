@@ -1,10 +1,12 @@
 # Environment declarations
 
-Committed, Environment-scoped intent ([ADR-0033](../docs/adr/0033-environment-first-repo-layout.md); Domains: [ADR-0021](../docs/adr/0021-environment-domain-config.md)).
+Committed, Environment-scoped intent ([ADR-0033](../docs/adr/0033-environment-first-repo-layout.md); Domains: [ADR-0021](../docs/adr/0021-environment-domain-config.md); Environment Configuration: [ADR-0035](../docs/adr/0035-environment-configuration-injection.md)).
 
 ```text
 environments/<cloud-slug>/domains.json
 environments/<cloud-slug>/domains.override.json   # internal; gitignored (ADR-0021)
+environments/<cloud-slug>/.env                    # Environment Configuration; gitignored (ADR-0035)
+environments/<cloud-slug>/.env.example            # committed key-name teaching; Setup never reads it
 environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-0033)
 ```
 
@@ -12,8 +14,26 @@ environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-
 
 **Workload Setup:** `./internals/workload-setup.sh [--env <slug>] <workload-name>` — name only; resolves under this tree (fail closed). Stack Apply does not run Workload Setup.
 
-- **Cloud slug** — `test` (not Terraform workspace `default`), `prod`, … Same slug as Host naming (`prefect-test-…`).
+- **Cloud slug** — `test` (not Terraform workspace `default`), `prod`, `example`, … Same slug as Host naming (`prefect-test-…`).
 - **Missing `domains.json`** — that Environment has zero Domains.
 - **`domains.override.json`** — if present, replaces `domains.json` for all Domain-assignment readers. Not an operator surface; Lifecycle Tests only. See ADR-0021 / `internals/lifecycle-tests/README.md`.
 
 JSON shape for Domains: map of apex FQDN → `{ "names": ["@", "www", …] }` (at least one label; each A → that Environment’s Reserved IP).
+
+## Environment Configuration
+
+Non-committed key/value pairs for Workload containers ([ADR-0035](../docs/adr/0035-environment-configuration-injection.md); glossary: **Environment Configuration**).
+
+| Artifact | Role |
+|----------|------|
+| `.env` | Local bag for this Environment. Gitignored (`*/.env`). Optional — if absent, listed keys must come from the shell. |
+| `.env.example` | Committed teaching of expected key names. **Workload Setup never reads it.** |
+| Manifest `environment` | Optional JSON array of key names on a Workload Manifest. Omit or `[]` ⇒ that Workload consumes none. Values never live in the Manifest. |
+
+**Resolution (ADR-0035; Workload Setup injection is a separate implementation):** baseline from `.env` when present; current shell overrides any key; surplus bag keys not listed on that Workload are ignored; missing listed keys fail closed. This teaching cutover only documents files and conventions — it does not change Setup behaviour.
+
+**`.env` dialect:** strict dotenv subset — `KEY=value`, `#` comments and blanks, optional double quotes. No `export`, interpolation, or multiline.
+
+**Key names:** operator-owned. Prefer not to use `PLATFORM_*` or Credential names (today `DIGITALOCEAN_TOKEN`) in Manifest `environment` lists or `.env.example`, so you do not collide with platform/Credential conventions by habit. Setup does not reserve or reject names.
+
+Provider **Credential** stays orthogonal — not part of this bag. Components do not consume Environment Configuration in v1.
