@@ -33,8 +33,8 @@ A secret used to authenticate to a cloud provider. Supplied via the environment 
 _Avoid_: Key, secret, password (when you mean the provider API token)
 
 **Environment Configuration**:
-The Environment-scoped bag of non-committed key/value pairs the operator supplies for Setup to resolve into Platform User installed units (Workloads and Components) — baseline from gitignored `environments/<slug>/.env` when present, current shell overriding any key, missing required keys fail closed. Distinct from Stack/Terraform configuration under that Environment directory, from the process environment as a concept, and from provider **Credential**.
-_Avoid_: Environment (the Prefect instance); Stack configuration / Terraform config (when you mean files under `environments/<slug>/` other than this bag); environment / env / environment variable (process/shell, when you mean this bag); Operator Configuration (operator-machine vars for Prefect tooling); Credential; secrets (when you mean the whole bag); dotenv / `.env` (when you mean the bag, not the file)
+The Environment-scoped bag of non-committed key/value pairs the operator supplies for Workload Setup to materialize into a Platform User–local EnvironmentFile per Workload (not into unit/config text, not onto the Host Volume Workload tree). Baseline from gitignored `environments/<slug>/.env` when present, current shell overriding any key; a Workload’s Manifest `environment` list selects which keys that Workload receives; missing listed keys fail closed. Components do not consume this bag in v1. Distinct from Stack/Terraform configuration under that Environment directory, from the process environment as a concept, and from provider **Credential**.
+_Avoid_: Environment (the Prefect instance); Stack configuration / Terraform config (when you mean files under `environments/<slug>/` other than this bag); environment / env / environment variable (process/shell, when you mean this bag); Operator Configuration (operator-machine vars for Prefect tooling); Credential; secrets (when you mean the whole bag); dotenv / `.env` (when you mean the bag, not the file); placeholder substitution (not the injection path)
 
 **Host**:
 A virtual machine managed by a Stack. The first Host in this Stack is a public web host (HTTP/HTTPS plus SSH).
@@ -149,7 +149,7 @@ An optional containerized service that runs on a Host. Identified by the basenam
 _Avoid_: App, service, container, backend (when you mean this concept)
 
 **Workload Manifest**:
-A Workload-owned declaration that is the source of truth for that Workload’s Intent (**run**, **stop**, or **trash**), with an optional human-only `description` ignored by all automation. It does not name the Workload, claim DNS names, feed ACME, or carry runtime/unit config; operator-authored Routes and units live in the Workload definition tree alongside the Manifest (`routes/`, `quadlets/`, and `systemd/` siblings).
+A Workload-owned declaration that is the source of truth for that Workload’s Intent (**run**, **stop**, or **trash**), with an optional human-only `description` ignored by all automation, and an optional `environment` array of Environment Configuration key names (omit or empty ⇒ that Workload consumes none). It does not name the Workload, claim DNS names, feed ACME, or carry secret values or other runtime/unit config bytes; operator-authored Routes and units live in the Workload definition tree alongside the Manifest (`routes/`, `quadlets/`, and `systemd/` siblings).
 _Avoid_: Manifest (bare), spec, compose file, workload config (when you mean this declaration)
 
 **Workload Intent**:
