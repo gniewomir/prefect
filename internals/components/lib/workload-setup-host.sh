@@ -26,6 +26,8 @@ source /var/lib/host-volume/components/lib/quadlet-user-session.sh
 source /var/lib/host-volume/components/lib/edge-routes-host.sh
 # shellcheck source=workload-quadlets-host.sh
 source "${HERE}/workload-quadlets-host.sh"
+# shellcheck source=workload-environment-host.sh
+source "${HERE}/workload-environment-host.sh"
 
 [[ -d "${TREE}" ]] || {
   echo "workload tree missing: ${TREE}" >&2
@@ -53,7 +55,7 @@ import json, shlex, sys
 m = json.load(open(sys.argv[1]))
 if not isinstance(m, dict):
     raise SystemExit("manifest must be a JSON object")
-allowed = {"intent", "description"}
+allowed = {"intent", "description", "environment"}
 extra = sorted(set(m) - allowed)
 if extra:
     raise SystemExit("manifest unknown keys (ADR-0024 allowlist): " + ", ".join(extra))
@@ -62,9 +64,34 @@ if intent not in ("run", "stop", "trash"):
     raise SystemExit("manifest.intent must be run|stop|trash")
 if "description" in m and not isinstance(m["description"], str):
     raise SystemExit("manifest.description must be a string when present")
+env_active = 0
+if "environment" in m:
+    env = m["environment"]
+    if not isinstance(env, list):
+        raise SystemExit("manifest.environment must be a JSON array when present")
+    for i, item in enumerate(env):
+        if not isinstance(item, str) or item == "":
+            raise SystemExit(
+                "manifest.environment elements must be non-empty strings "
+                f"(bad index {i})"
+            )
+    if len(env) > 0:
+        env_active = 1
 print(f"WL_INTENT={shlex.quote(intent)}")
+print(f"WL_ENV_ACTIVE={env_active}")
 PY
 )"
+
+WL_ENV_RESOLVED="${WL_ENV_RESOLVED:-}"
+if [[ "${WL_ENV_ACTIVE}" -eq 1 ]]; then
+  [[ -n "${WL_ENV_RESOLVED}" && -f "${WL_ENV_RESOLVED}" ]] || {
+    echo "Environment Configuration resolved file required when manifest.environment is non-empty" >&2
+    exit 1
+  }
+elif [[ -n "${WL_ENV_RESOLVED}" ]]; then
+  echo "Environment Configuration resolved file set but manifest.environment is empty/omit" >&2
+  exit 1
+fi
 
 mkdir -p "${ROUTES_DIR}" "${WORKLOADS_ROOT}/${WL_NAME}"
 
@@ -106,6 +133,12 @@ if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${TREE}" "${SOT_TREE}" >/de
     done <"${STAGE_UNITS}"
   fi
   if [[ "${units_ok}" -eq 1 ]]; then
+    # Environment Configuration refresh must not be skipped by SoT noop (ADR-0035).
+    if [[ "${WL_ENV_ACTIVE}" -eq 1 ]]; then
+      workload_environment_reconcile "${WL_NAME}" "${WL_ENV_RESOLVED}" || exit 1
+      quadlet_user_session_reload
+      workload_unit_apply_intent "${WL_NAME}" "${WL_INTENT}"
+    fi
     echo "Workload Setup noop: '${WL_NAME}' already matches Host Volume SoT"
     exit 0
   fi
@@ -136,6 +169,10 @@ chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}"
 edge_reconcile_workload_routes "${WL_NAME}" "${WL_INTENT}" "${WORKLOADS_ROOT}/${WL_NAME}/routes"
 
 workload_unit_reconcile_dual "${WL_NAME}" "${PREV_OWNED}" "${PREV_QUADLETS}" "${PREV_SYSTEMD}"
+
+if [[ "${WL_ENV_ACTIVE}" -eq 1 ]]; then
+  workload_environment_reconcile "${WL_NAME}" "${WL_ENV_RESOLVED}" || exit 1
+fi
 
 quadlet_user_session_reload
 workload_unit_apply_intent "${WL_NAME}" "${WL_INTENT}"

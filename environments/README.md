@@ -30,7 +30,7 @@ Non-committed key/value pairs for Workload containers ([ADR-0035](../docs/adr/00
 | `.env.example` | Committed teaching of expected key names. **Workload Setup never reads it.** |
 | Manifest `environment` | Optional JSON array of key names on a Workload Manifest. Omit or `[]` ⇒ that Workload consumes none. Values never live in the Manifest. |
 
-**Resolution (ADR-0035; Workload Setup injection is a separate implementation):** baseline from `.env` when present; current shell overrides any key; surplus bag keys not listed on that Workload are ignored; missing listed keys fail closed. This teaching cutover only documents files and conventions — it does not change Setup behaviour.
+**Resolution (Workload Setup):** baseline from `.env` when present; current shell overrides any key; surplus bag keys not listed on that Workload are ignored; missing listed keys fail closed.
 
 **`.env` dialect:** strict dotenv subset — `KEY=value`, `#` comments and blanks, optional double quotes. No `export`, interpolation, or multiline.
 
