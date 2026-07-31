@@ -12,6 +12,7 @@ STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
 HOST_SCRIPT="${REPO_ROOT}/internals/components/lib/purge-workloads-host.sh"
 QUADLETS_LIB="${REPO_ROOT}/internals/components/lib/workload-quadlets-host.sh"
+ENV_HOST_LIB="${REPO_ROOT}/internals/components/lib/workload-environment-host.sh"
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=lib/ssh.sh
@@ -31,6 +32,10 @@ done
   echo "missing ${QUADLETS_LIB}" >&2
   exit 1
 }
+[[ -f "${ENV_HOST_LIB}" ]] || {
+  echo "missing ${ENV_HOST_LIB}" >&2
+  exit 1
+}
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -42,6 +47,7 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
 cp "${HOST_SCRIPT}" "${STAGE}/purge-workloads-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
+cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
 
 COPYFILE_DISABLE=1 tar --format=ustar -C "${STAGE}" -cf - . \
   | host_ssh "rm -rf /tmp/platform-purge && mkdir -p /tmp/platform-purge && tar -C /tmp/platform-purge -xf -"

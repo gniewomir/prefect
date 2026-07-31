@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Host-local Purge. Invoked by internals/purge-workloads.sh.
 # Removes every Workload whose Intent is trash and Workload-associated data
-# (installed Routes, SoT-named units from both Host unit directories, Host Volume tree).
+# (installed Routes, SoT-named units from both Host unit directories, Host Volume tree,
+# Platform User EnvironmentFile tree and Setup-owned Environment Configuration drop-ins).
 # Does not delete Domains or Domain-scoped certificate material (ADR-0022 / #54).
 # Does not rebuild ACME want-list (ADR-0023). Thin Manifest / authored units: ADR-0024.
+# Environment Configuration cleanup: ADR-0035.
 set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
@@ -22,6 +24,16 @@ elif [[ -f /var/lib/host-volume/components/lib/workload-quadlets-host.sh ]]; the
   source /var/lib/host-volume/components/lib/workload-quadlets-host.sh
 else
   echo "workload-quadlets-host.sh not found" >&2
+  exit 1
+fi
+if [[ -f "${HERE}/workload-environment-host.sh" ]]; then
+  # shellcheck source=workload-environment-host.sh
+  source "${HERE}/workload-environment-host.sh"
+elif [[ -f /var/lib/host-volume/components/lib/workload-environment-host.sh ]]; then
+  # shellcheck source=workload-environment-host.sh
+  source /var/lib/host-volume/components/lib/workload-environment-host.sh
+else
+  echo "workload-environment-host.sh not found" >&2
   exit 1
 fi
 # shellcheck source=quadlet-user-session.sh
@@ -49,16 +61,21 @@ PY
 )"
     [[ "${P_INTENT}" == "trash" ]] || continue
 
+    # Remove Environment Configuration before unit/SoT deletion (needs SoT basenames).
+    workload_environment_reconcile "${WL_NAME}" ""
+
     while IFS= read -r base; do
       [[ -n "${base}" ]] || continue
       workload_unit_stop_basename quadlets "${base}"
       rm -f "${UNIT_DIR}/${base}"
+      rm -rf "${UNIT_DIR}/${base}.d"
     done < <(workload_quadlet_sot_basenames "${wl_dir}/quadlets")
 
     while IFS= read -r base; do
       [[ -n "${base}" ]] || continue
       workload_unit_stop_basename systemd "${base}"
       rm -f "${SYSTEMD_USER_DIR}/${base}"
+      rm -rf "${SYSTEMD_USER_DIR}/${base}.d"
     done < <(workload_quadlet_sot_basenames "${wl_dir}/systemd")
 
     edge_remove_workload_installed_routes "${WL_NAME}"
