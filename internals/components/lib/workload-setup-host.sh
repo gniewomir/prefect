@@ -133,12 +133,14 @@ if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${TREE}" "${SOT_TREE}" >/de
     done <"${STAGE_UNITS}"
   fi
   if [[ "${units_ok}" -eq 1 ]]; then
-    # Environment Configuration refresh must not be skipped by SoT noop (ADR-0035).
+    # Environment Configuration refresh/removal must not be skipped by SoT noop (ADR-0035).
     if [[ "${WL_ENV_ACTIVE}" -eq 1 ]]; then
       workload_environment_reconcile "${WL_NAME}" "${WL_ENV_RESOLVED}" || exit 1
-      quadlet_user_session_reload
-      workload_unit_apply_intent "${WL_NAME}" "${WL_INTENT}"
+    else
+      workload_environment_reconcile "${WL_NAME}" "" || exit 1
     fi
+    quadlet_user_session_reload
+    workload_unit_apply_intent "${WL_NAME}" "${WL_INTENT}"
     echo "Workload Setup noop: '${WL_NAME}' already matches Host Volume SoT"
     exit 0
   fi
@@ -172,6 +174,8 @@ workload_unit_reconcile_dual "${WL_NAME}" "${PREV_OWNED}" "${PREV_QUADLETS}" "${
 
 if [[ "${WL_ENV_ACTIVE}" -eq 1 ]]; then
   workload_environment_reconcile "${WL_NAME}" "${WL_ENV_RESOLVED}" || exit 1
+else
+  workload_environment_reconcile "${WL_NAME}" "" || exit 1
 fi
 
 quadlet_user_session_reload
