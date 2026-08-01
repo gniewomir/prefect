@@ -14,6 +14,7 @@ USER_NAME="${PLATFORM_USER:-platform}"
 HOST_SCRIPT="${REPO_ROOT}/internals/components/lib/workload-setup-host.sh"
 QUADLETS_LIB="${REPO_ROOT}/internals/components/lib/workload-quadlets-host.sh"
 ENV_HOST_LIB="${REPO_ROOT}/internals/components/lib/workload-environment-host.sh"
+ENV_DECL_LIB="${REPO_ROOT}/internals/components/lib/environment-configuration-declaration.sh"
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=lib/environment-configuration.sh
@@ -60,6 +61,10 @@ MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
   echo "missing ${ENV_HOST_LIB}" >&2
   exit 1
 }
+[[ -f "${ENV_DECL_LIB}" ]] || {
+  echo "missing ${ENV_DECL_LIB}" >&2
+  exit 1
+}
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -84,6 +89,7 @@ environment_configuration_require_containers "${MANIFEST_DIR}" "${WL_ENV_ACTIVE}
 cp "${HOST_SCRIPT}" "${STAGE}/workload-setup-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
+cp "${ENV_DECL_LIB}" "${STAGE}/environment-configuration-declaration.sh"
 mkdir -p "${STAGE}/${WL_NAME}"
 cp "${MANIFEST_ABS}" "${STAGE}/${WL_NAME}/manifest.json"
 if [[ -d "${ROUTES_SRC}" ]]; then

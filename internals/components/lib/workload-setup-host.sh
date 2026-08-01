@@ -26,6 +26,8 @@ source /var/lib/host-volume/components/lib/quadlet-user-session.sh
 source /var/lib/host-volume/components/lib/edge-routes-host.sh
 # shellcheck source=workload-quadlets-host.sh
 source "${HERE}/workload-quadlets-host.sh"
+# shellcheck source=environment-configuration-declaration.sh
+source "${HERE}/environment-configuration-declaration.sh"
 # shellcheck source=workload-environment-host.sh
 source "${HERE}/workload-environment-host.sh"
 
@@ -64,23 +66,18 @@ if intent not in ("run", "stop", "trash"):
     raise SystemExit("manifest.intent must be run|stop|trash")
 if "description" in m and not isinstance(m["description"], str):
     raise SystemExit("manifest.description must be a string when present")
-env_active = 0
-if "environment" in m:
-    env = m["environment"]
-    if not isinstance(env, list):
-        raise SystemExit("manifest.environment must be a JSON array when present")
-    for i, item in enumerate(env):
-        if not isinstance(item, str) or item == "":
-            raise SystemExit(
-                "manifest.environment elements must be non-empty strings "
-                f"(bad index {i})"
-            )
-    if len(env) > 0:
-        env_active = 1
 print(f"WL_INTENT={shlex.quote(intent)}")
-print(f"WL_ENV_ACTIVE={env_active}")
 PY
 )"
+
+# Manifest environment shape → WL_ENV_ACTIVE (shared declaration surface, #129).
+_env_keys="$(environment_configuration_keys "${MANIFEST}")" || exit 1
+if [[ -n "${_env_keys}" ]]; then
+  WL_ENV_ACTIVE=1
+else
+  WL_ENV_ACTIVE=0
+fi
+unset _env_keys
 
 WL_ENV_RESOLVED="${WL_ENV_RESOLVED:-}"
 if [[ "${WL_ENV_ACTIVE}" -eq 1 ]]; then

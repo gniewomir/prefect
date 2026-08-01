@@ -1,53 +1,49 @@
 #!/usr/bin/env bash
 # Environment Configuration bag resolution (operator-side; ADR-0035).
 # Sourced by Workload Setup — not an operator entrypoint.
+# Declaration shape + container gate: environment-configuration-declaration.sh (#129).
 #
 # environment_configuration_resolve MANIFEST ENV_DIR OUTFILE
-#   Reads Manifest optional `environment` key names; resolves from ENV_DIR/.env
-#   (strict dotenv subset) with shell overrides; writes KEY=value lines to OUTFILE.
+#   Reads Manifest optional `environment` key names via the declaration surface;
+#   resolves from ENV_DIR/.env (strict dotenv subset) with shell overrides;
+#   writes KEY=value lines to OUTFILE.
 #   Omit or [] → removes OUTFILE if present and returns 0 (no bag).
 #   Non-empty list → OUTFILE always rewritten; missing keys / invalid dotenv fail closed.
 # Prints WL_ENV_ACTIVE=0|1 on stdout for the caller to eval.
+
+_ENVCFG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../components/lib/environment-configuration-declaration.sh
+source "${_ENVCFG_LIB_DIR}/../components/lib/environment-configuration-declaration.sh"
 
 environment_configuration_resolve() {
   local manifest="${1:?manifest required}"
   local env_dir="${2:?env dir required}"
   local outfile="${3:?outfile required}"
   local dotenv="${env_dir}/.env"
+  local keys_file
+  keys_file="$(mktemp "${TMPDIR:-/tmp}/envcfg-keys.XXXXXX")"
 
-  python3 - "${manifest}" "${dotenv}" "${outfile}" <<'PY'
-import json, os, re, sys
+  if ! environment_configuration_keys "${manifest}" >"${keys_file}"; then
+    rm -f "${keys_file}"
+    return 1
+  fi
 
-manifest_path, dotenv_path, outfile = sys.argv[1], sys.argv[2], sys.argv[3]
+  if [[ ! -s "${keys_file}" ]]; then
+    rm -f "${keys_file}"
+    if [[ -e "${outfile}" ]]; then
+      rm -f "${outfile}"
+    fi
+    echo "WL_ENV_ACTIVE=0"
+    return 0
+  fi
 
-with open(manifest_path, encoding="utf-8") as f:
-    m = json.load(f)
-if not isinstance(m, dict):
-    raise SystemExit("manifest must be a JSON object")
+  if ! python3 - "${dotenv}" "${outfile}" "${keys_file}" <<'PY'
+import os, re, sys
 
-if "environment" not in m:
-    if os.path.exists(outfile):
-        os.remove(outfile)
-    print("WL_ENV_ACTIVE=0")
-    raise SystemExit(0)
+dotenv_path, outfile, keys_path = sys.argv[1], sys.argv[2], sys.argv[3]
 
-env = m["environment"]
-if not isinstance(env, list):
-    raise SystemExit("manifest.environment must be a JSON array when present")
-keys = []
-for i, item in enumerate(env):
-    if not isinstance(item, str) or item == "":
-        raise SystemExit(
-            "manifest.environment elements must be non-empty strings "
-            f"(bad index {i})"
-        )
-    keys.append(item)
-
-if not keys:
-    if os.path.exists(outfile):
-        os.remove(outfile)
-    print("WL_ENV_ACTIVE=0")
-    raise SystemExit(0)
+with open(keys_path, encoding="utf-8") as f:
+    keys = [line.rstrip("\n") for line in f if line.rstrip("\n") != ""]
 
 KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 file_vals = {}
@@ -108,25 +104,10 @@ with open(outfile, "w", encoding="utf-8") as out:
 
 print("WL_ENV_ACTIVE=1")
 PY
-}
-
-# Fail closed when Manifest lists keys but the Workload tree has no quadlets/*.container.
-environment_configuration_require_containers() {
-  local tree="${1:?workload tree required}"
-  local active="${2:?WL_ENV_ACTIVE required}"
-  [[ "${active}" == "1" ]] || return 0
-  local found=0
-  local f
-  if [[ -d "${tree}/quadlets" ]]; then
-    for f in "${tree}/quadlets"/*.container; do
-      [[ -f "${f}" ]] || continue
-      found=1
-      break
-    done
-  fi
-  if [[ "${found}" -ne 1 ]]; then
-    echo "Environment Configuration requires quadlets/*.container when environment is non-empty" >&2
+  then
+    rm -f "${keys_file}"
     return 1
   fi
+  rm -f "${keys_file}"
   return 0
 }
