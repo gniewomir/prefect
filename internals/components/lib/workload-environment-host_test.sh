@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Offline tests: Host Environment Configuration materialize / clear (ADR-0035 / #128).
+# Offline tests: Host Environment Configuration install / clear (ADR-0035 / #128 / #132).
 # Ambient HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT → temp dirs (no SSH / live Host).
 set -euo pipefail
 
@@ -25,9 +25,9 @@ printf 'A=from-resolved\nB=also\n' >"${RESOLVED}"
 printf '[Container]\nImage=localhost/demo\n' >"${WORKLOADS_ROOT}/${WL_NAME}/quadlets/app.container"
 printf '[Container]\nImage=localhost/demo-worker\n' >"${WORKLOADS_ROOT}/${WL_NAME}/quadlets/worker.container"
 
-# --- materialize: EnvironmentFile + Setup drop-ins for each SoT *.container ---
-workload_environment_reconcile "${WL_NAME}" "${RESOLVED}" \
-  || fail "materialize should succeed with SoT containers"
+# --- install: EnvironmentFile + Setup drop-ins for each SoT *.container ---
+environment_configuration_install_host "${WL_NAME}" "${RESOLVED}" \
+  || fail "install should succeed with SoT containers"
 
 env_path="$(workload_environment_path "${WL_NAME}")"
 [[ -f "${env_path}" ]] || fail "expected EnvironmentFile at ${env_path}"
@@ -43,34 +43,33 @@ grep -Fx "EnvironmentFile=${env_path}" "${app_dropin}" >/dev/null \
 grep -Fx "EnvironmentFile=${env_path}" "${worker_dropin}" >/dev/null \
   || fail "worker drop-in must wire EnvironmentFile= to path only"
 grep -F 'from-resolved' "${app_dropin}" >/dev/null && fail "values must not appear in drop-in unit text"
-pass "materialize EnvironmentFile + drop-ins for listed containers"
+pass "install EnvironmentFile + drop-ins for listed containers"
 
-# --- clear on empty/omit: empty resolved_src removes EnvironmentFile tree + drop-ins ---
-workload_environment_reconcile "${WL_NAME}" "" \
+# --- clear on empty/omit ---
+environment_configuration_clear "${WL_NAME}" \
   || fail "omit clear should succeed"
 [[ ! -e "$(dirname "${env_path}")" ]] || fail "omit should remove EnvironmentFile tree"
 [[ ! -f "${app_dropin}" ]] || fail "omit should remove app drop-in"
 [[ ! -f "${worker_dropin}" ]] || fail "omit should remove worker drop-in"
 pass "clear on empty/omit"
 
-# --- fail closed: active materialize with no SoT *.container ---
+# --- install with no SoT *.container still writes EnvironmentFile (gate is prepare's job) ---
 rm -f "${WORKLOADS_ROOT}/${WL_NAME}/quadlets"/*.container
-if workload_environment_reconcile "${WL_NAME}" "${RESOLVED}" >/dev/null 2>&1; then
-  fail "active with no *.container should fail closed"
-fi
-pass "fail closed when active with no *.container"
+environment_configuration_install_host "${WL_NAME}" "${RESOLVED}" \
+  || fail "install without containers should still place EnvironmentFile"
+[[ -f "${env_path}" ]] || fail "EnvironmentFile should exist without containers"
+pass "install without containers places EnvironmentFile (gate elsewhere)"
 
-# --- Purge-style clear: empty src clears leftover install after trash retention ---
+# --- Purge-style clear ---
 mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/quadlets"
 printf '[Container]\nImage=localhost/demo\n' >"${WORKLOADS_ROOT}/${WL_NAME}/quadlets/app.container"
-workload_environment_reconcile "${WL_NAME}" "${RESOLVED}" \
-  || fail "re-materialize before Purge clear should succeed"
+environment_configuration_install_host "${WL_NAME}" "${RESOLVED}" \
+  || fail "re-install before Purge clear should succeed"
 [[ -f "${env_path}" ]] || fail "EnvironmentFile should exist before Purge clear"
 [[ -f "$(workload_environment_dropin_path "app.container")" ]] \
   || fail "drop-in should exist before Purge clear"
 
-# Purge calls reconcile with empty resolved_src while SoT still present (then deletes SoT).
-workload_environment_reconcile "${WL_NAME}" "" \
+environment_configuration_clear "${WL_NAME}" \
   || fail "Purge-style clear should succeed"
 [[ ! -e "$(dirname "${env_path}")" ]] || fail "Purge clear should remove EnvironmentFile tree"
 [[ ! -f "$(workload_environment_dropin_path "app.container")" ]] \

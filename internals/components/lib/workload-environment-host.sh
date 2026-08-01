@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
-# Host-local Environment Configuration materialization (ADR-0035).
-# Sourced by workload-setup-host.sh — not an operator entrypoint.
+# Host-local Environment Configuration install / clear (ADR-0035 / #128 / #132).
+# Sourced by workload-setup-host, purge-workloads-host, and the operator module.
 # Requires: HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT (after quadlet_user_session_begin).
-# Declaration shape + container gate: environment-configuration-declaration.sh (#129).
 #
-# workload_environment_path WL_NAME → prints EnvironmentFile absolute path
-# workload_environment_reconcile WL_NAME RESOLVED_SRC
-#   RESOLVED_SRC empty → remove EnvironmentFile tree + Setup-owned env drop-ins
-#   RESOLVED_SRC set  → install EnvironmentFile + Setup-owned drop-ins for each
-#                       SoT quadlets/*.container (EnvironmentFile= path only)
-
-_WEH_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=environment-configuration-declaration.sh
-source "${_WEH_LIB_DIR}/environment-configuration-declaration.sh"
+# Module Host half (Setup/Purge interface):
+#   environment_configuration_install_host WL_NAME RESOLVED_SRC
+#     RESOLVED_SRC empty → remove EnvironmentFile tree + Setup-owned env drop-ins
+#     RESOLVED_SRC set  → install EnvironmentFile + Setup-owned drop-ins for each
+#                         SoT quadlets/*.container (EnvironmentFile= path only)
+#     Container gate is owned by environment_configuration_prepare / materialize (once).
+#   environment_configuration_clear WL_NAME
+#     Purge / omit clear path.
+#
+# Path helpers (install layout; not the Setup/Purge contract surface):
+#   workload_environment_path / workload_environment_dropin_path
 
 workload_environment_path() {
   local wl_name="${1:?workload name required}"
@@ -41,7 +42,7 @@ workload_environment_remove_dropins_for_dir() {
   done
 }
 
-workload_environment_reconcile() {
+environment_configuration_install_host() {
   local wl_name="${1:?workload name required}"
   local resolved_src="${2:-}"
   local env_path dropin_path base dest_dir sot_quadlets
@@ -61,9 +62,6 @@ workload_environment_reconcile() {
     return 1
   }
 
-  environment_configuration_require_containers \
-    "${WORKLOADS_ROOT}/${wl_name}" 1 || return 1
-
   mkdir -p "${dest_dir}"
   install -m 0600 "${resolved_src}" "${env_path}"
   chown -R "${USER_NAME}:${USER_NAME}" "${dest_dir}" 2>/dev/null || true
@@ -80,4 +78,20 @@ EOF
     chown -R "${USER_NAME}:${USER_NAME}" "$(dirname "${dropin_path}")" 2>/dev/null || true
   done
   return 0
+}
+
+environment_configuration_clear() {
+  local wl_name="${1:?workload name required}"
+  environment_configuration_install_host "${wl_name}" ""
+}
+
+# Host half after SSH staging: empty/unset RESOLVED_SRC → clear; else install.
+environment_configuration_apply_resolved() {
+  local wl_name="${1:?workload name required}"
+  local resolved_src="${2:-}"
+  if [[ -n "${resolved_src}" ]]; then
+    environment_configuration_install_host "${wl_name}" "${resolved_src}"
+  else
+    environment_configuration_clear "${wl_name}"
+  fi
 }

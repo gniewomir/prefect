@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Environment Configuration declaration surface (ADR-0035 / #129).
+# Environment Configuration declaration surface (ADR-0035 / #129 / #132).
 # Owns Manifest `environment` shape validation and the non-empty →
-# quadlets/*.container gate. Sourced by operator resolve and Host Setup —
-# one implementation, two call sites (ADR-0032: lives under components/lib/).
+# quadlets/*.container gate. Sourced by the Environment Configuration module
+# (prepare / materialize). Operator-side (ADR-0032: internals/lib/).
 #
 # environment_configuration_keys MANIFEST
 #   Validates optional Manifest `environment` (omit / [] / non-empty string names).

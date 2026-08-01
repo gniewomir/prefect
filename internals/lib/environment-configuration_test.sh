@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Offline tests: Environment Configuration bag resolve + declaration surface (ADR-0035 / #129).
+# Offline tests: Environment Configuration declaration, resolve, and module
+# interface materialize|clear (ADR-0035 / #129 / #132).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-# shellcheck source=../components/lib/environment-configuration-declaration.sh
-source "${REPO_ROOT}/internals/components/lib/environment-configuration-declaration.sh"
 # shellcheck source=environment-configuration.sh
 source "${REPO_ROOT}/internals/lib/environment-configuration.sh"
 
@@ -121,5 +120,108 @@ if environment_configuration_resolve "${MANIFEST}" "${ENV_DIR}" "${OUT}" >/dev/n
   fail "export line should fail closed"
 fi
 pass "invalid dotenv export fails closed"
+
+# --- module interface: resolve+materialize | clear (#132) ---
+# Ambient Host dirs (offline adapter); SSH staging is not the test surface.
+# Host half is sourced by environment-configuration.sh.
+
+HOME_DIR="${TMP}/home"
+UNIT_DIR="${TMP}/units"
+WORKLOADS_ROOT="${TMP}/workloads"
+USER_NAME="offline-test-user"
+WL_NAME="demo"
+WL_TREE="${WORKLOADS_ROOT}/${WL_NAME}"
+mkdir -p "${HOME_DIR}" "${UNIT_DIR}" "${WL_TREE}/quadlets"
+printf '[Container]\nImage=localhost/demo\n' >"${WL_TREE}/quadlets/app.container"
+
+cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run", "environment": ["A", "B"] }
+EOF
+printf 'A=from-file\nB=file-b\nC=surplus\n' >"${ENV_DIR}/.env"
+unset A B C || true
+
+environment_configuration_materialize "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "${WL_NAME}" \
+  || fail "materialize should succeed"
+env_path="$(workload_environment_path "${WL_NAME}")"
+[[ -f "${env_path}" ]] || fail "materialize should write EnvironmentFile"
+grep -Fx 'A=from-file' "${env_path}" >/dev/null || fail "EnvironmentFile should carry A from bag"
+grep -Fx 'B=file-b' "${env_path}" >/dev/null || fail "EnvironmentFile should carry B from bag"
+grep -F 'surplus' "${env_path}" >/dev/null && fail "surplus must not appear in EnvironmentFile"
+app_dropin="$(workload_environment_dropin_path "app.container")"
+[[ -f "${app_dropin}" ]] || fail "materialize should write Setup drop-in"
+grep -Fx "EnvironmentFile=${env_path}" "${app_dropin}" >/dev/null \
+  || fail "drop-in must wire EnvironmentFile= path only"
+grep -F 'from-file' "${app_dropin}" >/dev/null && fail "values must not appear in drop-in unit text"
+pass "module materialize → EnvironmentFile + drop-ins"
+
+environment_configuration_clear "${WL_NAME}" || fail "module clear should succeed"
+[[ ! -e "$(dirname "${env_path}")" ]] || fail "clear should remove EnvironmentFile tree"
+[[ ! -f "${app_dropin}" ]] || fail "clear should remove Setup drop-in"
+pass "module clear removes install artifacts"
+
+# omit / [] → clear path through materialize
+cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run", "environment": ["A"] }
+EOF
+printf 'A=again\n' >"${ENV_DIR}/.env"
+environment_configuration_materialize "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "${WL_NAME}" \
+  || fail "re-materialize before omit should succeed"
+[[ -f "${env_path}" ]] || fail "EnvironmentFile should exist before omit materialize"
+cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run" }
+EOF
+environment_configuration_materialize "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "${WL_NAME}" \
+  || fail "omit materialize should succeed"
+[[ ! -e "$(dirname "${env_path}")" ]] || fail "omit materialize should clear EnvironmentFile tree"
+pass "module materialize omit → clear"
+
+# fail closed: non-empty without containers (gate once in prepare)
+rm -f "${WL_TREE}/quadlets"/*.container
+cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run", "environment": ["A"] }
+EOF
+printf 'A=x\n' >"${ENV_DIR}/.env"
+if environment_configuration_materialize "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "${WL_NAME}" >/dev/null 2>&1; then
+  fail "materialize without *.container should fail closed"
+fi
+pass "module materialize fails closed without containers"
+
+# fail closed: missing bag key
+mkdir -p "${WL_TREE}/quadlets"
+printf '[Container]\nImage=localhost/demo\n' >"${WL_TREE}/quadlets/app.container"
+cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run", "environment": ["A", "B"] }
+EOF
+printf 'A=only\n' >"${ENV_DIR}/.env"
+if environment_configuration_materialize "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "${WL_NAME}" >/dev/null 2>&1; then
+  fail "materialize with missing key should fail closed"
+fi
+pass "module materialize fails closed on missing key"
+
+# SSH staging adapter: stage_for_setup writes resolved + remote path
+cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run", "environment": ["A"] }
+EOF
+printf 'A=staged\n' >"${ENV_DIR}/.env"
+STAGE_DIR="${TMP}/stage"
+mkdir -p "${STAGE_DIR}"
+eval "$(environment_configuration_stage_for_setup \
+  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup")"
+[[ "${WL_ENV_ACTIVE}" == "1" ]] || fail "stage_for_setup should be active"
+grep -Fx 'A=staged' "${STAGE_DIR}/environment.resolved" >/dev/null \
+  || fail "stage_for_setup should write resolved file into STAGE"
+[[ "${WL_ENV_RESOLVED_REMOTE}" == "/tmp/platform-workload-setup/environment.resolved" ]] \
+  || fail "expected remote resolved path, got: ${WL_ENV_RESOLVED_REMOTE}"
+pass "module stage_for_setup SSH staging adapter"
+
+# inactive stage clears remote path
+cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run" }
+EOF
+eval "$(environment_configuration_stage_for_setup \
+  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup")"
+[[ "${WL_ENV_ACTIVE}" == "0" ]] || fail "omit stage should be inactive"
+[[ -z "${WL_ENV_RESOLVED_REMOTE}" ]] || fail "omit stage should clear remote path"
+pass "module stage_for_setup omit → inactive"
 
 echo "All environment-configuration offline tests passed."

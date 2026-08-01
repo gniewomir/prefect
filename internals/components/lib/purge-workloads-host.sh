@@ -62,7 +62,7 @@ PY
     [[ "${P_INTENT}" == "trash" ]] || continue
 
     # Remove Environment Configuration before unit/SoT deletion (needs SoT basenames).
-    workload_environment_reconcile "${WL_NAME}" ""
+    environment_configuration_clear "${WL_NAME}"
 
     while IFS= read -r base; do
       [[ -n "${base}" ]] || continue

@@ -26,8 +26,6 @@ source /var/lib/host-volume/components/lib/quadlet-user-session.sh
 source /var/lib/host-volume/components/lib/edge-routes-host.sh
 # shellcheck source=workload-quadlets-host.sh
 source "${HERE}/workload-quadlets-host.sh"
-# shellcheck source=environment-configuration-declaration.sh
-source "${HERE}/environment-configuration-declaration.sh"
 # shellcheck source=workload-environment-host.sh
 source "${HERE}/workload-environment-host.sh"
 
@@ -70,24 +68,15 @@ print(f"WL_INTENT={shlex.quote(intent)}")
 PY
 )"
 
-# Manifest environment shape → WL_ENV_ACTIVE (shared declaration surface, #129).
-_env_keys="$(environment_configuration_keys "${MANIFEST}")" || exit 1
-if [[ -n "${_env_keys}" ]]; then
-  WL_ENV_ACTIVE=1
-else
-  WL_ENV_ACTIVE=0
-fi
-unset _env_keys
-
+# Environment Configuration: operator stage_for_setup is the single authority.
+# Active iff a resolved file was staged (SSH adapter); Host does not re-parse
+# Manifest environment or re-run the containers gate.
 WL_ENV_RESOLVED="${WL_ENV_RESOLVED:-}"
-if [[ "${WL_ENV_ACTIVE}" -eq 1 ]]; then
-  [[ -n "${WL_ENV_RESOLVED}" && -f "${WL_ENV_RESOLVED}" ]] || {
-    echo "Environment Configuration resolved file required when manifest.environment is non-empty" >&2
+if [[ -n "${WL_ENV_RESOLVED}" ]]; then
+  [[ -f "${WL_ENV_RESOLVED}" ]] || {
+    echo "Environment Configuration resolved file missing: ${WL_ENV_RESOLVED}" >&2
     exit 1
   }
-elif [[ -n "${WL_ENV_RESOLVED}" ]]; then
-  echo "Environment Configuration resolved file set but manifest.environment is empty/omit" >&2
-  exit 1
 fi
 
 mkdir -p "${ROUTES_DIR}" "${WORKLOADS_ROOT}/${WL_NAME}"
@@ -131,11 +120,7 @@ if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${TREE}" "${SOT_TREE}" >/de
   fi
   if [[ "${units_ok}" -eq 1 ]]; then
     # Environment Configuration refresh/removal must not be skipped by SoT noop (ADR-0035).
-    if [[ "${WL_ENV_ACTIVE}" -eq 1 ]]; then
-      workload_environment_reconcile "${WL_NAME}" "${WL_ENV_RESOLVED}" || exit 1
-    else
-      workload_environment_reconcile "${WL_NAME}" "" || exit 1
-    fi
+    environment_configuration_apply_resolved "${WL_NAME}" "${WL_ENV_RESOLVED}" || exit 1
     quadlet_user_session_reload
     workload_unit_apply_intent "${WL_NAME}" "${WL_INTENT}"
     echo "Workload Setup noop: '${WL_NAME}' already matches Host Volume SoT"
@@ -169,11 +154,7 @@ edge_reconcile_workload_routes "${WL_NAME}" "${WL_INTENT}" "${WORKLOADS_ROOT}/${
 
 workload_unit_reconcile_dual "${WL_NAME}" "${PREV_OWNED}" "${PREV_QUADLETS}" "${PREV_SYSTEMD}"
 
-if [[ "${WL_ENV_ACTIVE}" -eq 1 ]]; then
-  workload_environment_reconcile "${WL_NAME}" "${WL_ENV_RESOLVED}" || exit 1
-else
-  workload_environment_reconcile "${WL_NAME}" "" || exit 1
-fi
+environment_configuration_apply_resolved "${WL_NAME}" "${WL_ENV_RESOLVED}" || exit 1
 
 quadlet_user_session_reload
 workload_unit_apply_intent "${WL_NAME}" "${WL_INTENT}"
