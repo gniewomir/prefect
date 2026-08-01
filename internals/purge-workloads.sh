@@ -18,6 +18,8 @@ ENV_HOST_LIB="${REPO_ROOT}/internals/components/lib/workload-environment-host.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
+# shellcheck source=lib/host-delivery.sh
+source "${REPO_ROOT}/internals/lib/host-delivery.sh"
 
 environment_activate "${STACK_DIR}" "$@" || exit 1
 for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
@@ -48,17 +50,14 @@ command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
 host_session_open verify "${STACK_DIR}" || exit 1
 IP="$(host_session_ip)"
 
-STAGE="$(mktemp -d)"
+STAGE="$(mktemp -d "${TMPDIR:-/tmp}/platform-purge-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT
 cp "${HOST_SCRIPT}" "${STAGE}/purge-workloads-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
 
-COPYFILE_DISABLE=1 tar --format=ustar -C "${STAGE}" -cf - . \
-  | host_ssh "rm -rf /tmp/platform-purge && mkdir -p /tmp/platform-purge && tar -C /tmp/platform-purge -xf -"
-
-host_ssh \
+host_delivery_run "${STAGE}" "/tmp/platform-purge" \
   "PLATFORM_USER=${USER_NAME} bash /tmp/platform-purge/purge-workloads-host.sh"
 
 echo "Purge completed on ${IP}."
