@@ -55,7 +55,13 @@ chmod +x "${TMP_DIR}/bin/terraform" "${TMP_DIR}/bin/curl"
 export PATH="${TMP_DIR}/bin:${PATH}"
 export TERRAFORM_CALLS="${TMP_DIR}/terraform.calls"
 export DIGITALOCEAN_TOKEN="test-token"
-export TF_VAR_DIGITALOCEAN_PUBLIC_KEY="ssh-ed25519 test"
+KEYS_DIR="${TMP_DIR}/operator-keys"
+mkdir -p "${KEYS_DIR}"
+printf 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey test@propraetor\n' >"${KEYS_DIR}/id.pub"
+printf 'PRIVATE\n' >"${KEYS_DIR}/id"
+chmod 600 "${KEYS_DIR}/id" "${KEYS_DIR}/id.pub"
+export PROPRAETOR_PUBLIC_KEY_PATH="${KEYS_DIR}/id.pub"
+export PROPRAETOR_PRIVATE_KEY_PATH="${KEYS_DIR}/id"
 
 "${REPO_ROOT}/park.sh" --env test >/dev/null
 

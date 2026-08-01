@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lifecycle Test: Parked additive Domain + partial Apply recovery (ADR-0025 / #64).
-# Case-owned Park → stage domains.override.json → Apply with invalid public key
-# (Recreatable fault after Durable convergence) → restore key → normal Apply →
+# Case-owned Park → stage domains.override.json → Apply with invalid Host Image
+# (Recreatable fault after Durable convergence) → restore image → normal Apply →
 # empty re-Apply → Teardown with override → remove override → committed re-Apply.
 # Recovery-only: clean Parked-additive happy path is 14-parked-additive-domain.sh (#65).
 # Leftover Stack state on success: Applied (committed Domains only; no fixture Durable).
@@ -15,8 +15,8 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh lifecycle)"
 [[ -d "${STACK_DIR}" ]] || fail "missing Stack dir ${STACK_DIR}"
-[[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] \
-  || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY must be set (real key for recovery Apply)"
+[[ -n "${PROPRAETOR_PUBLIC_KEY_PATH:-}" ]] \
+  || fail "PROPRAETOR_PUBLIC_KEY_PATH must be set (Operator Configuration for recovery Apply)"
 
 trap 'remove_domain_override' EXIT
 
@@ -53,18 +53,18 @@ FIXTURE_APEX="$(write_additive_domain_override)"
 [[ -n "${FIXTURE_APEX}" ]] || fail "additive Domain fixture apex empty"
 pass "wrote Domain override with fixture ${FIXTURE_APEX} while Parked"
 
-echo "Apply with invalid Recreatable public key (expect Durable converge, then fail) ..."
+echo "Apply with invalid Recreatable Host Image (expect Durable converge, then fail) ..."
 set +e
-fail_out="$(apply_with_public_key "$(lifecycle_invalid_public_key)" 2>&1)"
+fail_out="$(apply_with_host_image "$(lifecycle_invalid_host_image)" 2>&1)"
 fail_rc=$?
 set -e
-[[ "${fail_rc}" -ne 0 ]] || fail "Apply with invalid public key was expected to fail"
-echo "${fail_out}" | grep -Eqi 'SSH Key|Fingerprint could not be generated|your key is valid' \
+[[ "${fail_rc}" -ne 0 ]] || fail "Apply with invalid Host Image was expected to fail"
+echo "${fail_out}" | grep -Eqi 'image|droplet|not found|invalid|404|422' \
   || {
     echo "${fail_out}" >&2
-    fail "failed Apply did not look like Recreatable SSH key rejection"
+    fail "failed Apply did not look like Recreatable Host Image rejection"
   }
-pass "failed Apply attributed to invalid SSH public key (Recreatable phase)"
+pass "failed Apply attributed to invalid Host Image (Recreatable phase)"
 
 AFTER_FAIL_IP="$(stack_reserved_ip)"
 [[ "${AFTER_FAIL_IP}" == "${IP}" ]] \
@@ -94,7 +94,7 @@ assert_domains_present "${IP}"
   || fail "fixture Domain ${FIXTURE_APEX} missing from State after failed Apply"
 pass "after failed Apply: Durables (incl. fixture) present in provider+State; Host still absent"
 
-echo "Retry Apply with real public key (normal ./apply.sh; parent TF_VAR unchanged) ..."
+echo "Retry Apply with default Host Image (normal ./apply.sh; parent TF_VAR unchanged) ..."
 "${REPO_ROOT}/apply.sh" --yes --env "${PLATFORM_ENV}"
 
 AFTER_IP="$(stack_reserved_ip)"

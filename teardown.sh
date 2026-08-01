@@ -2,7 +2,7 @@
 # Teardown the Stack — full wipe including all Durables.
 # Temporarily unlocks the Durable module and removes the override afterward.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
-# Requires: terraform; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
+# Requires: terraform; Provider Credential (DIGITALOCEAN_TOKEN)
 # Usage: ./teardown.sh [--env <slug>]
 # Confirm with exact: teardown
 set -euo pipefail
@@ -16,12 +16,18 @@ UNLOCK_VAR=(-var=allow_durable_destroy=true)
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=internals/lib/adopt.sh
 source "${REPO_ROOT}/internals/lib/adopt.sh"
+# shellcheck source=internals/lib/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
+# shellcheck source=internals/lib/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 remove_override() {
   rm -f "${OVERRIDE}"
 }
+
+operator_dotenv_load "${REPO_ROOT}" || exit 1
 
 environment_parse_args "$@" || exit 1
 for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
@@ -32,8 +38,7 @@ WORKSPACE="$(environment_workspace_for "${ENVIRONMENT_RAW}")" || exit 1
 command -v terraform >/dev/null || fail "terraform not found"
 [[ -f "${OVERRIDE_EXAMPLE}" ]] || fail "missing ${OVERRIDE_EXAMPLE}"
 
-[[ -n "${DIGITALOCEAN_TOKEN:-}" ]] || fail "DIGITALOCEAN_TOKEN is not set"
-[[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY is not set"
+provider_credential_require || exit 1
 
 cd "${STACK_DIR}"
 

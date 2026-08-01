@@ -8,7 +8,7 @@ Registrar NS → provider stays out of band and is unchanged by import.
 
 ## Before you start
 
-1. Credentials set (`DIGITALOCEAN_TOKEN`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY`).
+1. Credentials set (`DIGITALOCEAN_TOKEN`; Apply also needs Operator Configuration key paths — see root `.env.example`).
 2. Select the Environment workspace (raw `terraform` defaults to `default` = **test**; cloud slug for the config path is `test`).
 3. Declare the Domain in that Environment’s file so Terraform expects it:
 

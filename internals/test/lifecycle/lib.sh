@@ -1,5 +1,6 @@
 # Shared helpers for Lifecycle Tests. Sourced by case scripts (not executed by the runner).
-# Requires fixture env from ./test.sh lifecycle: REPO_ROOT. Optional: VERIFY_SSH_IDENTITY.
+# Requires fixture env from ./test.sh lifecycle: REPO_ROOT.
+# Identity for Host SSH: PROPRAETOR_PRIVATE_KEY_PATH (Operator Configuration).
 # Reuses Acceptance Test helpers for pass/fail / SSH / ihp-done.
 # Resolve siblings via REPO_ROOT — not BASH_SOURCE — so sourcing from zsh (operator
 # shells) works the same as bash (Lifecycle cases run under bash).
@@ -398,19 +399,19 @@ write_subtractive_domain_override() {
   printf '%s\n' "${dropped}"
 }
 
-# Known-invalid SSH public key for Recreatable fault injection (#64).
+# Known-invalid Host Image for Recreatable fault injection (#64 / ADR-0037).
 # Non-empty so ./apply.sh does not fail closed before planning; provider rejects at
-# digitalocean_ssh_key create (after Durables converge).
-lifecycle_invalid_public_key() {
-  printf '%s\n' 'not-a-valid-ssh-public-key'
+# droplet create (after Durables converge).
+lifecycle_invalid_host_image() {
+  printf '%s\n' 'ubuntu-99-99-not-a-real-image'
 }
 
-# Run ./apply.sh --yes --env $PLATFORM_ENV with TF_VAR_DIGITALOCEAN_PUBLIC_KEY set only
+# Run ./apply.sh --yes --env $PLATFORM_ENV with TF_VAR_host_image set only
 # for that child process (parent env unchanged). Propagates Apply's exit status.
-apply_with_public_key() {
-  local public_key="${1-}"
-  [[ -n "${public_key}" ]] || fail "apply_with_public_key: empty public key"
-  TF_VAR_DIGITALOCEAN_PUBLIC_KEY="${public_key}" \
+apply_with_host_image() {
+  local host_image="${1-}"
+  [[ -n "${host_image}" ]] || fail "apply_with_host_image: empty host image"
+  TF_VAR_host_image="${host_image}" \
     "${REPO_ROOT}/apply.sh" --yes --env "${PLATFORM_ENV}"
 }
 

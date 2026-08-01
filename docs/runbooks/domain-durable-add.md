@@ -7,7 +7,7 @@ If the zone already exists on the provider (“name already exists”) and the a
 ## Before you start
 
 1. Own the apex at a registrar (purchase / transfer is out of band).
-2. Credentials set (`DIGITALOCEAN_TOKEN`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY`).
+2. Credentials set (`DIGITALOCEAN_TOKEN`; Apply also needs Operator Configuration key paths — see root `.env.example`).
 3. Select the Environment (`./apply.sh` defaults to **test**; pass `--env <slug>` for others).
 4. Reserved IP should already be in State for that Environment (or the same Apply that adds the Domain will create both — A records always target that Environment’s Reserved IP).
 

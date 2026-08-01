@@ -5,7 +5,7 @@
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Closed surface: optional --yes and --env only. Specialist surgery stays raw terraform
 # in the Stack dir.
-# Requires: terraform; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
+# Requires: terraform; Provider Credential; Operator Configuration (both key paths).
 # Usage: ./apply.sh [--yes] [--env <slug>]
 set -euo pipefail
 
@@ -16,8 +16,14 @@ PRESENCE_VAR=(-var=recreatables_present=true)
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=internals/lib/adopt.sh
 source "${REPO_ROOT}/internals/lib/adopt.sh"
+# shellcheck source=internals/lib/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
+# shellcheck source=internals/lib/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+operator_dotenv_load "${REPO_ROOT}" || exit 1
 
 environment_parse_args "$@" || exit 1
 YES=false
@@ -36,8 +42,9 @@ command -v terraform >/dev/null || fail "terraform not found"
 "${REPO_ROOT}/internals/lib/check-ssh-port-twins.sh"
 "${REPO_ROOT}/internals/lib/check-domains-config-path.sh"
 
-[[ -n "${DIGITALOCEAN_TOKEN:-}" ]] || fail "DIGITALOCEAN_TOKEN is not set"
-[[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY is not set"
+provider_credential_require || exit 1
+operator_configuration_require both || exit 1
+operator_configuration_export_host_root_ssh_public_key || exit 1
 
 cd "${STACK_DIR}"
 

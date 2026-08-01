@@ -13,6 +13,13 @@ users:
 bootcmd:
   - [ sysctl, -w, net.ipv4.ip_unprivileged_port_start=80 ]
 write_files:
+  # Root Host login from Operator Configuration (ADR-0037). Written in config
+  # stage before ADR-0030 power_state reboot so first reachable SSH has the key.
+  - path: /root/.ssh/authorized_keys
+    owner: root:root
+    permissions: "0600"
+    content: |
+      ${host_root_ssh_public_key}
   - path: /etc/sysctl.d/99-unprivileged-port-start.conf
     content: |
       net.ipv4.ip_unprivileged_port_start=80

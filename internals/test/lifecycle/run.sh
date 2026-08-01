@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Lifecycle Test suite runner — Park / Apply-after-Park / Teardown (destructive; opt-in).
 # Invoked via ./test.sh lifecycle […] (ADR-0036). See README.md.
-# Optional: VERIFY_SSH_IDENTITY=/path/to/private_key
-# Requires: terraform; curl; jq; ssh; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
+# Requires: terraform; curl; jq; ssh; Provider Credential; Operator Configuration (both paths).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -10,8 +9,14 @@ CASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 # shellcheck source=internals/lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
+# shellcheck source=internals/lib/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
+# shellcheck source=internals/lib/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+operator_dotenv_load "${REPO_ROOT}" || exit 1
 
 environment_activate "${STACK_DIR}" "$@" || exit 1
 set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
@@ -21,12 +26,11 @@ command -v curl >/dev/null || fail "curl not found"
 command -v jq >/dev/null || fail "jq not found"
 command -v ssh >/dev/null || fail "ssh not found"
 
-[[ -n "${DIGITALOCEAN_TOKEN:-}" ]] || fail "DIGITALOCEAN_TOKEN is not set"
-[[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY is not set"
+provider_credential_require || exit 1
+operator_configuration_require both || exit 1
 [[ -d "${STACK_DIR}" ]] || fail "missing Stack dir ${STACK_DIR}"
 
 export REPO_ROOT STACK_DIR PLATFORM_ENV
-export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"
 
 ALL_CASES=()
 while IFS= read -r case_path; do

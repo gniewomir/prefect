@@ -8,7 +8,6 @@ locals {
   names = {
     propraetor_tag = "propraetor-${local.environment_slug}"
     role_tag       = "propraetor-${local.environment_slug}-public-web"
-    ssh_key        = "propraetor-${local.environment_slug}-web"
     host           = "propraetor-${local.environment_slug}-web"
     volume         = "propraetor-${local.environment_slug}-web-data"
     firewall       = "propraetor-${local.environment_slug}-public-web"

@@ -20,7 +20,7 @@ From the repo root:
 
 **Environment (ADR-0019):** every operator entrypoint is safe by default — no `--env` selects the **test** Environment (Terraform workspace `default`). `--env test` and `--env default` are the same alias; any other slug selects that Environment’s workspace. Targeting prod (or any non-test Environment) always requires an explicit `--env <slug>`. When present, `--env` must be last.
 
-Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
+Requires Provider Credential and Operator Configuration private key path (root `.env` or process environment — ADR-0038).
 
 Components (empty Edge → HTTP 404 on :80): the runner invokes `./internals/ensure-components.sh` (same Environment) before cases (idempotent Component Setup on the Host Volume; not Initial Host Provisioning).
 

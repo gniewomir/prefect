@@ -29,7 +29,7 @@ _host_session_validate_profile() {
 }
 
 # Bind an ambient Host-session to a known Reserved IP (Acceptance fixture path).
-# Profiles: operator (SSH_IDENTITY) | verify (VERIFY_SSH_IDENTITY, BatchMode).
+# Profiles: operator | verify (BatchMode). Identity: PROPRAETOR_PRIVATE_KEY_PATH.
 host_session_bind() {
   local profile="${1:?host_session_bind requires profile}"
   local ip="${2:?host_session_bind requires IP}"
@@ -88,12 +88,10 @@ _host_session_build_opts() {
         -o ConnectTimeout=10
         -o PreferredAuthentications=publickey
       )
-      identity="${VERIFY_SSH_IDENTITY:-}"
       ;;
-    operator)
-      identity="${SSH_IDENTITY:-}"
-      ;;
+    operator) ;;
   esac
+  identity="${PROPRAETOR_PRIVATE_KEY_PATH:-}"
   if [[ -n "${identity}" ]]; then
     _HOST_SESSION_OPTS+=(-i "${identity}" -o IdentitiesOnly=yes)
   fi

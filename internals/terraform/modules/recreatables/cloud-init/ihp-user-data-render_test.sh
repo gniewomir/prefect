@@ -9,6 +9,7 @@ RENDER_MODULE="${REPO_ROOT}/internals/terraform/modules/recreatables/cloud-init/
 # Known fixture inputs (independent of recreatables local.ssh_port twin).
 SSH_PORT=9417
 VOLUME_NAME="propraetor-test-web-data"
+ROOT_PUBKEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFixtureRootKey propraetor-ihp-test"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
@@ -26,8 +27,9 @@ cat >"${WORKDIR}/main.tf" <<EOF
 module "ihp_user_data" {
   source = "${RENDER_MODULE}"
 
-  volume_name = "${VOLUME_NAME}"
-  ssh_port    = ${SSH_PORT}
+  volume_name              = "${VOLUME_NAME}"
+  ssh_port                 = ${SSH_PORT}
+  host_root_ssh_public_key = "${ROOT_PUBKEY}"
 }
 
 output "user_data" {
@@ -56,9 +58,15 @@ pass "rendered user_data parses as YAML"
 ruby -ryaml -e "
 ssh_port = ${SSH_PORT}
 volume_name = '${VOLUME_NAME}'
+root_pubkey = '${ROOT_PUBKEY}'
 d = YAML.load_file('${WORKDIR}/user_data.yaml')
 files = d['write_files'] || []
 by_path = files.map { |x| [x['path'], x] }.to_h
+
+auth = by_path['/root/.ssh/authorized_keys']
+abort('missing root authorized_keys') unless auth
+abort('root authorized_keys missing pubkey') unless auth['content'].to_s.include?(root_pubkey)
+abort('root authorized_keys wrong mode') unless auth['permissions'].to_s == '0600'
 
 port = by_path['/etc/ssh/sshd_config.d/99-ssh-port.conf']
 abort('missing Port drop-in') unless port
@@ -87,5 +95,5 @@ active = doc_lines.reject { |l| l.match?(/^\\s*#/) }.join
 if active.match?(/sshd-socket-generator|ensure-ssh-listen|ssh\\.socket\\.d/)
   abort('must not mask generator or ship ssh.socket.d overrides')
 end
-" || fail "rendered user_data contract (ADR-0030 / ADR-0031)"
+" || fail "rendered user_data contract (ADR-0030 / ADR-0031 / ADR-0037)"
 pass "rendered user_data matches IHP delivery contract"

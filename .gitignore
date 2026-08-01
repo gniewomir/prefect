@@ -1,0 +1,3 @@
+# Provider Credential + Operator Configuration baseline (ADR-0038).
+# Commit `.env.example`; never commit local values.
+/.env

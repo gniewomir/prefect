@@ -3,8 +3,8 @@
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Bundle: required --bundle <id> (v1: ihp — Initial Host Provisioning evidence).
 # Output: omitted → $TMPDIR/platform-diagnostics-<env>-<bundle>-<timestamp>/; or --out <dir>.
-# Requires: terraform, ssh; applied State with a live Host (Reserved IP assigned).
-# Optional: SSH_IDENTITY=/path/to/private_key (defaults to ssh agent / default identities).
+# Requires: terraform, ssh; applied State with a live Host (Reserved IP assigned);
+# Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
 # Usage: ./internals/diagnostics.sh [--env <slug>] --bundle <id> [--out <dir>]
 set -euo pipefail
 
@@ -16,8 +16,15 @@ source "${REPO_ROOT}/internals/lib/environment.sh"
 source "${REPO_ROOT}/internals/lib/diagnostics.sh"
 # shellcheck source=internals/lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
+# shellcheck source=internals/lib/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
+# shellcheck source=internals/lib/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+operator_dotenv_load "${REPO_ROOT}" || exit 1
+operator_configuration_require private || exit 1
 
 environment_activate "${STACK_DIR}" "$@" || exit 1
 set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"

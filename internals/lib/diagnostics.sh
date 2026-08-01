@@ -21,7 +21,7 @@ Pull Host diagnostics (named artifact bundles) for local inspection.
 Bundles:
   ihp    Initial Host Provisioning evidence (cloud-init logs + status --long)
 
-Optional: SSH_IDENTITY=/path/to/private_key
+Requires: PROPRAETOR_PRIVATE_KEY_PATH (Operator Configuration)
 EOF
 }
 

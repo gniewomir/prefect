@@ -108,7 +108,8 @@ probe_denied_tcp() {
   fi
 }
 
-# Bind verify Host-session for Acceptance (fixture IP from ./test.sh acceptance). Optional: VERIFY_SSH_IDENTITY.
+# Bind verify Host-session for Acceptance (fixture IP from ./test.sh acceptance).
+# Identity: PROPRAETOR_PRIVATE_KEY_PATH (Operator Configuration).
 acceptance_host_session() {
   require_ip
   host_session_bind verify "${IP}" || fail "host_session_bind verify failed for ${IP}"

@@ -3,7 +3,6 @@ variable "names" {
   type = object({
     propraetor_tag = string
     role_tag       = string
-    ssh_key        = string
     host           = string
     firewall       = string
   })
@@ -14,9 +13,15 @@ variable "region" {
   type        = string
 }
 
-variable "public_key" {
-  description = "SSH public key installed for operator access."
+variable "host_root_ssh_public_key" {
+  description = "Operator public key for root Host login via IHP (ADR-0037)."
   type        = string
+}
+
+variable "host_image" {
+  description = "Host Image slug for the Droplet (override only for Lifecycle fault injection)."
+  type        = string
+  default     = "ubuntu-26-04-x64"
 }
 
 variable "project_id" {

@@ -6,8 +6,9 @@ locals {
 module "ihp_user_data" {
   source = "./cloud-init/render"
 
-  volume_name = var.volume_name
-  ssh_port    = local.ssh_port
+  volume_name              = var.volume_name
+  ssh_port                 = local.ssh_port
+  host_root_ssh_public_key = var.host_root_ssh_public_key
 }
 
 resource "digitalocean_tag" "propraetor" {
@@ -16,11 +17,6 @@ resource "digitalocean_tag" "propraetor" {
 
 resource "digitalocean_tag" "public_web" {
   name = var.names.role_tag
-}
-
-resource "digitalocean_ssh_key" "web" {
-  name       = var.names.ssh_key
-  public_key = var.public_key
 }
 
 resource "digitalocean_firewall" "public_web" {
@@ -72,12 +68,11 @@ resource "digitalocean_droplet" "web" {
   name   = var.names.host
   region = var.region
   size   = "s-1vcpu-1gb"
-  image  = "ubuntu-26-04-x64"
+  image  = var.host_image
 
   ipv6    = false
   backups = false
 
-  ssh_keys = [digitalocean_ssh_key.web.fingerprint]
   tags = [
     digitalocean_tag.propraetor.id,
     digitalocean_tag.public_web.id,

@@ -1,6 +1,13 @@
-variable "DIGITALOCEAN_PUBLIC_KEY" {
+variable "host_root_ssh_public_key" {
   type        = string
-  description = "SSH public key for Host access. Set via TF_VAR_DIGITALOCEAN_PUBLIC_KEY."
+  default     = ""
+  description = "SSH public key for root Host login via IHP. Apply sets TF_VAR_host_root_ssh_public_key from Operator Configuration; unused when Recreatables are absent."
+}
+
+variable "host_image" {
+  type        = string
+  default     = "ubuntu-26-04-x64"
+  description = "Host Image slug. Lifecycle Tests may override for Recreatable fault injection."
 }
 
 variable "recreatables_present" {

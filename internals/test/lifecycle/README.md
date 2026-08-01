@@ -21,7 +21,7 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
   empty re-Apply; Teardown with override → drop override → committed re-Apply)
 - Parked additive partial Apply recovery: `16-parked-additive-partial-apply.sh`
   (case-owned Park; same override fixture; Apply with invalid
-  `TF_VAR_DIGITALOCEAN_PUBLIC_KEY` after Durable converge; restore key → Apply;
+  `TF_VAR_host_image` after Durable converge; restore default image → Apply;
   empty re-Apply; Teardown cleanup as in `15-additive-domain.sh`)
 - Subtractive Durable fail-closed: `17-subtractive-durable.sh`
   (narrower `domains.override.json` drops lex-first committed apex; Apply fails with
@@ -36,7 +36,7 @@ Domain Durable asserts run when Domains are in State (declare them in `environme
 
 ## Run
 
-Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY` — same as `./apply.sh` / `./park.sh` / `./teardown.sh`).
+Credentials must already be in the environment or root `.env` (`DIGITALOCEAN_TOKEN`, `PROPRAETOR_PUBLIC_KEY_PATH`, `PROPRAETOR_PRIVATE_KEY_PATH` — same as `./apply.sh`; see ADR-0037 / ADR-0038).
 
 ```bash
 ./test.sh lifecycle                 # all Lifecycle Tests on the test Environment (default)
@@ -48,8 +48,6 @@ Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DI
 ```
 
 **Environment (ADR-0019):** same default-safe rule as Acceptance and other operator entrypoints — no `--env` → **test** (workspace `default`); `--env test` / `--env default` are aliases; any other slug requires explicit `--env <slug>`. When present, `--env` must be last. The runner propagates the resolved Environment into nested `./park.sh` / `./apply.sh` / `./teardown.sh` so child calls cannot flip Environment.
-
-Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
 The runner asks for exact `teardown` before any Teardown case; the case also confirms into `./teardown.sh`. Do not wire this into CI that assumes a standing Applied Stack. After Teardown, leftover State is empty — `./apply.sh` again before `./test.sh acceptance`.
 

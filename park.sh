@@ -2,7 +2,7 @@
 # Park the Stack — request Recreatable absence through a complete Terraform plan.
 # Durables remain configured and protected; the next Apply requests presence again.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
-# Requires: terraform; DIGITALOCEAN_TOKEN; TF_VAR_DIGITALOCEAN_PUBLIC_KEY
+# Requires: terraform; Provider Credential (DIGITALOCEAN_TOKEN)
 # Usage: ./park.sh [--env <slug>]
 # Confirm with exact: park
 set -euo pipefail
@@ -13,10 +13,16 @@ STACK_DIR="${REPO_ROOT}/internals/terraform"
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=internals/lib/adopt.sh
 source "${REPO_ROOT}/internals/lib/adopt.sh"
+# shellcheck source=internals/lib/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
+# shellcheck source=internals/lib/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
 
 ABSENCE_VAR=(-var=recreatables_present=false)
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+operator_dotenv_load "${REPO_ROOT}" || exit 1
 
 environment_parse_args "$@" || exit 1
 for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
@@ -26,8 +32,7 @@ WORKSPACE="$(environment_workspace_for "${ENVIRONMENT_RAW}")" || exit 1
 
 command -v terraform >/dev/null || fail "terraform not found"
 
-[[ -n "${DIGITALOCEAN_TOKEN:-}" ]] || fail "DIGITALOCEAN_TOKEN is not set"
-[[ -n "${TF_VAR_DIGITALOCEAN_PUBLIC_KEY:-}" ]] || fail "TF_VAR_DIGITALOCEAN_PUBLIC_KEY is not set"
+provider_credential_require || exit 1
 
 cd "${STACK_DIR}"
 

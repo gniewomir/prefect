@@ -13,11 +13,11 @@ A Terraform root module that owns a cohesive slice of infrastructure for one pro
 _Avoid_: Project, workspace (Terraform State slices are an implementation detail — see Environment); Environment (when you mean the module itself rather than an instance)
 
 **Environment**:
-A namespaced instance of a Stack under one provider account: its own State and its own account-unique cloud names (including Cloud Project, Host, Host Volume, Domain, tags, Firewall, SSH key). Identified by an open-ended operator-chosen slug (e.g. `test`, `prod`, `dev`, `staging` — no fixed enum). When no Environment is explicitly selected, the operator is on the **test** Environment. In operator tooling, `test` and `default` refer to that same Environment (`default` is the only alias). Propraetor operator CLI is safe by default: every operator entrypoint accepts an Environment parameter and affects **test** unless another Environment is explicitly specified. A `prod` Environment is optional — created only when needed. Distinct from the provider Cloud Project’s metadata `environment` field (Production / Staging / …), which is billing/UI labeling only.
+A namespaced instance of a Stack under one provider account: its own State and its own account-unique cloud names (including Cloud Project, Host, Host Volume, Domain, tags, Firewall). Identified by an open-ended operator-chosen slug (e.g. `test`, `prod`, `dev`, `staging` — no fixed enum). When no Environment is explicitly selected, the operator is on the **test** Environment. In operator tooling, `test` and `default` refer to that same Environment (`default` is the only alias). Propraetor operator CLI is safe by default: every operator entrypoint accepts an Environment parameter and affects **test** unless another Environment is explicitly specified. A `prod` Environment is optional — created only when needed. Distinct from the provider Cloud Project’s metadata `environment` field (Production / Staging / …), which is billing/UI labeling only.
 _Avoid_: Workspace, stage, stack instance, Terraform workspace (when you mean this concept); environment variable / process environment (shell); Cloud Project `environment` field
 
 **Cloud Project**:
-A provider-side folder that groups billable resources for UI and billing. Distinct from Propraetor, Stack, and Environment. Each Environment gets its own Cloud Project (namespaced by Environment slug). Resources that cannot be assigned (Firewall, tags, SSH keys) stay Stack-managed only.
+A provider-side folder that groups billable resources for UI and billing. Distinct from Propraetor, Stack, and Environment. Each Environment gets its own Cloud Project (namespaced by Environment slug). Resources that cannot be assigned (Firewall, tags) stay Stack-managed only.
 _Avoid_: Project (bare), DO project (when speaking in domain language)
 
 **Bootstrap**:
@@ -28,13 +28,17 @@ _Avoid_: Scaffold, skeleton, hello-world
 The Terraform record of what a Stack currently manages. For Bootstrap, State is local to the operator's machine.
 _Avoid_: Backend, tfstate (implementation jargon for the concept itself)
 
-**Credential**:
-A secret used to authenticate to a cloud provider. Supplied via the environment (never committed); for DigitalOcean that is the API token in `DIGITALOCEAN_TOKEN`.
-_Avoid_: Key, secret, password (when you mean the provider API token)
+**Provider Credential**:
+A secret used to authenticate to a cloud provider API. Supplied via the operator's environment (never committed); for DigitalOcean that is the API token in `DIGITALOCEAN_TOKEN`. Baseline may come from the repo-root gitignored `.env` when present; a non-empty process-environment value overrides the file.
+_Avoid_: Credential (bare), Key, secret, password (when you mean this); Operator Configuration; Environment Configuration
+
+**Operator Configuration**:
+Operator-machine inputs Propraetor tooling requires (paths and similar), distinct from provider API auth and from Environment Configuration. Today: the matched SSH public- and private-key paths used for Host login and Initial Host Provisioning. Baseline may come from the same repo-root gitignored `.env` as Provider Credential; a non-empty process-environment value overrides the file. Path values are absolute or `~/…` only. Committed `.env.example` documents both; neither bag is Environment Configuration.
+_Avoid_: Provider Credential, Credential, Environment Configuration, SSH identity / identity (when you mean Adopt or resource identity); SSH key (when you mean a provider-account registry resource)
 
 **Environment Configuration**:
-The Environment-scoped bag of non-committed key/value pairs the operator supplies for Workload Setup to materialize into one Platform User–local EnvironmentFile per Workload at `~/.config/platform/workloads/<basename>/environment`, wired onto that Workload’s `quadlets/*.container` install units via a Setup-owned Quadlet drop-in (`EnvironmentFile=` — not unit-text substitution, not onto the Host Volume Workload tree). Baseline from gitignored `environments/<slug>/.env` when present, current shell overriding any key; a Workload’s Manifest `environment` list selects which keys that Workload receives (surplus bag keys ignored for that Workload); missing listed keys fail closed in Workload Setup; a non-empty list with no `quadlets/*.container` also fails closed. Re-Setup rewrites the file from current sources (the rotation path). Components do not consume this bag in v1. Key names are operator-owned — Setup does not reserve or reject names — but prefer not to use the `PLATFORM_*` prefix or provider **Credential** names (`DIGITALOCEAN_TOKEN` today; future tokens in the same Credential role) in Manifest `environment` lists or committed `.env.example`. Distinct from Stack/Terraform configuration under that Environment directory, from the process environment as a concept, and from provider **Credential**.
-_Avoid_: Environment (the Propraetor instance); Stack configuration / Terraform config (when you mean files under `environments/<slug>/` other than this bag); environment / env / environment variable (process/shell, when you mean this bag); Operator Configuration (operator-machine vars for Propraetor tooling); Credential; secrets (when you mean the whole bag); dotenv / `.env` (when you mean the bag, not the file); placeholder substitution (not the injection path)
+The Environment-scoped bag of non-committed key/value pairs the operator supplies for Workload Setup to materialize into one Platform User–local EnvironmentFile per Workload at `~/.config/platform/workloads/<basename>/environment`, wired onto that Workload’s `quadlets/*.container` install units via a Setup-owned Quadlet drop-in (`EnvironmentFile=` — not unit-text substitution, not onto the Host Volume Workload tree). Baseline from gitignored `environments/<slug>/.env` when present, current shell overriding any key; a Workload’s Manifest `environment` list selects which keys that Workload receives (surplus bag keys ignored for that Workload); missing listed keys fail closed in Workload Setup; a non-empty list with no `quadlets/*.container` also fails closed. Re-Setup rewrites the file from current sources (the rotation path). Components do not consume this bag in v1. Key names are operator-owned — Setup does not reserve or reject names — but prefer not to use the `PLATFORM_*` prefix or **Provider Credential** names (`DIGITALOCEAN_TOKEN` today; future tokens in the same Provider Credential role) in Manifest `environment` lists or committed `.env.example`. Distinct from Stack/Terraform configuration under that Environment directory, from the process environment as a concept, from **Provider Credential**, and from **Operator Configuration**.
+_Avoid_: Environment (the Propraetor instance); Stack configuration / Terraform config (when you mean files under `environments/<slug>/` other than this bag); environment / env / environment variable (process/shell, when you mean this bag); Operator Configuration; Provider Credential; Credential; secrets (when you mean the whole bag); dotenv / `.env` (when you mean the bag, not the file); placeholder substitution (not the injection path)
 
 **Host**:
 A virtual machine managed by a Stack. The first Host in this Stack is a public web host (HTTP/HTTPS plus SSH).
@@ -45,8 +49,8 @@ The provider distribution image the Stack pins for a Host (today: Ubuntu 26.04 x
 _Avoid_: Droplet image, OS slug, AMI (when you mean this concept)
 
 **Initial Host Provisioning**:
-One-shot Host setup applied when the Host is created (delivered via the provider’s user-data / cloud-init). Prepares the Host for Components (engine, Platform User, SSH listen port, port floor, Host Volume mount) but does not run Component Setup and does not install Workloads. Not ongoing Host management and not Stack Bootstrap.
-_Avoid_: User Data, cloud-init, userdata (when you mean this concept); provisioning (bare — ambiguous with Stack apply)
+One-shot Host setup applied when the Host is created (delivered via the provider’s user-data / cloud-init). Prepares the Host for Components (engine, Platform User, SSH listen port, port floor, Host Volume mount) and installs the Operator Configuration public key for **root** Host login only — not onto the Platform User. Does not run Component Setup and does not install Workloads. Not ongoing Host management and not Stack Bootstrap.
+_Avoid_: User Data, cloud-init, userdata (when you mean this concept); provisioning (bare — ambiguous with Stack apply); provider account SSH key registry (not how Host login is granted)
 
 **Initial Host Provisioning Done** (alias **IHP Done**):
 Host-local gate: the Initial Host Provisioning contract outcomes required before Component Setup hold on a public Host (IHP finished, port floor 80, Platform User present, Host Volume mounted). Names what completed, not the next consumer. Used by ensure-components and Acceptance Tests before asserting finer capability slices. Delivery mechanics (cloud-init) stay inside the gate’s implementation.
@@ -73,7 +77,7 @@ A provider-enforced network filter attached to Hosts. Inbound default deny (only
 _Avoid_: Security group, ufw, iptables, cloud firewall (product name when you mean this concept)
 
 **Propraetor Tag**:
-A provider tag that marks taggable resources as belonging to Propraetor (name derived per Environment, e.g. test: `propraetor-test`). Applied to every Propraetor Host. Not all Stack resources are taggable (Firewall, Reserved IP, and SSH keys are not).
+A provider tag that marks taggable resources as belonging to Propraetor (name derived per Environment, e.g. test: `propraetor-test`). Applied to every Propraetor Host. Not all Stack resources are taggable (Firewall and Reserved IP are not).
 _Avoid_: Office Tag, Shared tag, propraetor tag (when you mean this concept); Role Tag
 
 **Role Tag**:

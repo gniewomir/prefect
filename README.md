@@ -38,13 +38,16 @@ Make Host capacity changes routine and low-disruption. Prefer vertical scaling w
 
 ## Credentials
 
+Repo-root gitignored `.env` (see `.env.example`) baselines **Provider Credential** and **Operator Configuration**; non-empty process-environment values win ([ADR-0038](docs/adr/0038-repo-root-operator-dotenv.md)).
+
 ```bash
-export DIGITALOCEAN_TOKEN=…
-export TF_VAR_DIGITALOCEAN_PUBLIC_KEY="$(cat ~/.ssh/your_key.pub)"
+# .env (or export in the shell)
+DIGITALOCEAN_TOKEN=…
+PROPRAETOR_PUBLIC_KEY_PATH=~/.ssh/your_key.pub
+PROPRAETOR_PRIVATE_KEY_PATH=~/.ssh/your_key
 ```
 
-Optional for SSH helpers: `SSH_IDENTITY=/path/to/private_key`.
-
+Apply requires both key paths (public → IHP root login). Park/Teardown need the token only. Host SSH helpers need the private path ([ADR-0037](docs/adr/0037-host-login-via-ihp-not-account-ssh-key.md)).
 ## Environments
 
 Every operator script takes an optional `--env <slug>`.

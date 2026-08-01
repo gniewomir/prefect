@@ -10,7 +10,7 @@ acceptance_host_session
 if host_ssh "true" 2>/dev/null; then
   pass "SSH public-key auth to root@${IP}"
 else
-  fail "SSH public-key auth to root@${IP} failed (set VERIFY_SSH_IDENTITY or load the matching key)"
+  fail "SSH public-key auth to root@${IP} failed (set PROPRAETOR_PRIVATE_KEY_PATH to the matching private key)"
 fi
 
 # Password auth must not be offered (BatchMode exit alone is a false positive).

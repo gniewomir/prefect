@@ -4,7 +4,8 @@
 # in order. Component Setups are idempotent — this entrypoint may be re-run freely.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/ensure-components.sh [--env <slug>]
-# Optional: VERIFY_SSH_IDENTITY=/path/to/private_key  PLATFORM_USER=platform
+# Optional: PLATFORM_USER=platform
+# Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -21,6 +22,13 @@ source "${REPO_ROOT}/internals/lib/domains.sh"
 source "${REPO_ROOT}/internals/lib/ssh.sh"
 # shellcheck source=lib/host-delivery.sh
 source "${REPO_ROOT}/internals/lib/host-delivery.sh"
+# shellcheck source=lib/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
+# shellcheck source=lib/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
+
+operator_dotenv_load "${REPO_ROOT}" || exit 1
+operator_configuration_require private || exit 1
 
 environment_activate "${STACK_DIR}" "$@" || exit 1
 for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do

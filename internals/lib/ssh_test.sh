@@ -83,9 +83,9 @@ export SCP_CALLS="${TMP_DIR}/scp.calls"
 : >"${SSH_CALLS}"
 : >"${SCP_CALLS}"
 
-VERIFY_SSH_IDENTITY="${TMP_DIR}/verify_key"
-touch "${VERIFY_SSH_IDENTITY}"
-export VERIFY_SSH_IDENTITY
+PROPRAETOR_PRIVATE_KEY_PATH="${TMP_DIR}/verify_key"
+touch "${PROPRAETOR_PRIVATE_KEY_PATH}"
+export PROPRAETOR_PRIVATE_KEY_PATH
 
 host_ssh true || fail "host_ssh should invoke stub ssh"
 ssh_line="$(cat "${SSH_CALLS}")"
@@ -99,7 +99,7 @@ printf '%s\n' "${ssh_line}" | grep -Fq -- "-o ConnectTimeout=10" \
   || fail "verify host_ssh missing ConnectTimeout; got: ${ssh_line}"
 printf '%s\n' "${ssh_line}" | grep -Fq -- "-o PreferredAuthentications=publickey" \
   || fail "verify host_ssh missing PreferredAuthentications; got: ${ssh_line}"
-printf '%s\n' "${ssh_line}" | grep -Fq -- "-i ${VERIFY_SSH_IDENTITY}" \
+printf '%s\n' "${ssh_line}" | grep -Fq -- "-i ${PROPRAETOR_PRIVATE_KEY_PATH}" \
   || fail "verify host_ssh missing -i identity; got: ${ssh_line}"
 printf '%s\n' "${ssh_line}" | grep -Fq -- "root@203.0.113.50" \
   || fail "verify host_ssh missing root@IP; got: ${ssh_line}"
@@ -115,7 +115,7 @@ printf '%s\n' "${scp_line}" | grep -Fq -- "-o Port=${PLATFORM_SSH_PORT}" \
   || fail "verify host_scp missing Port; got: ${scp_line}"
 printf '%s\n' "${scp_line}" | grep -Fq -- "-o BatchMode=yes" \
   || fail "verify host_scp missing BatchMode; got: ${scp_line}"
-printf '%s\n' "${scp_line}" | grep -Fq -- "-i ${VERIFY_SSH_IDENTITY}" \
+printf '%s\n' "${scp_line}" | grep -Fq -- "-i ${PROPRAETOR_PRIVATE_KEY_PATH}" \
   || fail "verify host_scp missing -i identity; got: ${scp_line}"
 printf '%s\n' "${scp_line}" | grep -Fq -- "${TMP_DIR}/local.txt" \
   || fail "verify host_scp missing local path; got: ${scp_line}"
@@ -124,10 +124,9 @@ printf '%s\n' "${scp_line}" | grep -Fq -- "root@203.0.113.50:/tmp/remote.txt" \
 pass "verify host_scp argv (opts, identity, root@IP:path)"
 
 # --- Seam 4: operator profile opts ---
-unset VERIFY_SSH_IDENTITY
-SSH_IDENTITY="${TMP_DIR}/operator_key"
-touch "${SSH_IDENTITY}"
-export SSH_IDENTITY
+PROPRAETOR_PRIVATE_KEY_PATH="${TMP_DIR}/operator_key"
+touch "${PROPRAETOR_PRIVATE_KEY_PATH}"
+export PROPRAETOR_PRIVATE_KEY_PATH
 host_session_bind operator "203.0.113.60" || fail "bind operator should succeed"
 : >"${SSH_CALLS}"
 host_ssh uptime || fail "operator host_ssh should invoke stub ssh"
@@ -142,11 +141,11 @@ fi
 if printf '%s\n' "${ssh_line}" | grep -Fq -- "ConnectTimeout"; then
   fail "operator host_ssh must not set ConnectTimeout; got: ${ssh_line}"
 fi
-printf '%s\n' "${ssh_line}" | grep -Fq -- "-i ${SSH_IDENTITY}" \
-  || fail "operator host_ssh missing -i SSH_IDENTITY; got: ${ssh_line}"
+printf '%s\n' "${ssh_line}" | grep -Fq -- "-i ${PROPRAETOR_PRIVATE_KEY_PATH}" \
+  || fail "operator host_ssh missing -i PROPRAETOR_PRIVATE_KEY_PATH; got: ${ssh_line}"
 printf '%s\n' "${ssh_line}" | grep -Fq -- "root@203.0.113.60" \
   || fail "operator host_ssh missing root@IP; got: ${ssh_line}"
-pass "operator host_ssh argv (no BatchMode, SSH_IDENTITY)"
+pass "operator host_ssh argv (no BatchMode, PROPRAETOR_PRIVATE_KEY_PATH)"
 
 # --- Seam 5: fail closed before open/bind (fresh process — no ambient session) ---
 if bash -c "source '${REPO_ROOT}/internals/lib/ssh.sh'; host_session_ip" >/dev/null 2>&1; then
