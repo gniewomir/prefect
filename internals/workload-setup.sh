@@ -15,6 +15,10 @@ HOST_SCRIPT="${REPO_ROOT}/internals/components/lib/workload-setup-host.sh"
 QUADLETS_LIB="${REPO_ROOT}/internals/components/lib/workload-quadlets-host.sh"
 UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/components/lib/unit-consumers-host.sh"
 ENV_HOST_LIB="${REPO_ROOT}/internals/components/lib/workload-environment-host.sh"
+QUADLET_SESSION_LIB="${REPO_ROOT}/internals/components/lib/quadlet-user-session.sh"
+EDGE_ROUTES_LIB="${REPO_ROOT}/internals/components/lib/edge-routes-host.sh"
+EDGE_WANT_LIST_LIB="${REPO_ROOT}/internals/components/lib/edge-want-list-host.sh"
+EDGE_FRONT_DOOR_LIB="${REPO_ROOT}/internals/components/lib/edge-front-door-host.sh"
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=lib/environment-configuration.sh
@@ -67,6 +71,22 @@ MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
   echo "missing ${ENV_HOST_LIB}" >&2
   exit 1
 }
+[[ -f "${QUADLET_SESSION_LIB}" ]] || {
+  echo "missing ${QUADLET_SESSION_LIB}" >&2
+  exit 1
+}
+[[ -f "${EDGE_ROUTES_LIB}" ]] || {
+  echo "missing ${EDGE_ROUTES_LIB}" >&2
+  exit 1
+}
+[[ -f "${EDGE_WANT_LIST_LIB}" ]] || {
+  echo "missing ${EDGE_WANT_LIST_LIB}" >&2
+  exit 1
+}
+[[ -f "${EDGE_FRONT_DOOR_LIB}" ]] || {
+  echo "missing ${EDGE_FRONT_DOOR_LIB}" >&2
+  exit 1
+}
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -91,6 +111,10 @@ cp "${HOST_SCRIPT}" "${STAGE}/workload-setup-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
+cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
+cp "${EDGE_ROUTES_LIB}" "${STAGE}/edge-routes-host.sh"
+cp "${EDGE_WANT_LIST_LIB}" "${STAGE}/edge-want-list-host.sh"
+cp "${EDGE_FRONT_DOOR_LIB}" "${STAGE}/edge-front-door-host.sh"
 mkdir -p "${STAGE}/${WL_NAME}"
 cp "${MANIFEST_ABS}" "${STAGE}/${WL_NAME}/manifest.json"
 if [[ -d "${ROUTES_SRC}" ]]; then

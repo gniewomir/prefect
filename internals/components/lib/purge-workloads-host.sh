@@ -15,31 +15,15 @@ WORKLOADS_ROOT="${DATA_ROOT}/workloads"
 ROUTES_DIR="${EDGE_DATA}/routes"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Prefer sibling shipped with this script (operator tarball); else Host-installed lib.
-if [[ -f "${HERE}/workload-quadlets-host.sh" ]]; then
-  # shellcheck source=workload-quadlets-host.sh
-  source "${HERE}/workload-quadlets-host.sh"
-elif [[ -f /var/lib/host-volume/components/lib/workload-quadlets-host.sh ]]; then
-  # shellcheck source=workload-quadlets-host.sh
-  source /var/lib/host-volume/components/lib/workload-quadlets-host.sh
-else
-  echo "workload-quadlets-host.sh not found" >&2
-  exit 1
-fi
-if [[ -f "${HERE}/workload-environment-host.sh" ]]; then
-  # shellcheck source=workload-environment-host.sh
-  source "${HERE}/workload-environment-host.sh"
-elif [[ -f /var/lib/host-volume/components/lib/workload-environment-host.sh ]]; then
-  # shellcheck source=workload-environment-host.sh
-  source /var/lib/host-volume/components/lib/workload-environment-host.sh
-else
-  echo "workload-environment-host.sh not found" >&2
-  exit 1
-fi
+# Staged siblings only (Host delivery packs this payload). No Host Volume dual-read (ADR-0018).
+# shellcheck source=workload-quadlets-host.sh
+source "${HERE}/workload-quadlets-host.sh"
+# shellcheck source=workload-environment-host.sh
+source "${HERE}/workload-environment-host.sh"
 # shellcheck source=quadlet-user-session.sh
-source /var/lib/host-volume/components/lib/quadlet-user-session.sh
+source "${HERE}/quadlet-user-session.sh"
 # shellcheck source=edge-routes-host.sh
-source /var/lib/host-volume/components/lib/edge-routes-host.sh
+source "${HERE}/edge-routes-host.sh"
 
 command -v python3 >/dev/null || {
   echo "python3 required on Host for Purge" >&2

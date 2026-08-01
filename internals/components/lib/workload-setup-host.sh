@@ -20,10 +20,11 @@ WORKLOADS_ROOT="${DATA_ROOT}/workloads"
 ROUTES_DIR="${EDGE_DATA}/routes"
 WANT_LIST="${EDGE_DATA}/acme/want-list"
 
+# Staged siblings only (Host delivery packs this payload). No Host Volume dual-read (ADR-0018).
 # shellcheck source=quadlet-user-session.sh
-source /var/lib/host-volume/components/lib/quadlet-user-session.sh
+source "${HERE}/quadlet-user-session.sh"
 # shellcheck source=edge-routes-host.sh
-source /var/lib/host-volume/components/lib/edge-routes-host.sh
+source "${HERE}/edge-routes-host.sh"
 # shellcheck source=workload-quadlets-host.sh
 source "${HERE}/workload-quadlets-host.sh"
 # shellcheck source=workload-environment-host.sh
