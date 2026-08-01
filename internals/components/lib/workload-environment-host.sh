@@ -58,7 +58,7 @@ workload_environment_reconcile() {
 
   mkdir -p "${dest_dir}"
   install -m 0600 "${resolved_src}" "${env_path}"
-  chown -R "${USER_NAME}:${USER_NAME}" "${dest_dir}"
+  chown -R "${USER_NAME}:${USER_NAME}" "${dest_dir}" 2>/dev/null || true
 
   if [[ ! -d "${sot_quadlets}" ]]; then
     echo "Environment Configuration: no SoT quadlets for '${wl_name}'" >&2
@@ -76,7 +76,7 @@ workload_environment_reconcile() {
 [Container]
 EnvironmentFile=${env_path}
 EOF
-    chown -R "${USER_NAME}:${USER_NAME}" "$(dirname "${dropin_path}")"
+    chown -R "${USER_NAME}:${USER_NAME}" "$(dirname "${dropin_path}")" 2>/dev/null || true
   done
 
   if [[ "${found}" -ne 1 ]]; then
