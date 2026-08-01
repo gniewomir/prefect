@@ -121,6 +121,9 @@ if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${TREE}" "${SOT_TREE}" >/de
   fi
 fi
 
+# Refuse foreign / wrong-folder units before mutating Host Volume SoT or Edge.
+workload_units_preflight "${WL_NAME}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
+
 install -m 0644 "${MANIFEST}" "${WORKLOADS_ROOT}/${WL_NAME}/manifest.json"
 rm -f "${WORKLOADS_ROOT}/${WL_NAME}/interior.conf"
 rm -rf "${WORKLOADS_ROOT}/${WL_NAME}/routes"

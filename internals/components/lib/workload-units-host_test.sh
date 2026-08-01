@@ -119,6 +119,18 @@ grep -Eq 'systemctl --user restart app\.service' "${QUADLET_LOG}" &&
   fail "Intent stop must not restart always-on container"
 pass "Intent run restarts and stop stops always-on container"
 
+# --- Intent trash matches stop for always-on (units retained until Purge) ---
+reset
+printf '[Container]\nImage=localhost/app\n' >"${QUADLETS_STAGE}/app.container"
+workload_units_apply "${WL_NAME}" trash "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" ||
+  fail "apply Intent trash should succeed"
+grep -Eq 'systemctl --user stop app\.service' "${QUADLET_LOG}" ||
+  fail "Intent trash must stop always-on container service"
+grep -Eq 'systemctl --user restart app\.service' "${QUADLET_LOG}" &&
+  fail "Intent trash must not restart always-on container"
+[[ -f "${UNIT_DIR}/app.container" ]] || fail "trash must retain unit files until Purge"
+pass "Intent trash stops always-on and retains unit files"
+
 # --- before_reload hook runs between reconcile and reload ---
 reset
 HOOK_LOG="${TMP}/hook.log"
