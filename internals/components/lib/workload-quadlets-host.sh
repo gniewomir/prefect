@@ -4,7 +4,11 @@
 # Optional: quadlet_user for start/stop after session reload.
 #
 # Consumers: quadlets/ → UNIT_DIR; systemd/ → SYSTEMD_USER_DIR (ADR-0024 / ADR-0034).
-# Basename ownership spans both Host unit directories. Wrong-folder authoring fails closed.
+# Basename ownership spans both Host unit directories. Wrong-folder authoring fails closed
+# via shared unit-consumers-host.sh (shape parity with Component Setup).
+
+# shellcheck source=unit-consumers-host.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/unit-consumers-host.sh"
 
 # True when unit file has Key=value (comments and surrounding whitespace ignored).
 workload_unit_file_key_equals() {
@@ -108,69 +112,6 @@ workload_unit_kind() {
     printf '\n'
     ;;
   esac
-}
-
-# True when extension belongs under authored quadlets/.
-workload_unit_ext_is_quadlet() {
-  case "$1" in
-  container | pod | kube | network | volume | image | build | artifact) return 0 ;;
-  *) return 1 ;;
-  esac
-}
-
-# True when extension belongs under authored systemd/.
-workload_unit_ext_is_native() {
-  case "$1" in
-  service | timer | socket | path | target | slice | mount | automount | swap) return 0 ;;
-  *) return 1 ;;
-  esac
-}
-
-# Fail closed if any regular file in stage_dir has the wrong consumer extension.
-# Args: consumer (quadlets|systemd) stage_dir (may be missing/empty — valid)
-workload_unit_validate_consumer_dir() {
-  local consumer="$1"
-  local stage_dir="${2:-}"
-  local f base ext
-  [[ -n "${stage_dir}" && -d "${stage_dir}" ]] || return 0
-  for f in "${stage_dir}"/*; do
-    [[ -f "${f}" ]] || continue
-    base="$(basename "${f}")"
-    [[ "${base}" == .* ]] && continue
-    ext="${base##*.}"
-    if [[ "${base}" == "${ext}" ]]; then
-      echo "workload ${consumer}/ file '${base}' has no extension (wrong-folder / invalid unit)" >&2
-      return 1
-    fi
-    case "${consumer}" in
-    quadlets)
-      if workload_unit_ext_is_quadlet "${ext}"; then
-        continue
-      fi
-      if workload_unit_ext_is_native "${ext}"; then
-        echo "workload unit '${base}' authored under quadlets/ but belongs in systemd/ (wrong-folder)" >&2
-        return 1
-      fi
-      echo "workload quadlets/ file '${base}' has unsupported extension '.${ext}'" >&2
-      return 1
-      ;;
-    systemd)
-      if workload_unit_ext_is_native "${ext}"; then
-        continue
-      fi
-      if workload_unit_ext_is_quadlet "${ext}"; then
-        echo "workload unit '${base}' authored under systemd/ but belongs in quadlets/ (wrong-folder)" >&2
-        return 1
-      fi
-      echo "workload systemd/ file '${base}' has unsupported extension '.${ext}'" >&2
-      return 1
-      ;;
-    *)
-      echo "workload_unit_validate_consumer_dir: unknown consumer '${consumer}'" >&2
-      return 1
-      ;;
-    esac
-  done
 }
 
 # List regular non-hidden basenames in a SoT directory (may be missing).
@@ -309,8 +250,8 @@ workload_unit_reconcile_dual() {
   local prev_owned="$2"
   local prev_quadlets="$3"
   local prev_systemd="$4"
-  workload_unit_reconcile_consumer "${wl_name}" quadlets "${UNIT_DIR}" "${prev_quadlets}" "${prev_owned}" || return 1
-  workload_unit_reconcile_consumer "${wl_name}" systemd "${SYSTEMD_USER_DIR}" "${prev_systemd}" "${prev_owned}" || return 1
+  workload_unit_reconcile_consumer "${wl_name}" quadlets "$(unit_consumer_dest_dir quadlets)" "${prev_quadlets}" "${prev_owned}" || return 1
+  workload_unit_reconcile_consumer "${wl_name}" systemd "$(unit_consumer_dest_dir systemd)" "${prev_systemd}" "${prev_owned}" || return 1
 }
 
 # Apply Intent for one authored unit by kind (Workload-wide Intent; no partial Intent).

@@ -8,10 +8,12 @@ USER_NAME="${PLATFORM_USER:-platform}"
 SRC="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=../lib/quadlet-user-session.sh
 source "${SRC}/../lib/quadlet-user-session.sh"
+# shellcheck source=../lib/component-units-host.sh
+source "${SRC}/../lib/component-units-host.sh"
 
 quadlet_user_session_begin
 
-install -m 0644 "${SRC}/quadlets/service-network.network" "${UNIT_DIR}/service-network.network"
+component_units_install "${SRC}"
 chown -R "${USER_NAME}:${USER_NAME}" "${HOME_DIR}/.config"
 
 quadlet_user_session_reload

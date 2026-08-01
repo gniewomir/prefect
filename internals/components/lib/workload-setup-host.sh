@@ -94,8 +94,8 @@ workload_quadlet_sot_basenames "${WORKLOADS_ROOT}/${WL_NAME}/systemd" >"${PREV_S
   cat "${PREV_SYSTEMD}"
 } | LC_ALL=C sort -u >"${PREV_OWNED}"
 
-workload_unit_validate_consumer_dir quadlets "${QUADLETS_STAGE}"
-workload_unit_validate_consumer_dir systemd "${SYSTEMD_STAGE}"
+unit_validate_consumer_dir quadlets "${QUADLETS_STAGE}"
+unit_validate_consumer_dir systemd "${SYSTEMD_STAGE}"
 
 {
   workload_quadlet_sot_basenames "${QUADLETS_STAGE}"
