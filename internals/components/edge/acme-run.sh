@@ -19,8 +19,8 @@ USER_NAME="${PLATFORM_USER:-platform}"
 source /var/lib/host-volume/components/lib/quadlet-user-session.sh
 # shellcheck source=../lib/edge-want-list-host.sh
 source /var/lib/host-volume/components/lib/edge-want-list-host.sh
-# shellcheck source=../lib/edge-routes-host.sh
-source /var/lib/host-volume/components/lib/edge-routes-host.sh
+# shellcheck source=../lib/edge-front-door-host.sh
+source /var/lib/host-volume/components/lib/edge-front-door-host.sh
 
 mkdir -p "${ACME_DIR}" "${ACME_WWW}" "${CERTS_DIR}" "${ROUTES_DIR}"
 

@@ -59,6 +59,7 @@ must_be_file "${COMPONENTS_ROOT}/lib/quadlet-user-session.sh"
 must_be_file "${COMPONENTS_ROOT}/lib/edge-routes-host.sh"
 must_be_file "${COMPONENTS_ROOT}/lib/edge-want-list-host.sh"
 must_be_file "${COMPONENTS_ROOT}/lib/edge-domain-fronts-host.sh"
+must_be_file "${COMPONENTS_ROOT}/lib/edge-front-door-host.sh"
 must_not_exist "${COMPONENTS_ROOT}/edge/certs"
 
 must_be_dir "${DATA_ROOT}/edge/routes"

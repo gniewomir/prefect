@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Edge Route install helpers and front-door reload (sourced by Workload Setup and Edge ACME).
+# Edge Route install helpers (sourced by Workload Setup and Purge).
 # Expects: ROUTES_DIR. Intent run also expects WANT_LIST (Host acme/want-list path).
-# Optional: USER_NAME for ownership; when sourced after quadlet_user_session_begin,
-#           edge_reload_front_door restarts edge-pod if active.
+# Optional: USER_NAME for ownership.
+# Front-door reload lives in edge-front-door-host.sh (#134); this lib sources it so
+# edge_reload_front_door_if_routes_changed can call the shared seam.
 #
 # Sets EDGE_ROUTES_CHANGED=1 when installed Route file contents for a reconcile changed; else 0.
 # ADR-0028: Routes are FQDN-keyed server-context snippets; Setup fails closed if a basename
@@ -11,6 +12,8 @@
 _edge_routes_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=edge-want-list-host.sh
 source "${_edge_routes_lib_dir}/edge-want-list-host.sh"
+# shellcheck source=edge-front-door-host.sh
+source "${_edge_routes_lib_dir}/edge-front-door-host.sh"
 
 # Remove legacy projected `<name>.conf` and all `<name>--*` installed Routes for one Workload.
 edge_remove_workload_installed_routes() {
@@ -112,35 +115,6 @@ edge_reconcile_workload_routes() {
   routes_after="$(_edge_routes_fingerprint)"
   if [[ "${routes_before}" != "${routes_after}" ]]; then
     EDGE_ROUTES_CHANGED=1
-  fi
-}
-
-edge_reload_front_door() {
-  local user="${USER_NAME:-platform}"
-  local runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u "${user}" 2>/dev/null || id -u)}"
-  local -a cmd
-  local _ code
-
-  if [[ "$(id -un)" == "${user}" ]]; then
-    cmd=(env "XDG_RUNTIME_DIR=${runtime}" systemctl --user)
-  elif declare -F quadlet_user >/dev/null 2>&1; then
-    cmd=(quadlet_user systemctl --user)
-  else
-    return 0
-  fi
-
-  if "${cmd[@]}" --quiet is-active edge-pod.service; then
-    "${cmd[@]}" restart edge-pod.service
-    "${cmd[@]}" --quiet is-active edge-pod.service
-    for _ in $(seq 1 30); do
-      code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 3 http://127.0.0.1/ 2>/dev/null || true)"
-      if [[ "${code}" =~ ^[0-9]{3}$ ]]; then
-        return 0
-      fi
-      sleep 1
-    done
-    echo "edge_reload_front_door: Edge did not answer on :80 after restart" >&2
-    return 1
   fi
 }
 

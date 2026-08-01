@@ -19,6 +19,8 @@ source "${SRC}/../lib/quadlet-user-session.sh"
 source "${SRC}/../lib/edge-want-list-host.sh"
 # shellcheck source=../lib/edge-domain-fronts-host.sh
 source "${SRC}/../lib/edge-domain-fronts-host.sh"
+# shellcheck source=../lib/edge-front-door-host.sh
+source "${SRC}/../lib/edge-front-door-host.sh"
 # shellcheck source=../lib/component-units-host.sh
 source "${SRC}/../lib/component-units-host.sh"
 
@@ -94,14 +96,8 @@ quadlet_user systemctl --user --quiet is-active edge-acme.timer
 # must re-run oneshot even if a prior oneshot is still active.
 quadlet_user systemctl --user restart edge-acme.service
 
-# Wait until Host :80 returns an HTTP status (post-ACME reload / image pull + nginx).
-for _ in $(seq 1 60); do
-  code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 3 http://127.0.0.1/ 2>/dev/null || true)"
-  if [[ "${code}" =~ ^[0-9]{3}$ ]]; then
-    exit 0
-  fi
-  sleep 2
-done
-echo "Edge did not become reachable on :80 in time" >&2
-quadlet_user systemctl --user status edge-pod.service edge-nginx.service edge-acme.service --no-pager >&2 || true
-exit 1
+# Shared front-door wait (post-ACME reload / empty want-list / image pull + nginx) — #134.
+if ! edge_wait_front_door; then
+  quadlet_user systemctl --user status edge-pod.service edge-nginx.service edge-acme.service --no-pager >&2 || true
+  exit 1
+fi
