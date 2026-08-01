@@ -16,7 +16,7 @@ environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-
 
 - **Cloud slug** — `test` (not Terraform workspace `default`), `prod`, `example`, … Same slug as Host naming (`propraetor-test-…`).
 - **Missing `domains.json`** — that Environment has zero Domains.
-- **`domains.override.json`** — if present, replaces `domains.json` for all Domain-assignment readers. Not an operator surface; Lifecycle Tests only. See ADR-0021 / `internals/lifecycle-tests/README.md`.
+- **`domains.override.json`** — if present, replaces `domains.json` for all Domain-assignment readers. Not an operator surface; Lifecycle Tests only. See ADR-0021 / `internals/test/lifecycle/README.md`.
 
 JSON shape for Domains: map of apex FQDN → `{ "names": ["@", "www", …] }` (at least one label; each A → that Environment’s Reserved IP).
 

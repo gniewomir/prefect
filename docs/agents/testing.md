@@ -28,14 +28,12 @@ From the repo root:
 
 ### Acceptance / Lifecycle cases
 
-Numeric-prefixed `NN-short-name.sh` under the suite directory; runner builds fixture once (Acceptance) or runs destructive lifecycle cases (Lifecycle); fail-fast; filename sort is order. Shared helpers (`lib.sh`, fixtures) live in the suite directory. Authoring detail stays with those trees after the hard cut.
+Numeric-prefixed `NN-short-name.sh` under the suite directory; runner builds fixture once (Acceptance) or runs destructive lifecycle cases (Lifecycle); fail-fast; filename sort is order. Shared helpers (`lib.sh`, fixtures) live in the suite directory.
 
 ### Unit Tests
 
-Stay **colocated** next to the code they exercise as `*_test.sh`. The unit runner discovers all `internals/**/*_test.sh` (Acceptance/Lifecycle cases use `[0-9]*.sh`, so they are not included). No separate inventory file.
+Stay **colocated** next to the code they exercise as `*_test.sh`. The unit runner discovers all `internals/**/*_test.sh` via `find` (Acceptance/Lifecycle cases use `[0-9]*.sh`, so they are not included). No separate inventory file.
 
 ## Hard cut
 
-No dual entrypoints (ADR-0018). After the layout lands: delete `internals/acceptance-tests.sh`, `internals/lifecycle-tests.sh`, and the old `internals/acceptance-tests/` / `internals/lifecycle-tests/` trees (content moved under `internals/test/`). Do not leave wrapper shims.
-
-**Until `./test.sh` exists:** use the current runners `./internals/acceptance-tests.sh` and `./internals/lifecycle-tests.sh`; run Unit Tests as individual `*_test.sh` files. Treat this doc + ADR-0036 as the target contract to implement and to teach after the cut.
+No dual entrypoints (ADR-0018). Old `internals/acceptance-tests.sh` / `lifecycle-tests.sh` and the former top-level suite dirs are gone — use `./test.sh` only.
