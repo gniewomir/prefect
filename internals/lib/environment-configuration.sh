@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Environment Configuration module for Workload Setup / Purge (ADR-0035 / #132).
+# Environment Configuration module for Workload Setup / Purge (ADR-0035 / #132 / #140).
 # Sourced by Workload Setup and offline tests — not an operator entrypoint.
 #
-# Public interface (Setup / Purge / offline tests):
-#   environment_configuration_materialize MANIFEST ENV_DIR TREE WL_NAME
-#     Resolve bag + gate once + materialize EnvironmentFile/drop-ins (in-process Host).
-#   environment_configuration_clear WL_NAME
-#     Remove EnvironmentFile tree + Setup-owned env drop-ins.
+# Public interface (one outcome chain — install or clear):
 #   environment_configuration_stage_for_setup STAGE MANIFEST ENV_DIR TREE REMOTE_ROOT
-#     SSH staging adapter: resolve+gate into STAGE; sets WL_ENV_ACTIVE and
+#     Resolve+gate into STAGE/environment.resolved; sets WL_ENV_ACTIVE and
 #     WL_ENV_RESOLVED_REMOTE (under REMOTE_ROOT when active; empty when inactive).
 #   environment_configuration_apply_resolved WL_NAME RESOLVED_SRC
-#     Host half after staging (empty/unset → clear).
+#     Host half: empty/unset → clear EnvironmentFile/drop-ins; else install from RESOLVED_SRC.
+#   environment_configuration_clear WL_NAME
+#     Purge clear path (same Host half as apply_resolved with empty src).
 #
-# Offline tests exercise materialize|clear|stage_for_setup. prepare / install_host are adapter internals.
+# Offline tests exercise stage_for_setup → apply_resolved (REMOTE_ROOT may be the local
+# STAGE so WL_ENV_RESOLVED_REMOTE is a local path). prepare / install_host are internals.
+# There is no separate materialize public path.
 
 _ENVCFG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=environment-configuration-declaration.sh
@@ -162,34 +162,5 @@ environment_configuration_stage_for_setup() {
     # shellcheck disable=SC2034  # intentional ambient output of this adapter
     WL_ENV_RESOLVED_REMOTE=""
   fi
-  return 0
-}
-
-# Resolve+materialize for Setup (offline / in-process Host adapter).
-environment_configuration_materialize() {
-  local manifest="${1:?manifest required}"
-  local env_dir="${2:?env dir required}"
-  local tree="${3:?workload tree required}"
-  local wl_name="${4:?workload name required}"
-  local resolved prepare_out
-  resolved="$(mktemp "${TMPDIR:-/tmp}/envcfg-resolved.XXXXXX")"
-
-  prepare_out="$(environment_configuration_prepare "${manifest}" "${env_dir}" "${tree}" "${resolved}")" || {
-    rm -f "${resolved}"
-    return 1
-  }
-  eval "${prepare_out}"
-  if [[ "${WL_ENV_ACTIVE}" == "1" ]]; then
-    environment_configuration_apply_resolved "${wl_name}" "${resolved}" || {
-      rm -f "${resolved}"
-      return 1
-    }
-  else
-    environment_configuration_apply_resolved "${wl_name}" "" || {
-      rm -f "${resolved}"
-      return 1
-    }
-  fi
-  rm -f "${resolved}"
   return 0
 }

@@ -8,7 +8,7 @@
 #     RESOLVED_SRC empty → remove EnvironmentFile tree + Setup-owned env drop-ins
 #     RESOLVED_SRC set  → install EnvironmentFile + Setup-owned drop-ins for each
 #                         SoT quadlets/*.container (EnvironmentFile= path only)
-#     Container gate is owned by environment_configuration_prepare / materialize (once).
+#     Container gate is owned by environment_configuration_prepare (once).
 #   environment_configuration_clear WL_NAME
 #     Purge / omit clear path.
 #
