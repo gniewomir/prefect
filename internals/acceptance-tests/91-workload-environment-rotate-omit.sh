@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Acceptance Test: Environment Configuration rotate / shell-only / omit clear (ADR-0035 / #122)
+# Acceptance Test: Environment Configuration rotate / shell-only / omit clear (ADR-0035 / #122 / #133)
+# Outcomes: shell-only and rotation visible in container process env; omit/`[]` clear those keys.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -50,9 +51,6 @@ Restart=on-failure
 WantedBy=default.target
 EOF
 
-ENV_PATH="/home/platform/.config/platform/workloads/${WL}/environment"
-DROPIN="/home/platform/.config/containers/systemd/${WL}.container.d/50-platform-environment.conf"
-
 # --- shell-only (no .env file) ---
 rm -f "${ENV_FILE}"
 unset ENVROT_TOKEN ENVROT_MODE ENVROT_SURPLUS || true
@@ -62,35 +60,37 @@ export ENVROT_SURPLUS="${SURPLUS}"
 
 "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}"
 
-host_ssh "test -f ${ENV_PATH}" || fail "shell-only Setup should write EnvironmentFile"
-body="$(host_ssh "cat ${ENV_PATH}")"
-echo "${body}" | grep -Fq "ENVROT_TOKEN=${SECRET1}" || fail "shell-only missing ENVROT_TOKEN"
-echo "${body}" | grep -Fq "ENVROT_MODE=shell-only" || fail "shell-only missing ENVROT_MODE"
-echo "${body}" | grep -Fq "${SURPLUS}" && fail "surplus shell key must not appear"
-pass "shell-only bag resolves without .env; surplus ignored"
+acceptance_wait_user_unit_active "${WL}.service" \
+  || fail "shell-only Setup should start ${WL}.service"
+acceptance_assert_container_env "${WL}" ENVROT_TOKEN "${SECRET1}"
+acceptance_assert_container_env "${WL}" ENVROT_MODE shell-only
+acceptance_assert_container_env_absent "${WL}" ENVROT_SURPLUS
+pass "shell-only bag resolves without .env; surplus ignored in container process env"
 
 # --- rotation with unchanged SoT ---
 export ENVROT_TOKEN="${SECRET2}"
 export ENVROT_MODE=rotated
 "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}"
-body2="$(host_ssh "cat ${ENV_PATH}")"
-echo "${body2}" | grep -Fq "ENVROT_TOKEN=${SECRET2}" || fail "rotation should rewrite token"
-echo "${body2}" | grep -Fq "ENVROT_MODE=rotated" || fail "rotation should rewrite mode"
-echo "${body2}" | grep -Fq "${SECRET1}" && fail "old secret must not remain after rotation"
-pass "re-Setup rotates EnvironmentFile with unchanged SoT"
+acceptance_wait_user_unit_active "${WL}.service" \
+  || fail "rotation re-Setup should keep ${WL}.service active"
+acceptance_assert_container_env "${WL}" ENVROT_TOKEN "${SECRET2}"
+acceptance_assert_container_env "${WL}" ENVROT_MODE rotated
+got="$(acceptance_container_printenv "${WL}" ENVROT_TOKEN)"
+[[ "${got}" != *"${SECRET1}"* ]] || fail "old secret must not remain after rotation"
+pass "re-Setup rotates Environment Configuration in container process env"
 
-# --- omit removes artifacts ---
+# --- omit removes Environment Configuration from process env ---
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 { "intent": "run" }
 EOF
 unset ENVROT_TOKEN ENVROT_MODE ENVROT_SURPLUS || true
 "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}"
 
-host_ssh "test ! -e ${ENV_PATH}" || fail "omit must remove EnvironmentFile"
-host_ssh "test ! -d /home/platform/.config/platform/workloads/${WL}" \
-  || fail "omit must remove Workload EnvironmentFile tree"
-host_ssh "test ! -e ${DROPIN}" || fail "omit must remove Setup-owned env drop-in"
-pass "omit removes EnvironmentFile and Setup env drop-ins"
+acceptance_wait_user_unit_active "${WL}.service" \
+  || fail "omit Setup should keep ${WL}.service active"
+acceptance_assert_container_env_absent "${WL}" ENVROT_TOKEN
+acceptance_assert_container_env_absent "${WL}" ENVROT_MODE
+pass "omit clears Environment Configuration from container process env"
 
 # --- [] removes after re-inject ---
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
@@ -101,15 +101,18 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 EOF
 export ENVROT_TOKEN="${SECRET1}"
 "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}"
-host_ssh "test -f ${ENV_PATH}" || fail "re-inject before [] should write EnvironmentFile"
+acceptance_wait_user_unit_active "${WL}.service" \
+  || fail "re-inject Setup should start ${WL}.service"
+acceptance_assert_container_env "${WL}" ENVROT_TOKEN "${SECRET1}"
 
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 { "intent": "run", "environment": [] }
 EOF
 unset ENVROT_TOKEN || true
 "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}"
-host_ssh "test ! -e ${ENV_PATH}" || fail "[] must remove EnvironmentFile"
-host_ssh "test ! -e ${DROPIN}" || fail "[] must remove Setup-owned env drop-in"
-pass "[] removes EnvironmentFile and Setup env drop-ins"
+acceptance_wait_user_unit_active "${WL}.service" \
+  || fail "[] Setup should keep ${WL}.service active"
+acceptance_assert_container_env_absent "${WL}" ENVROT_TOKEN
+pass "[] clears Environment Configuration from container process env"
 
 pass "Environment Configuration rotate / shell-only / omit contract"

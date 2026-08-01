@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Acceptance Test: Environment Configuration injection via Workload Setup (ADR-0035 / #121)
+# Acceptance Test: Environment Configuration injection via Workload Setup (ADR-0035 / #121 / #133)
+# Outcomes: listed keys in container process env; surplus absent; fail-closed paths; SoT stays secret-free.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -154,7 +155,7 @@ if "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}" >/dev/
 fi
 pass "missing listed key fails closed"
 
-# --- happy path: .env baseline + shell override ---
+# --- happy path: .env baseline + shell override → container process env ---
 cat >"${ENV_FILE}" <<EOF
 ENVCFG_TOKEN=${SECRET_BASE}
 ENVCFG_MODE=baseline
@@ -165,49 +166,32 @@ export ENVCFG_TOKEN="${SECRET_OVERRIDE}"
 
 "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}"
 
-ENV_PATH="/home/platform/.config/platform/workloads/${WL}/environment"
-DROPIN="/home/platform/.config/containers/systemd/${WL}.container.d/50-platform-environment.conf"
-UNIT="/home/platform/.config/containers/systemd/${WL}.container"
+acceptance_wait_user_unit_active "${WL}.service" \
+  || fail "Intent run should start ${WL}.service"
+acceptance_assert_container_env "${WL}" ENVCFG_TOKEN "${SECRET_OVERRIDE}"
+acceptance_assert_container_env "${WL}" ENVCFG_MODE baseline
+acceptance_assert_container_env_absent "${WL}" ENVCFG_SURPLUS
+got_token="$(acceptance_container_printenv "${WL}" ENVCFG_TOKEN)"
+[[ "${got_token}" != *"${SECRET_BASE}"* ]] \
+  || fail "overridden baseline value must not remain in container process env"
+pass "container process env has listed keys only (.env + shell override)"
+
 SOT="/var/lib/host-volume/components_data/workloads/${WL}"
-
-host_ssh "test -f ${ENV_PATH}" || fail "EnvironmentFile missing at ${ENV_PATH}"
-env_body="$(host_ssh "cat ${ENV_PATH}")"
-echo "${env_body}" | grep -Fq "ENVCFG_TOKEN=${SECRET_OVERRIDE}" \
-  || fail "EnvironmentFile should use shell override for ENVCFG_TOKEN"
-echo "${env_body}" | grep -Fq "ENVCFG_MODE=baseline" \
-  || fail "EnvironmentFile should keep .env baseline for ENVCFG_MODE"
-echo "${env_body}" | grep -Fq "${SECRET_UNUSED}" \
-  && fail "surplus bag key must not appear in EnvironmentFile"
-echo "${env_body}" | grep -Fq "${SECRET_BASE}" \
-  && fail "overridden baseline value must not remain in EnvironmentFile"
-pass "EnvironmentFile has listed keys only (.env + shell override)"
-
-host_ssh "test -f ${DROPIN}" || fail "Setup-owned env drop-in missing"
-drop_body="$(host_ssh "cat ${DROPIN}")"
-echo "${drop_body}" | grep -Fq "EnvironmentFile=${ENV_PATH}" \
-  || fail "drop-in must set EnvironmentFile= to Platform User path"
-echo "${drop_body}" | grep -Fq "${SECRET_OVERRIDE}" \
-  && fail "bag values must not appear in drop-in text"
-pass "drop-in wires EnvironmentFile= path only"
-
 sot_grep="$(host_ssh "grep -R -F '${SECRET_OVERRIDE}' ${SOT} 2>/dev/null || true")"
 [[ -z "${sot_grep}" ]] || fail "secret must not appear in Host Volume SoT (got: ${sot_grep})"
-unit_body="$(host_ssh "cat ${UNIT}")"
-echo "${unit_body}" | grep -Fq "${SECRET_OVERRIDE}" \
-  && fail "secret must not appear in installed unit body"
-pass "bag values absent from Host Volume SoT and unit body"
+pass "bag values absent from Host Volume SoT"
 
 # --- SoT noop must still refresh Environment Configuration ---
 printf 'ENVCFG_TOKEN=%s\nENVCFG_MODE=rotated\n' "${SECRET_OVERRIDE}" >"${ENV_FILE}"
 unset ENVCFG_TOKEN || true
 export ENVCFG_TOKEN="${SECRET_OVERRIDE}"
 "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}"
-env_body2="$(host_ssh "cat ${ENV_PATH}")"
-echo "${env_body2}" | grep -Fq "ENVCFG_MODE=rotated" \
-  || fail "SoT noop must rewrite EnvironmentFile from current bag"
-pass "SoT noop refreshes Environment Configuration"
+acceptance_wait_user_unit_active "${WL}.service" \
+  || fail "SoT noop re-Setup should keep ${WL}.service active"
+acceptance_assert_container_env "${WL}" ENVCFG_MODE rotated
+pass "SoT noop refreshes Environment Configuration in container process env"
 
-# --- multiple .container units share one EnvironmentFile path ---
+# --- multiple .container units share one Environment Configuration ---
 mkdir -p "${FIX_DIR}/${WL2}/quadlets"
 cat >"${FIX_DIR}/${WL2}/manifest.json" <<'EOF'
 {
@@ -221,16 +205,13 @@ printf 'ENVCFG_TOKEN=%s\n' "${SECRET_OVERRIDE}" >"${ENV_FILE}"
 export ENVCFG_TOKEN="${SECRET_OVERRIDE}"
 "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL2}"
 
-ENV2="/home/platform/.config/platform/workloads/${WL2}/environment"
-host_ssh "test -f ${ENV2}" || fail "multi-container Workload missing EnvironmentFile"
-for base in "${WL2}-a" "${WL2}-b"; do
-  d="/home/platform/.config/containers/systemd/${base}.container.d/50-platform-environment.conf"
-  host_ssh "test -f ${d}" || fail "missing drop-in for ${base}"
-  body="$(host_ssh "cat ${d}")"
-  echo "${body}" | grep -Fq "EnvironmentFile=${ENV2}" \
-    || fail "${base} drop-in must point at shared EnvironmentFile"
-done
-pass "multiple .container units share one EnvironmentFile path"
+acceptance_wait_user_unit_active "${WL2}-a.service" \
+  || fail "multi-container Setup should start ${WL2}-a.service"
+acceptance_wait_user_unit_active "${WL2}-b.service" \
+  || fail "multi-container Setup should start ${WL2}-b.service"
+acceptance_assert_container_env "${WL2}-a" ENVCFG_TOKEN "${SECRET_OVERRIDE}"
+acceptance_assert_container_env "${WL2}-b" ENVCFG_TOKEN "${SECRET_OVERRIDE}"
+pass "multiple .container units share Environment Configuration in process env"
 
 unset ENVCFG_TOKEN ENVCFG_MODE ENVCFG_SURPLUS || true
 pass "Environment Configuration injection contract"

@@ -154,3 +154,67 @@ acceptance_wl_cleanup() {
     rm -rf "${root:?}/${name}"
   done
 }
+
+# Wait until a Platform User systemd unit reports ActiveState=active.
+acceptance_wait_user_unit_active() {
+  local unit="${1:?unit required}"
+  local retries="${2:-60}"
+  local state="" _
+  for _ in $(seq 1 "${retries}"); do
+    state="$(host_ssh bash -s <<REMOTE
+set -euo pipefail
+UID_NUM=\$(id -u platform)
+export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
+runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
+  systemctl --user show -p ActiveState --value ${unit} 2>/dev/null || echo ""
+REMOTE
+)"
+    [[ "${state}" == "active" ]] && return 0
+    sleep 1
+  done
+  return 1
+}
+
+# Read one process-env key from a running container (podman exec printenv).
+# Prints the value; empty stdout and non-zero when missing or unreachable.
+acceptance_container_printenv() {
+  local cname="${1:?container name required}"
+  local key="${2:?env key required}"
+  host_ssh env "CNAME=${cname}" "KEY=${key}" bash -s <<'REMOTE'
+set -euo pipefail
+UID_NUM=$(id -u platform)
+HOME_DIR=$(getent passwd platform | cut -d: -f6)
+export XDG_RUNTIME_DIR=/run/user/${UID_NUM}
+runuser -u platform -- env HOME="${HOME_DIR}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR}" \
+  CNAME="${CNAME}" KEY="${KEY}" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${UID_NUM}/bus" \
+  bash -c 'cd "$HOME" && podman exec "$CNAME" printenv "$KEY"'
+REMOTE
+}
+
+# Assert container process environment eventually has KEY=want.
+acceptance_assert_container_env() {
+  local cname="${1:?container name required}"
+  local key="${2:?env key required}"
+  local want="${3:?expected value required}"
+  local got="" _
+  for _ in $(seq 1 30); do
+    got="$(acceptance_container_printenv "${cname}" "${key}" 2>/dev/null || true)"
+    [[ "${got}" == "${want}" ]] && return 0
+    sleep 1
+  done
+  fail "container ${cname} process env: expected ${key}=${want}, got '${got}'"
+}
+
+# Assert KEY is absent from container process environment (after restart/clear).
+acceptance_assert_container_env_absent() {
+  local cname="${1:?container name required}"
+  local key="${2:?env key required}"
+  local got="" _
+  for _ in $(seq 1 30); do
+    got="$(acceptance_container_printenv "${cname}" "${key}" 2>/dev/null || true)"
+    [[ -z "${got}" ]] && return 0
+    sleep 1
+  done
+  fail "container ${cname} process env: expected ${key} absent, got '${got}'"
+}
