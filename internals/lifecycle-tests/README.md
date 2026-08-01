@@ -2,7 +2,9 @@
 
 Executable checks of Stack lifecycle operations that deliberately change Stack presence: **Park**, **Apply** after Park, and **Teardown**. Opt-in and destructive — may leave the Stack Parked or with empty State.
 
-**Not Acceptance Tests.** `./internals/acceptance-tests.sh` asserts a live Applied Stack and must not Park or Teardown. See `../acceptance-tests/README.md` and the glossary terms Acceptance Test / Lifecycle Test.
+**Canonical contract:** [docs/agents/testing.md](../../docs/agents/testing.md) (ADR-0036) — target entrypoint `./test.sh lifecycle`. This tree moves under `internals/test/lifecycle/` on the hard cut.
+
+**Not Acceptance Tests.** Acceptance asserts a live Applied Stack and must not Park or Teardown. See `../acceptance-tests/README.md` and the glossary terms Acceptance Test / Lifecycle Test / Unit Test.
 
 ## Status
 
@@ -35,7 +37,7 @@ Domain Durable asserts run when Domains are in State (declare them in `environme
 
 ## Run
 
-Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY` — same as `./apply.sh` / `./park.sh` / `./teardown.sh`).
+Until the ADR-0036 hard cut lands. Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY` — same as `./apply.sh` / `./park.sh` / `./teardown.sh`).
 
 ```bash
 ./internals/lifecycle-tests.sh                 # all Lifecycle Tests on the test Environment (default)
@@ -49,7 +51,7 @@ Credentials must already be in the environment (`DIGITALOCEAN_TOKEN`, `TF_VAR_DI
 
 Optional: `VERIFY_SSH_IDENTITY=/path/to/private_key` if the default SSH agent/identities are not enough.
 
-The runner asks for exact `teardown` before any Teardown case; the case also confirms into `./teardown.sh`. Do not wire this into CI that assumes a standing Applied Stack. After Teardown, leftover State is empty — `./apply.sh` again before `./internals/acceptance-tests.sh`.
+The runner asks for exact `teardown` before any Teardown case; the case also confirms into `./teardown.sh`. Do not wire this into CI that assumes a standing Applied Stack. After Teardown, leftover State is empty — `./apply.sh` again before Acceptance (`./internals/acceptance-tests.sh` until the hard cut; then `./test.sh acceptance`).
 
 ## Add a case
 

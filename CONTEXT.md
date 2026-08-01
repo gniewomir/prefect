@@ -82,11 +82,15 @@ _Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is no
 
 **Acceptance Test**:
 An executable check of Applied Stack external behavior (does the live Stack match the intended contract?). Requires an applied Stack (Host present) and asserts observable outcomes only — not Terraform internals or provider API shape. Non-destructive to Stack lifecycle: must not Park or Teardown. Follows the default-safe operator CLI Environment rule (ADR-0019).
-_Avoid_: Verify script, observability check, smoke test, integration test, Lifecycle Test (when you mean this concept)
+_Avoid_: Verify script, observability check, smoke test, integration test, Lifecycle Test, Unit Test (when you mean this concept)
 
 **Lifecycle Test**:
-An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Separate from Acceptance Tests; opt-in; may leave the Stack Parked or empty. Not part of `./internals/acceptance-tests.sh`. Follows the same default-safe operator CLI Environment rule as other entrypoints (ADR-0019) — defaults to **test**; other Environments only with explicit `--env`.
-_Avoid_: Acceptance Test, destroy test, integration test (when you mean this concept)
+An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Separate from Acceptance Tests and Unit Tests; opt-in; may leave the Stack Parked or empty. Follows the same default-safe operator CLI Environment rule as other entrypoints (ADR-0019) — defaults to **test**; other Environments only with explicit `--env`.
+_Avoid_: Acceptance Test, Unit Test, destroy test, integration test (when you mean this concept)
+
+**Unit Test**:
+An executable check of Propraetor library or helper behavior that does not require an Applied Stack (no live Host / provider lifecycle). Distinct from Acceptance Tests and Lifecycle Tests.
+_Avoid_: unit (bare), shell test, lib test, integration test, Acceptance Test, Lifecycle Test (when you mean this concept)
 
 **Apply**:
 The operation that converges a Stack to Applied from Applied, Parked, or a supported partially failed lifecycle operation. Repeating Apply is the normal recovery path and ends with an empty plan; may Adopt allowlisted facts as part of its normal convergence. External drift, unmanaged collisions, Adopt ambiguity, and provider/account hard failures remain explicit blockers.

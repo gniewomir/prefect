@@ -2,11 +2,13 @@
 
 Executable checks of Applied Stack external behavior. Requires an applied Stack and Credentials. Assert observable outcomes only — not Terraform internals.
 
-**Non-destructive:** Acceptance Tests must not Park or Teardown. They may mutate Host-local / Workload fixture state (Routes, certs, Purge) on a live Host, but they leave Stack lifecycle intact (Host and Durables remain). Stack lifecycle (Park, Apply-after-Park, Teardown) is covered by Lifecycle Tests — see `../lifecycle-tests/README.md` and `../lifecycle-tests.sh`.
+**Canonical contract:** [docs/agents/testing.md](../../docs/agents/testing.md) (ADR-0036) — target entrypoint `./test.sh acceptance`. This tree moves under `internals/test/acceptance/` on the hard cut.
+
+**Non-destructive:** Acceptance Tests must not Park or Teardown. They may mutate Host-local / Workload fixture state (Routes, certs, Purge) on a live Host, but they leave Stack lifecycle intact (Host and Durables remain). Stack lifecycle (Park, Apply-after-Park, Teardown) is covered by Lifecycle Tests — see `../lifecycle-tests/README.md`.
 
 ## Run
 
-From the repo root:
+Until the ADR-0036 hard cut lands, from the repo root:
 
 ```bash
 ./internals/acceptance-tests.sh                 # all Acceptance Tests on the test Environment (default)

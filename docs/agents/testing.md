@@ -1,0 +1,41 @@
+# Testing
+
+How agents run and extend Propraetor’s executable checks. Glossary: **Acceptance Test**, **Lifecycle Test**, **Unit Test** in root `CONTEXT.md`. Decision: [ADR-0036](../adr/0036-unified-test-entrypoint.md).
+
+## Entrypoint
+
+From the repo root:
+
+```bash
+./test.sh <suite> [<case-selector>] [--env <slug>]
+./test.sh <suite> [--env <slug>]
+```
+
+- `<suite>` is **mandatory** — the name of a subdirectory of `internals/test/` (`acceptance`, `lifecycle`, or `unit`).
+- `<case-selector>` is optional — unique substring of one case filename (Acceptance/Lifecycle) or of a Unit Test path/basename; multiple matches fail.
+- `--env <slug>` is optional and, when present, **must be last**. Valid only for `acceptance` and `lifecycle` (ADR-0019 defaults). Passing `--env` to `unit` is invalid.
+- Any other shape (missing suite, unknown suite, bad flag order) → print help and exit non-zero.
+
+`./test.sh` is a thin dispatcher: it validates the suite directory, then execs `internals/test/<suite>/run.sh` with the remaining args.
+
+## Suites
+
+| Suite | Directory | What it checks |
+|-------|-----------|----------------|
+| `acceptance` | `internals/test/acceptance/` | Applied Stack external behavior; Host present; must not Park/Teardown |
+| `lifecycle` | `internals/test/lifecycle/` | Park / Apply-after-Park / Teardown; opt-in; may leave Stack Parked or empty |
+| `unit` | `internals/test/unit/` | Library/helper behavior; no Applied Stack required |
+
+### Acceptance / Lifecycle cases
+
+Numeric-prefixed `NN-short-name.sh` under the suite directory; runner builds fixture once (Acceptance) or runs destructive lifecycle cases (Lifecycle); fail-fast; filename sort is order. Shared helpers (`lib.sh`, fixtures) live in the suite directory. Authoring detail stays with those trees after the hard cut.
+
+### Unit Tests
+
+Stay **colocated** next to the code they exercise as `*_test.sh`. The unit runner discovers all `internals/**/*_test.sh` (Acceptance/Lifecycle cases use `[0-9]*.sh`, so they are not included). No separate inventory file.
+
+## Hard cut
+
+No dual entrypoints (ADR-0018). After the layout lands: delete `internals/acceptance-tests.sh`, `internals/lifecycle-tests.sh`, and the old `internals/acceptance-tests/` / `internals/lifecycle-tests/` trees (content moved under `internals/test/`). Do not leave wrapper shims.
+
+**Until `./test.sh` exists:** use the current runners `./internals/acceptance-tests.sh` and `./internals/lifecycle-tests.sh`; run Unit Tests as individual `*_test.sh` files. Treat this doc + ADR-0036 as the target contract to implement and to teach after the cut.

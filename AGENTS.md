@@ -12,6 +12,10 @@ Canonical roles mapped 1:1 (`needs-triage`, `needs-info`, `ready-for-agent`, `re
 
 Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
 
+### Testing
+
+Suites, `./test.sh`, and how to run Acceptance / Lifecycle / Unit Tests: `docs/agents/testing.md` (ADR-0036).
+
 ### Development posture
 
 Pre-stability: no backwards compatibility by default (ADR-0018; always-apply rule `.cursor/rules/no-backwards-compat-in-development.mdc`).
