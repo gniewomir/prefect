@@ -37,7 +37,7 @@ EOF
 fi
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
 [Unit]
-Description=Prefect Workload ${WL}
+Description=Propraetor Workload ${WL}
 
 [Container]
 Image=docker.io/library/nginx:alpine

@@ -14,7 +14,7 @@ environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-
 
 **Workload Setup:** `./internals/workload-setup.sh [--env <slug>] <workload-name>` — name only; resolves under this tree (fail closed). Stack Apply does not run Workload Setup.
 
-- **Cloud slug** — `test` (not Terraform workspace `default`), `prod`, `example`, … Same slug as Host naming (`prefect-test-…`).
+- **Cloud slug** — `test` (not Terraform workspace `default`), `prod`, `example`, … Same slug as Host naming (`propraetor-test-…`).
 - **Missing `domains.json`** — that Environment has zero Domains.
 - **`domains.override.json`** — if present, replaces `domains.json` for all Domain-assignment readers. Not an operator surface; Lifecycle Tests only. See ADR-0021 / `internals/lifecycle-tests/README.md`.
 

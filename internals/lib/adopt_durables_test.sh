@@ -30,16 +30,16 @@ url="${*: -1}"
 case "${url}" in
   *"/v2/droplets?"*)
     if [[ "${PROVIDER_HOST_PRESENT:-false}" == true ]]; then
-      printf '%s\n' '{"droplets":[{"id":4242,"name":"prefect-test-web"}]}'
+      printf '%s\n' '{"droplets":[{"id":4242,"name":"propraetor-test-web"}]}'
     else
       printf '%s\n' '{"droplets":[]}'
     fi
     ;;
   *"/v2/projects?"*)
-    printf '%s\n' '{"projects":[{"id":"project-test-id","name":"prefect-test"}]}'
+    printf '%s\n' '{"projects":[{"id":"project-test-id","name":"propraetor-test"}]}'
     ;;
   *"/v2/volumes?"*)
-    printf '%s\n' '{"volumes":[{"id":"volume-test-id","name":"prefect-test-web-data","region":{"slug":"fra1"}}]}'
+    printf '%s\n' '{"volumes":[{"id":"volume-test-id","name":"propraetor-test-web-data","region":{"slug":"fra1"}}]}'
     ;;
   *"/v2/domains?"*)
     printf '%s\n' '{"domains":[{"name":"gniewomir.pl","ttl":1800,"zone_file":""}]}'
@@ -59,7 +59,7 @@ export TF_VAR_DIGITALOCEAN_PUBLIC_KEY="ssh-ed25519 test"
 
 "${REPO_ROOT}/park.sh" --env test >/dev/null
 
-import_call='import -input=false module.durables.digitalocean_project.prefect project-test-id'
+import_call='import -input=false module.durables.digitalocean_project.propraetor project-test-id'
 grep -Fxq "${import_call}" "${TERRAFORM_CALLS}" \
   || fail "Park must Adopt the exact Environment Cloud Project missing from State"
 

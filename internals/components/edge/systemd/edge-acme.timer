@@ -1,5 +1,5 @@
 [Unit]
-Description=Prefect Edge ACME renewal timer
+Description=Propraetor Edge ACME renewal timer
 
 [Timer]
 OnCalendar=daily

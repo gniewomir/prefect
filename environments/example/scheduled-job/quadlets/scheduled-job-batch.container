@@ -1,5 +1,5 @@
 [Unit]
-Description=Prefect example scheduled-job batch
+Description=Propraetor example scheduled-job batch
 
 [Container]
 Image=docker.io/library/busybox:latest

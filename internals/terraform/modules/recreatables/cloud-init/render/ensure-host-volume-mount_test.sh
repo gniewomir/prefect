@@ -16,7 +16,7 @@ LOG="${STUBS}/log"
 trap 'rm -rf "${STUBS}"' EXIT
 
 DEVICE="${STUBS}/scsi-0DO_Volume_test"
-TARGET_DIR="${STUBS}/var-lib-prefect"
+TARGET_DIR="${STUBS}/var-lib-host-volume"
 mkdir -p "${TARGET_DIR}"
 
 # --- stubs ---

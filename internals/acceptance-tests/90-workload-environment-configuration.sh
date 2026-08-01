@@ -43,7 +43,7 @@ write_container() {
   mkdir -p "${dir}/quadlets"
   cat >"${dir}/quadlets/${base}.container" <<EOF
 [Unit]
-Description=Prefect Environment Configuration probe ${base}
+Description=Propraetor Environment Configuration probe ${base}
 
 [Container]
 Image=docker.io/library/nginx:alpine

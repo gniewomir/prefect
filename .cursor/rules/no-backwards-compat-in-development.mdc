@@ -1,11 +1,11 @@
 ---
-description: Prefect is in development — prefer clean breaks over compatibility shims
+description: Propraetor is in development — prefer clean breaks over compatibility shims
 alwaysApply: true
 ---
 
 # No backwards compatibility by default
 
-Prefect is **pre-stability / in development**. Prefer the clean shape over compatibility layers. See ADR-0018.
+Propraetor is **pre-stability / in development**. Prefer the clean shape over compatibility layers. See ADR-0018.
 
 ## Default
 

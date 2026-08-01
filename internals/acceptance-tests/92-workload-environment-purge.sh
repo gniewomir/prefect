@@ -45,7 +45,7 @@ stage_wl() {
 EOF
   cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF
 [Unit]
-Description=Prefect Environment Configuration purge probe ${name}
+Description=Propraetor Environment Configuration purge probe ${name}
 
 [Container]
 Image=docker.io/library/nginx:alpine

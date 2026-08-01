@@ -12,9 +12,9 @@ locals {
   }
 }
 
-resource "digitalocean_project" "prefect" {
+resource "digitalocean_project" "propraetor" {
   name        = var.names.project
-  description = "Prefect-managed projects infrastructure"
+  description = "Propraetor-managed projects infrastructure"
   purpose     = "Shared projects infrastructure"
   environment = "Production"
   is_default  = false
@@ -73,7 +73,7 @@ resource "digitalocean_record" "a" {
 # (do:reservedip:<ip>): the Projects list API returns that shape, while
 # do:floatingip:<ip> assignment drifts on every refresh and can drop siblings.
 resource "digitalocean_project_resources" "durables" {
-  project = digitalocean_project.prefect.id
+  project = digitalocean_project.propraetor.id
   resources = concat(
     [
       digitalocean_volume.web.urn,

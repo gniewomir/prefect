@@ -4,7 +4,7 @@ Edge ACME stays Edge-owned and on-demand (ADR-0015), but its want-list source of
 
 **Domain `domains.json` FQDNs over live zone A/AAAA scan or Manifest claims:** reproducible, operator-visible managed names; avoids surprise certs and Workload↔name ownership.
 
-**Operator-side want-list install over on-Host `domains.json` parse:** want-list stays the Host ACME contract; Edge does not learn the Prefect config-tree layout.
+**Operator-side want-list install over on-Host `domains.json` parse:** want-list stays the Host ACME contract; Edge does not learn the Propraetor config-tree layout.
 
 **ensure-components oneshot + timer over Apply hook or Workload Setup trigger:** ACME stays with Edge bring-up; Stack Apply is not Host orchestration; Manifest claims are gone.
 

@@ -65,8 +65,8 @@ front_after="$(host_ssh "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
 pass "re-ensure leaves complete PEMs and Domain-front drop-in untouched"
 
 # --- Tier A: /healthcheck over HTTPS (placeholder trust) ---
-HC_BODY_FILE="$(mktemp "${TMPDIR:-/tmp}/prefect-hc-XXXXXX")"
-STAGING_OUT="$(mktemp "${TMPDIR:-/tmp}/prefect-stg-XXXXXX")"
+HC_BODY_FILE="$(mktemp "${TMPDIR:-/tmp}/platform-hc-XXXXXX")"
+STAGING_OUT="$(mktemp "${TMPDIR:-/tmp}/platform-stg-XXXXXX")"
 trap 'rm -f "${HC_BODY_FILE}" "${STAGING_OUT}"' EXIT
 hc_code=""
 hc_ctype=""

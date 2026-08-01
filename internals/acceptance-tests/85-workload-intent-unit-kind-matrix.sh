@@ -30,7 +30,7 @@ EOF
 # Always-on long-running container.
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
 [Unit]
-Description=Prefect kind-matrix Always-on
+Description=Propraetor kind-matrix Always-on
 
 [Container]
 Image=docker.io/library/nginx:alpine
@@ -47,7 +47,7 @@ EOF
 # On-demand Quadlet job: StartWithPod=false is On-demand, not Always-on.
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}-batch.container" <<EOF
 [Unit]
-Description=Prefect kind-matrix On-demand job container
+Description=Propraetor kind-matrix On-demand job container
 
 [Container]
 Image=docker.io/library/busybox:latest
@@ -71,7 +71,7 @@ EOF
 # On-demand native timer/job family (shared role stem).
 cat >"${FIX_DIR}/${WL}/systemd/${WL}-tick.service" <<EOF
 [Unit]
-Description=Prefect kind-matrix On-demand job oneshot
+Description=Propraetor kind-matrix On-demand job oneshot
 
 [Service]
 Type=oneshot
@@ -80,7 +80,7 @@ EOF
 
 cat >"${FIX_DIR}/${WL}/systemd/${WL}-tick.timer" <<EOF
 [Unit]
-Description=Prefect kind-matrix On-demand timer
+Description=Propraetor kind-matrix On-demand timer
 
 [Timer]
 OnBootSec=1h

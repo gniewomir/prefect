@@ -19,7 +19,7 @@ case "${1-}" in
   show)
     cat <<'JSON'
 {"values":{"root_module":{"child_modules":[{"address":"module.durables","resources":[
-  {"address":"module.durables.digitalocean_project.prefect","mode":"managed","values":{"id":"project-test-id"}},
+  {"address":"module.durables.digitalocean_project.propraetor","mode":"managed","values":{"id":"project-test-id"}},
   {"address":"module.durables.digitalocean_volume.web","mode":"managed","values":{"id":"volume-test-id","urn":"do:volume:volume-test-id"}},
   {"address":"module.durables.digitalocean_reserved_ip.web","mode":"managed","values":{"ip_address":"203.0.113.10","urn":"do:reservedip:203.0.113.10"}},
   {"address":"module.durables.digitalocean_domain.this[\"gniewomir.pl\"]","mode":"managed","values":{"id":"gniewomir.pl","urn":"do:domain:gniewomir.pl"}},

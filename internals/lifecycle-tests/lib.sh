@@ -21,7 +21,7 @@ STACK_DIR="${REPO_ROOT}/internals/terraform"
 # Provider-visible Durable identifiers (not State addresses). Derived from PLATFORM_ENV.
 DURABLE_VOLUME_NAME="$(environment_volume_name_for "${PLATFORM_ENV:-test}")"
 DURABLE_VOLUME_REGION="fra1"
-HOST_NAME="prefect-${PLATFORM_ENV:-test}-web"
+HOST_NAME="propraetor-${PLATFORM_ENV:-test}-web"
 
 # Assert Reserved IP still exists at the provider (survives Park).
 assert_reserved_ip_present() {
@@ -58,14 +58,14 @@ assert_durables_in_cloud_project() {
   [[ -n "${ip}" ]] || fail "assert_durables_in_cloud_project: empty IP"
   local project_id body expected_urn
   project_id="$(stack_cloud_project_id)"
-  [[ -n "${project_id}" ]] || fail "Cloud Project prefect not found at provider"
+  [[ -n "${project_id}" ]] || fail "Cloud Project propraetor not found at provider"
   body="$(do_api_get "/v2/projects/${project_id}/resources")" \
     || fail "Cloud Project resources list failed for ${project_id}"
   while IFS= read -r expected_urn; do
     [[ -n "${expected_urn}" ]] || continue
     echo "${body}" | jq -e --arg urn "${expected_urn}" \
       '[.resources[].urn] | index($urn) != null' >/dev/null \
-      || fail "Durable ${expected_urn} not in Cloud Project Prefect (${project_id})"
+      || fail "Durable ${expected_urn} not in Cloud Project Propraetor (${project_id})"
   done < <(
     # Durable Reserved IP membership uses do:reservedip:<ip> (provider list shape).
     printf 'do:reservedip:%s\n' "${ip}"
@@ -75,7 +75,7 @@ assert_durables_in_cloud_project() {
       [[ -n "${zone}" ]] && printf 'do:domain:%s\n' "${zone}"
     done < <(stack_domain_names)
   )
-  pass "all Durables remain in Cloud Project Prefect"
+  pass "all Durables remain in Cloud Project Propraetor"
 }
 
 # Assert Host Volume still exists at the provider (survives Park).

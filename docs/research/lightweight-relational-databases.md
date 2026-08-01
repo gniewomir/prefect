@@ -1,7 +1,7 @@
-# Lightweight relational databases for Prefect Workloads
+# Lightweight relational databases for Propraetor Workloads
 
 **Researched:** 2026-07-28  
-**Question:** Which relational database choices best minimize idle and low-load RAM, CPU, and disk footprint for small Workloads on Prefect?  
+**Question:** Which relational database choices best minimize idle and low-load RAM, CPU, and disk footprint for small Workloads on Propraetor?  
 **Scope:** Self-managed databases on the existing Host. Embedded/in-process engines and standalone networked database containers are evaluated separately because removing a database container changes the architecture. Managed services and performance optimization are not the focus.  
 **Method:** Primary sources only: official product documentation, language references, source repositories, and first-party container images. Existing repo context comes from [`CONTEXT.md`](../../CONTEXT.md), [ADR-0004](../adr/0004-ubuntu-podman-initial-host-provisioning.md), [ADR-0007](../adr/0007-edge-service-network-and-routes.md), [ADR-0009](../adr/0009-host-volume.md), [ADR-0010](../adr/0010-component-setup-and-host-volume-layout.md), and [ADR-0018](../adr/0018-no-backwards-compat-during-development.md).
 
@@ -9,7 +9,7 @@
 
 ## Verdict
 
-There is no trustworthy primary-source, apples-to-apples container benchmark covering these engines. Configuration minima are not observed idle use, and image size is not runtime RSS. This note therefore does **not** invent a RAM ranking among server containers; it narrows the field and specifies a reproducible Prefect-specific experiment.
+There is no trustworthy primary-source, apples-to-apples container benchmark covering these engines. Configuration minima are not observed idle use, and image size is not runtime RSS. This note therefore does **not** invent a RAM ranking among server containers; it narrows the field and specifies a reproducible Propraetor-specific experiment.
 
 1. **Choose embedded SQLite by default** when one Workload owns the database and its write concurrency is modest. It uniquely removes the database server process, network hop, database Quadlet, and separate container image. SQLite officially describes itself as serverless and zero-configuration; the application reads and writes the file directly ([SQLite serverless](https://sqlite.org/serverless.html)). This is the strongest architectural route to the lowest total footprint, not merely a tuning exercise.
 2. **Choose tuned PostgreSQL when a network database, concurrent writers, PostgreSQL tooling, or PostgreSQL semantics matter.** Its defaults are not a low-memory configuration: `shared_buffers` is typically 128 MB, `work_mem` is 4 MB per query operation, and `max_connections` is typically 100; PostgreSQL explicitly documents lowering memory settings and connection count when memory is constrained ([resource settings](https://www.postgresql.org/docs/current/runtime-config-resource.html), [connections](https://www.postgresql.org/docs/current/runtime-config-connection.html), [kernel resources](https://www.postgresql.org/docs/current/kernel-resources.html)). It is the baseline to beat experimentally.
@@ -30,7 +30,7 @@ Ordered for this repository:
 4. **Operational fit:** rootless Podman, native Quadlets, Service Network only when needed, durable bytes on the Host Volume, deterministic backup and restore, and clean Park → Apply recovery.
 5. **SQL and application fit:** standard SQL first; PostgreSQL dialect, wire protocol, drivers, and migration tooling are bonuses. Wire compatibility alone does not imply PostgreSQL SQL or transaction compatibility.
 6. **Maturity and maintenance:** official releases/images, documented backup path, stable file format or dump path, and a credible upstream.
-7. **Clean adoption:** Prefect is pre-stability, so select one interface and update callers directly; do not add dual-database adapters or compatibility shims solely to preserve an early choice ([ADR-0018](../adr/0018-no-backwards-compat-during-development.md)).
+7. **Clean adoption:** Propraetor is pre-stability, so select one interface and update callers directly; do not add dual-database adapters or compatibility shims solely to preserve an early choice ([ADR-0018](../adr/0018-no-backwards-compat-during-development.md)).
 
 ### Resource evidence policy
 
@@ -62,7 +62,7 @@ Ordered for this repository:
 
 **Resource and deployment shape.** SQLite has no server process: the application process accesses the database file directly, eliminating a database container and its image, network socket, and idle background process ([serverless architecture](https://sqlite.org/serverless.html)). The application image still contains a SQLite library or runtime binding, and its cgroup accounts for database heap and page cache, so "no DB container" does not mean zero database memory.
 
-For Prefect, put the database file in the owning Workload's durable tree on the Host Volume and bind-mount only that directory into its application container. Do not place it in an image layer or ephemeral container filesystem. This follows the repo's existing ownership model: durable Workload bytes belong under the Workload tree, while the rootless Workload joins the Service Network only for application traffic. Keep SQLite and its file on this same Host: SQLite warns that network-filesystem locking and sync behavior can corrupt remotely opened databases and recommends client/server when application and data are separated by a network ([SQLite over a network](https://www.sqlite.org/useovernet.html)).
+For Propraetor, put the database file in the owning Workload's durable tree on the Host Volume and bind-mount only that directory into its application container. Do not place it in an image layer or ephemeral container filesystem. This follows the repo's existing ownership model: durable Workload bytes belong under the Workload tree, while the rootless Workload joins the Service Network only for application traffic. Keep SQLite and its file on this same Host: SQLite warns that network-filesystem locking and sync behavior can corrupt remotely opened databases and recommends client/server when application and data are separated by a network ([SQLite over a network](https://www.sqlite.org/useovernet.html)).
 
 **Concurrency and durability.** SQLite permits many simultaneous readers but only one writer per database file; writers queue, and the official guidance says to choose client/server when writers cannot take turns ([appropriate uses](https://sqlite.org/whentouse.html)). WAL mode lets readers and a writer proceed concurrently, but checkpoint behavior and the `-wal`/`-shm` files become part of operations ([WAL](https://sqlite.org/wal.html)). Use the Online Backup API (or a binding that exposes it) for a consistent live copy; it can copy incrementally while briefly holding read locks rather than locking the source for the whole backup ([Backup API](https://sqlite.org/backup.html)).
 
@@ -74,7 +74,7 @@ For Prefect, put the database file in the owning Workload's durable tree on the 
 
 libSQL is a fork of SQLite that remains embeddable, preserves SQLite file-format/API compatibility when extensions do not alter the format, and inherits SQLite's fundamental single-writer model ([official README](https://github.com/tursodatabase/libsql/blob/main/README.md)). Embedded replicas add local reads while writes normally go to a remote primary, which introduces a remote service rather than simplifying this Host-only architecture ([embedded replicas](https://docs.turso.tech/features/embedded-replicas/introduction)).
 
-For a purely local Prefect Workload, standard SQLite has the smaller conceptual and dependency surface. Choose embedded libSQL only when a supported libSQL client, replication feature, or planned Turso integration is itself a requirement; do not adopt it merely because it sounds like "SQLite plus server."
+For a purely local Propraetor Workload, standard SQLite has the smaller conceptual and dependency surface. Choose embedded libSQL only when a supported libSQL client, replication feature, or planned Turso integration is itself a requirement; do not adopt it merely because it sounds like "SQLite plus server."
 
 ### PGlite — PostgreSQL semantics in one JS/TS process
 
@@ -96,7 +96,7 @@ H2 is a Java database supporting embedded, server, and mixed modes. Embedded mod
 
 HSQLDB likewise supports in-process and server deployment. Its default `MEMORY` tables are loaded into memory, while `CACHED` tables keep only part of their data in memory and have configurable cache size ([system management](https://www.hsqldb.org/doc/guide/management-chapt.html), [deployment](https://www.hsqldb.org/doc/guide/deployment-chapt.html)).
 
-Both can eliminate a separate DB container when embedded in an existing JVM Workload. For a non-JVM Workload, adding a JVM or a JVM database container is unlikely to minimize total Host footprint; this is an architectural inference to verify, not a claimed RAM measurement. Neither project publishes a first-party OCI image that fits this repo as cleanly as the PostgreSQL, MariaDB, or Firebird official images, so a Prefect-owned image would add maintenance.
+Both can eliminate a separate DB container when embedded in an existing JVM Workload. For a non-JVM Workload, adding a JVM or a JVM database container is unlikely to minimize total Host footprint; this is an architectural inference to verify, not a claimed RAM measurement. Neither project publishes a first-party OCI image that fits this repo as cleanly as the PostgreSQL, MariaDB, or Firebird official images, so a Propraetor-owned image would add maintenance.
 
 ### Firebird embedded
 
@@ -121,9 +121,9 @@ Prefer SQLite for a new, single-owner embedded store unless a Firebird feature o
 
 A validation candidate should therefore use a deliberately small connection cap and conservative per-operation memory, while leaving `fsync`, `full_page_writes`, and `synchronous_commit` at durable settings. Do **not** trade correctness for a superficially low benchmark: PostgreSQL warns that disabling `fsync` can result in unrecoverable corruption after a crash ([WAL reliability](https://www.postgresql.org/docs/current/wal-reliability.html), [`fsync`](https://www.postgresql.org/docs/current/runtime-config-wal.html)).
 
-**Backups.** PostgreSQL documents SQL dumps, filesystem-level backup, and continuous archiving as distinct approaches ([backup chapter](https://www.postgresql.org/docs/current/backup.html)). `pg_dump` makes a consistent export without blocking readers or writers, but the docs caution that it is generally not the sole regular production-backup method except in simple cases ([`pg_dump`](https://www.postgresql.org/docs/current/app-pgdump.html)). The existing Prefect-specific storage analysis is in [`droplet-volume-small-postgres.md`](droplet-volume-small-postgres.md).
+**Backups.** PostgreSQL documents SQL dumps, filesystem-level backup, and continuous archiving as distinct approaches ([backup chapter](https://www.postgresql.org/docs/current/backup.html)). `pg_dump` makes a consistent export without blocking readers or writers, but the docs caution that it is generally not the sole regular production-backup method except in simple cases ([`pg_dump`](https://www.postgresql.org/docs/current/app-pgdump.html)). The existing Propraetor-specific storage analysis is in [`droplet-volume-small-postgres.md`](droplet-volume-small-postgres.md).
 
-**Prefect implications.** Run the DB as a rootless Quadlet on the Service Network with no Host-published port. Bind its data directory into a Workload-owned durable directory on the Host Volume. If the DB belongs to one Workload, keep app and DB units in that Workload's authored `quadlets/`; if several Workloads share it, define explicit ownership, backup, and Purge semantics before implementation because the current lifecycle is Workload-owned.
+**Propraetor implications.** Run the DB as a rootless Quadlet on the Service Network with no Host-published port. Bind its data directory into a Workload-owned durable directory on the Host Volume. If the DB belongs to one Workload, keep app and DB units in that Workload's authored `quadlets/`; if several Workloads share it, define explicit ownership, backup, and Purge semantics before implementation because the current lifecycle is Workload-owned.
 
 ### Firebird 5 — credible lightweight server candidate
 
@@ -178,11 +178,11 @@ CockroachDB and YugabyteDB sound attractive because they speak PostgreSQL-like S
 - CockroachDB strongly recommends at least 4 vCPUs per node, recommends 4 GiB RAM per vCPU, and calls 2 GiB per vCPU suitable only for testing ([production settings](https://www.cockroachlabs.com/docs/stable/recommended-production-settings)).
 - YugabyteDB's deployment checklist lists 16+ cores and 64 GB+ RAM for typical YSQL production sizing; even its Kubernetes prerequisites list 15 GB RAM and 100 GB SSD minimum per node ([deployment checklist](https://docs.yugabyte.com/stable/deploy/checklist/), [hardware requirements](https://docs.yugabyte.com/stable/yugabyte-platform/prepare/server-nodes-hardware/)).
 
-These are production recommendations, not idle measurements, but they are enough to reject both for a single small Prefect Host: their distribution, replication, sharding, and background maintenance solve a different problem.
+These are production recommendations, not idle measurements, but they are enough to reject both for a single small Propraetor Host: their distribution, replication, sharding, and background maintenance solve a different problem.
 
 ### New SQLite-compatible Turso engine
 
-The Turso team distinguishes its newer Rust rewrite from libSQL and labels it beta while recommending that new projects evaluate it ([libSQL README](https://github.com/tursodatabase/libsql/blob/main/README.md)). Its MVCC mode supports optimistic `BEGIN CONCURRENT`, where conflicting commits must be retried ([transaction docs](https://docs.turso.tech/sql-reference/statements/transactions), [concurrent writes](https://docs.turso.tech/tursodb/concurrent-writes)). It is promising, but beta status and a changing interface make it a watch-list item rather than the durable default. Prefect's pre-stability permits a later clean switch without carrying compatibility shims.
+The Turso team distinguishes its newer Rust rewrite from libSQL and labels it beta while recommending that new projects evaluate it ([libSQL README](https://github.com/tursodatabase/libsql/blob/main/README.md)). Its MVCC mode supports optimistic `BEGIN CONCURRENT`, where conflicting commits must be retried ([transaction docs](https://docs.turso.tech/sql-reference/statements/transactions), [concurrent writes](https://docs.turso.tech/tursodb/concurrent-writes)). It is promising, but beta status and a changing interface make it a watch-list item rather than the durable default. Propraetor's pre-stability permits a later clean switch without carrying compatibility shims.
 
 ---
 
@@ -191,21 +191,21 @@ The Turso team distinguishes its newer Rust rewrite from libSQL and labels it be
 ### Embedded database
 
 - One application container owns the database file and is the only component allowed to open it directly.
-- The file, journal/WAL, and temporary files must reside in a Workload-owned Host Volume directory writable by the Prefect User.
+- The file, journal/WAL, and temporary files must reside in a Workload-owned Host Volume directory writable by the Platform User.
 - Backup is a Workload operation: use the engine's online backup API/tool or stop the application before a filesystem copy. A raw copy of only the main file while it is live is not a generic backup strategy.
 - Application restart also restarts the database engine. There is no independent DB health unit, network policy, or rolling restart.
 - Horizontal application replication cannot share a local embedded file safely by assumption; move to a network server or engine-specific replication design first.
 
 ### Network database container
 
-- Keep the port private on the Prefect Service Network; do not publish it on the Host.
+- Keep the port private on the Propraetor Service Network; do not publish it on the Host.
 - Persist the official image's data directory under one clearly owned Workload directory on the Host Volume.
 - Add explicit readiness ordering between application and DB Quadlets; do not treat container start as database readiness.
 - Define backup artifacts outside the live data directory and test restoration onto an empty directory.
 - A database shared by multiple Workloads needs an owner and lifecycle rule: one Workload's `trash`/Purge must not delete another Workload's database. The current Workload-owned model should not silently create shared mutable infrastructure.
 - Park preserves the Host Volume but removes the Host. Apply must remount the volume before Workload Setup; database crash recovery must tolerate the prior Host disappearing without a clean shutdown.
 
-The Host Volume is currently 1 GiB and also carries Prefect/Workload durable bytes ([ADR-0009](../adr/0009-host-volume.md)). Measure initial database files, WAL/journal steady-state, backup duplication, and restore scratch space; resize before relying on backups that cannot coexist with live data.
+The Host Volume is currently 1 GiB and also carries Propraetor/Workload durable bytes ([ADR-0009](../adr/0009-host-volume.md)). Measure initial database files, WAL/journal steady-state, backup duplication, and restore scratch space; resize before relying on backups that cannot coexist with live data.
 
 ---
 

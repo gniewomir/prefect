@@ -19,7 +19,7 @@ case "${1-}" in
   show)
     cat <<'JSON'
 {"values":{"root_module":{"child_modules":[{"address":"module.durables","resources":[
-  {"address":"module.durables.digitalocean_project.prefect","mode":"managed","values":{"id":"project-test-id"}},
+  {"address":"module.durables.digitalocean_project.propraetor","mode":"managed","values":{"id":"project-test-id"}},
   {"address":"module.durables.digitalocean_volume.web","mode":"managed","values":{"id":"volume-test-id"}},
   {"address":"module.durables.digitalocean_reserved_ip.web","mode":"managed","values":{"ip_address":"203.0.113.10"}},
   {"address":"module.durables.digitalocean_domain.this[\"gniewomir.pl\"]","mode":"managed","values":{"id":"gniewomir.pl"}},
@@ -108,7 +108,7 @@ case "${1-}" in
   show)
     cat <<'JSON'
 {"values":{"root_module":{"child_modules":[{"address":"module.durables","resources":[
-  {"address":"module.durables.digitalocean_project.prefect","mode":"managed","values":{"id":"project-test-id"}},
+  {"address":"module.durables.digitalocean_project.propraetor","mode":"managed","values":{"id":"project-test-id"}},
   {"address":"module.durables.digitalocean_volume.web","mode":"managed","values":{"id":"volume-test-id"}},
   {"address":"module.durables.digitalocean_reserved_ip.web","mode":"managed","values":{"ip_address":"203.0.113.10"}},
   {"address":"module.durables.digitalocean_domain.this[\"gniewomir.pl\"]","mode":"managed","values":{"id":"gniewomir.pl"}},
@@ -137,8 +137,8 @@ cat >"${TMP_DIR}/bin/curl" <<'EOF'
 set -euo pipefail
 url="${*: -1}"
 case "${url}" in
-  *"/v2/droplets?"*) printf '%s\n' '{"droplets":[{"id":4242,"name":"prefect-test-web"}]}' ;;
-  *"/v2/projects?"*) printf '%s\n' '{"projects":[{"id":"project-test-id","name":"prefect-test"}]}' ;;
+  *"/v2/droplets?"*) printf '%s\n' '{"droplets":[{"id":4242,"name":"propraetor-test-web"}]}' ;;
+  *"/v2/projects?"*) printf '%s\n' '{"projects":[{"id":"project-test-id","name":"propraetor-test"}]}' ;;
   *"/v2/projects/project-test-id/resources"*)
     printf '%s\n' '{"resources":[
       {"urn":"do:droplet:4242"},
@@ -147,7 +147,7 @@ case "${url}" in
       {"urn":"do:domain:gniewomir.pl"}
     ]}'
     ;;
-  *"/v2/volumes?"*) printf '%s\n' '{"volumes":[{"id":"volume-test-id","name":"prefect-test-web-data","region":{"slug":"fra1"},"droplet_ids":[4242]}]}' ;;
+  *"/v2/volumes?"*) printf '%s\n' '{"volumes":[{"id":"volume-test-id","name":"propraetor-test-web-data","region":{"slug":"fra1"},"droplet_ids":[4242]}]}' ;;
   *"/v2/volumes/volume-test-id") printf '%s\n' '{"volume":{"id":"volume-test-id","droplet_ids":[4242]}}' ;;
   *"/v2/domains?"*) printf '%s\n' '{"domains":[{"name":"gniewomir.pl"}]}' ;;
   *"/v2/domains/gniewomir.pl/records"*)

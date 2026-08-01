@@ -1,5 +1,5 @@
 [Unit]
-Description=Prefect example static-site web
+Description=Propraetor example static-site web
 
 [Container]
 Image=docker.io/library/nginx:alpine

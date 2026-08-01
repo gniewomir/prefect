@@ -1,5 +1,5 @@
 [Unit]
-Description=Prefect example env-config app
+Description=Propraetor example env-config app
 
 [Container]
 Image=docker.io/library/busybox:latest

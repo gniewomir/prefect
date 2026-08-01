@@ -34,7 +34,7 @@ self_enable() {
     /etc/systemd/system/multi-user.target.wants/host-volume.service
 }
 
-# Already the Prefect mountpoint?
+# Already the Propraetor mountpoint?
 if findmnt --mountpoint "${TARGET}" >/dev/null 2>&1; then
   self_enable
   exit 0

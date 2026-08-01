@@ -1,11 +1,11 @@
 variable "names" {
   description = "Provider names for Recreatable resources."
   type = object({
-    prefect_tag = string
-    role_tag    = string
-    ssh_key     = string
-    host        = string
-    firewall    = string
+    propraetor_tag = string
+    role_tag       = string
+    ssh_key        = string
+    host           = string
+    firewall       = string
   })
 }
 

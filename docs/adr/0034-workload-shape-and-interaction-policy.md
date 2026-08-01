@@ -1,6 +1,6 @@
 # Workload shape and interaction policy
 
-Prefect needed a single architectural stance for how a Workload is shaped and how Workloads interact on a Host — without turning soft operator conventions into mandatory Setup enforcement, and without inventing multi-tenant isolation. This ADR records that policy: ownership boundary, three interaction surfaces, soft defaults plus a thin Host-shape hard floor, named Escape Hatches, and an optional later tighten path (no named loosen path). Wayfinder map [Workload shape and interaction policy](https://github.com/gniewomir/prefect/issues/86) is the decision audit trail; day-to-day truth is this ADR plus `CONTEXT.md`.
+Propraetor needed a single architectural stance for how a Workload is shaped and how Workloads interact on a Host — without turning soft operator conventions into mandatory Setup enforcement, and without inventing multi-tenant isolation. This ADR records that policy: ownership boundary, three interaction surfaces, soft defaults plus a thin Host-shape hard floor, named Escape Hatches, and an optional later tighten path (no named loosen path). Wayfinder map [Workload shape and interaction policy](https://github.com/gniewomir/prefect/issues/86) is the decision audit trail; day-to-day truth is this ADR plus `CONTEXT.md`.
 
 **Ownership boundary.** A Workload owns its definition-tree unit set (`quadlets/` + `systemd/`, split by consumer) and one Host Volume tree under `…/workloads/<basename>/`. The soft default runtime shape is one pod on the Service Network; operators may deviate. Components keep the same unit-tree shape without a Manifest (platform-owned lifecycle).
 
@@ -12,7 +12,7 @@ Prefect needed a single architectural stance for how a Workload is shaped and ho
 
 **Unit kinds under Intent.** Always-on / On-demand / Ensure classified by authored file kind; Intent stays Workload-wide. Soft unit basenames: default pod `<workload>.pod`; every other unit `<workload>-<role>.…`; related families share a role stem.
 
-**Delivery of soft conventions.** Deployable `environments/example/` (four named teaching Workloads) plus required Acceptance Tests over that Environment — not injection by Workload Setup. Soft policy is Prefect-side; Podman/Quadlet do not enforce join/publish conventions.
+**Delivery of soft conventions.** Deployable `environments/example/` (four named teaching Workloads) plus required Acceptance Tests over that Environment — not injection by Workload Setup. Soft policy is Propraetor-side; Podman/Quadlet do not enforce join/publish conventions.
 
 **Optional tighten later (no loosen path).** Soft enforcement remains the default stance. Future optional validation may hard-fail real cross-Workload conflicts, warn on convention divergence / Escape Hatches, and elevate warnings to errors only behind an operator-opt-in flag. There is no named policy loosen path; changing the hard floor later is ordinary ADR work.
 

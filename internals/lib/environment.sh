@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Environment selection for Prefect operator CLI (ADR-0019).
+# Environment selection for Propraetor operator CLI (ADR-0019).
 # Sourced by Apply / Park / Teardown / runners / Host helpers.
 # Safe by default: omitted / default / test → Terraform workspace `default`.
 #
@@ -42,7 +42,7 @@ environment_slug_for() {
 environment_volume_name_for() {
   local cloud_slug
   cloud_slug="$(environment_slug_for "${1-}")" || return 1
-  printf 'prefect-%s-web-data\n' "${cloud_slug}"
+  printf 'propraetor-%s-web-data\n' "${cloud_slug}"
 }
 
 # Parse argv for a single optional --env / --env=<slug>.

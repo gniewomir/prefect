@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Acceptance Test: Cloud Project Prefect owns the Host, Host Volume, and Reserved IP
+# Acceptance Test: Cloud Project Propraetor owns the Host, Host Volume, and Reserved IP
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 [[ -n "${HOST_JSON:-}" && "${HOST_JSON}" != "null" ]] || fail "fixture missing HOST_JSON (run via ./test.sh)"
 
-PROJECT_NAME="prefect-${PLATFORM_ENV}"
+PROJECT_NAME="propraetor-${PLATFORM_ENV}"
 PROJECT_JSON="$(provider_cloud_project_json)"
 [[ -n "${PROJECT_JSON}" && "${PROJECT_JSON}" != "null" ]] \
   || fail "Cloud Project ${PROJECT_NAME} not found at provider"
@@ -23,7 +23,7 @@ echo "${PROJECT_RESOURCES}" | jq -e --arg urn "${HOST_URN}" \
   '[.resources[].urn] | index($urn) != null' >/dev/null \
   || fail "Host URN not assigned to Cloud Project ${PROJECT_NAME}"
 
-VOLUME_NAME="prefect-${PLATFORM_ENV}-web-data"
+VOLUME_NAME="propraetor-${PLATFORM_ENV}-web-data"
 VOLUME_ID="$(provider_host_volume_json | jq -r '.id // empty')"
 [[ -n "${VOLUME_ID}" ]] || fail "Host Volume ${VOLUME_NAME} not found at provider"
 VOLUME_URN="do:volume:${VOLUME_ID}"

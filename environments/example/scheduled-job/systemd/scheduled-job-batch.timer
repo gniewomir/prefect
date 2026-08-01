@@ -1,5 +1,5 @@
 [Unit]
-Description=Prefect example scheduled-job batch timer
+Description=Propraetor example scheduled-job batch timer
 
 [Timer]
 OnBootSec=1h

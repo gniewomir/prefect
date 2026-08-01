@@ -2,7 +2,7 @@
 
 **Researched:** 2026-07-28  
 **Question:** What are the minimal resource requirements for a container running Redis?  
-**Scope:** Redis Open Source in a container (Docker/Podman). Redis Software (enterprise) node hardware tables are out of scope except as a contrast. No Prefect-specific sizing experiment was run.  
+**Scope:** Redis Open Source in a container (Docker/Podman). Redis Software (enterprise) node hardware tables are out of scope except as a contrast. No Propraetor-specific sizing experiment was run.  
 **Method:** Summary of Redis official documentation already reviewed (FAQ, memory optimization, eviction, admin, Docker install). No additional research beyond that pass.
 
 ---

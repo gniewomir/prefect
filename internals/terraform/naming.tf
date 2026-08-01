@@ -6,12 +6,12 @@ locals {
   environment_slug = terraform.workspace == "default" ? "test" : terraform.workspace
 
   names = {
-    prefect_tag = "prefect-${local.environment_slug}"
-    role_tag    = "prefect-${local.environment_slug}-public-web"
-    ssh_key     = "prefect-${local.environment_slug}-web"
-    host        = "prefect-${local.environment_slug}-web"
-    volume      = "prefect-${local.environment_slug}-web-data"
-    firewall    = "prefect-${local.environment_slug}-public-web"
-    project     = "prefect-${local.environment_slug}"
+    propraetor_tag = "propraetor-${local.environment_slug}"
+    role_tag       = "propraetor-${local.environment_slug}-public-web"
+    ssh_key        = "propraetor-${local.environment_slug}-web"
+    host           = "propraetor-${local.environment_slug}-web"
+    volume         = "propraetor-${local.environment_slug}-web-data"
+    firewall       = "propraetor-${local.environment_slug}-public-web"
+    project        = "propraetor-${local.environment_slug}"
   }
 }

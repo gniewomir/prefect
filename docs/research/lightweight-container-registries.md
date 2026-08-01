@@ -1,8 +1,8 @@
-# Lightweight container registries for Prefect Components
+# Lightweight container registries for Propraetor Components
 
 **Researched:** 2026-07-30  
-**Question:** Is there a reputable project fitting “lightweight, containerized, container registry” that Prefect could use as (or inspire) a Component enabling push and fetch of container images via an already-existing solution?  
-**Scope:** Self-hosted OCI / Docker Registry HTTP API V2 servers that can run as a container (rootless Podman / Quadlet-friendly) on a small Host. Managed registries (GHCR, Quay.io, GitLab.com registry) are out of scope except as non-fits. Clients and libraries (ORAS, go-containerregistry) are noted only to dismiss. Not a Prefect design doc.  
+**Question:** Is there a reputable project fitting “lightweight, containerized, container registry” that Propraetor could use as (or inspire) a Component enabling push and fetch of container images via an already-existing solution?  
+**Scope:** Self-hosted OCI / Docker Registry HTTP API V2 servers that can run as a container (rootless Podman / Quadlet-friendly) on a small Host. Managed registries (GHCR, Quay.io, GitLab.com registry) are out of scope except as non-fits. Clients and libraries (ORAS, go-containerregistry) are noted only to dismiss. Not a Propraetor design doc.  
 **Method:** Primary sources only — official project docs and READMEs, CNCF project pages, OCI Distribution Specification, first-party install/config guides, and GitHub release metadata. Secondary blogs used only as leads; claims verified against owning sources. Repo deployment context from [`CONTEXT.md`](../../CONTEXT.md) (Components as rootless Quadlets on a Host Volume) informs operational fit observations only.
 
 ---
@@ -167,7 +167,7 @@ Universal binary repository (Docker is one format among many). Self-managed inst
 
 ### Managed registries — wrong packaging
 
-GitHub GHCR, GitLab.com Container Registry, Quay.io, cloud provider registries: ready-to-use push/pull endpoints, but **not** something Prefect runs as a Host Component. Distribution’s own docs point users who want “zero maintenance” at hosted registry services ([docs home — Alternatives](https://distribution.github.io/distribution/)).
+GitHub GHCR, GitLab.com Container Registry, Quay.io, cloud provider registries: ready-to-use push/pull endpoints, but **not** something Propraetor runs as a Host Component. Distribution’s own docs point users who want “zero maintenance” at hosted registry services ([docs home — Alternatives](https://distribution.github.io/distribution/)).
 
 ### Clients / libraries — not servers
 
@@ -179,7 +179,7 @@ GitHub GHCR, GitLab.com Container Registry, Quay.io, cloud provider registries: 
 
 - **`registry:2` vs `registry:3`:** current Distribution docs and quickstarts use **`registry:3`** ([docs home](https://distribution.github.io/distribution/), [deploy](https://distribution.github.io/distribution/about/deploying/)).
 - **Joxit/docker-registry-ui:** UI in front of a registry; not a registry itself (listed as auxiliary UI in zot’s comparison references ([COMPARISON.md](https://github.com/project-zot/zot/blob/main/COMPARISON.md))).
-- **ttl.sh-style ephemeral registries:** public ephemeral push services are not a self-hosted Prefect Component; not pursued further here.
+- **ttl.sh-style ephemeral registries:** public ephemeral push services are not a self-hosted Propraetor Component; not pursued further here.
 - **zot `COMPARISON.md`:** useful for feature dimensions, but its embedded “last stable release” dates are outdated relative to current GitHub releases — do not use that file for maturity dates.
 
 ---
@@ -188,12 +188,12 @@ GitHub GHCR, GitLab.com Container Registry, Quay.io, cloud provider registries: 
 
 - Harbor’s “4 GB minimum” and Nexus’s “8 GB small” are **vendor deployment floors**, not idle RSS of Distribution/zot.
 - Image compressed size ≠ runtime memory.
-- Prefer a Prefect Host experiment (cgroup memory/CPU for `registry:3` vs `zot-minimal` under idle + one push/pull) before ranking the two Tier A options on footprint alone.
+- Prefer a Propraetor Host experiment (cgroup memory/CPU for `registry:3` vs `zot-minimal` under idle + one push/pull) before ranking the two Tier A options on footprint alone.
 
 ---
 
-## Implications for Prefect
+## Implications for Propraetor
 
 A Component that wraps an existing registry looks **viable**: both Tier A options are single-container Dist Spec servers with filesystem storage that can bind-mount durable bytes on the Host Volume and expose Registry HTTP API V2 push/pull to Workloads or the operator over the Service Network / Edge — without adopting Harbor-scale compose stacks.
 
-**Strongest fit for low footprint + minimal API + simplicity + Go:** **CNCF Distribution (`registry:3`)** as the simplest “already-existing solution” (one image, optional config, industry-standard reference). **`ghcr.io/project-zot/zot-minimal`** is the peer choice when Prefect prefers OCI Image Layout on disk, first-party Podman docs, and built-in auth/policy without an external token service — still Go, still CNCF, still one process. Prefer **zot-minimal** over full zot defaults so UI/CVE extensions do not become accidental standing cost on a small Host.
+**Strongest fit for low footprint + minimal API + simplicity + Go:** **CNCF Distribution (`registry:3`)** as the simplest “already-existing solution” (one image, optional config, industry-standard reference). **`ghcr.io/project-zot/zot-minimal`** is the peer choice when Propraetor prefers OCI Image Layout on disk, first-party Podman docs, and built-in auth/policy without an external token service — still Go, still CNCF, still one process. Prefer **zot-minimal** over full zot defaults so UI/CVE extensions do not become accidental standing cost on a small Host.

@@ -36,7 +36,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 EOF
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
 [Unit]
-Description=Prefect Environment Configuration rotate probe
+Description=Propraetor Environment Configuration rotate probe
 
 [Container]
 Image=docker.io/library/nginx:alpine

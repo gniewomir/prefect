@@ -8,7 +8,7 @@ RENDER_MODULE="${REPO_ROOT}/internals/terraform/modules/recreatables/cloud-init/
 
 # Known fixture inputs (independent of recreatables local.ssh_port twin).
 SSH_PORT=9417
-VOLUME_NAME="prefect-test-web-data"
+VOLUME_NAME="propraetor-test-web-data"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
@@ -18,7 +18,7 @@ command -v ruby >/dev/null || fail "ruby not found (YAML parse)"
 
 [[ -d "${RENDER_MODULE}" ]] || fail "missing render module at ${RENDER_MODULE}"
 
-WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/prefect-ihp-ud.XXXXXX")"
+WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/platform-ihp-ud.XXXXXX")"
 cleanup() { rm -rf "${WORKDIR}"; }
 trap cleanup EXIT
 

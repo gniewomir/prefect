@@ -10,7 +10,7 @@ source "${REPO_ROOT}/internals/lib/domain_front_staging_hc.sh"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 
-OUT="$(mktemp "${TMPDIR:-/tmp}/prefect-stg-hc.XXXXXX")"
+OUT="$(mktemp "${TMPDIR:-/tmp}/platform-stg-hc.XXXXXX")"
 trap 'rm -f "${OUT}"' EXIT
 
 # Staging-trusted 200 text/plain ok → success.

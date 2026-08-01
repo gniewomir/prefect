@@ -6,7 +6,7 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 [[ -n "${HOST_JSON:-}" && "${HOST_JSON}" != "null" ]] || fail "fixture missing HOST_JSON (run via ./test.sh)"
 
-VOLUME_NAME="prefect-${PLATFORM_ENV}-web-data"
+VOLUME_NAME="propraetor-${PLATFORM_ENV}-web-data"
 VOLUME_JSON="$(provider_host_volume_json)"
 [[ -n "${VOLUME_JSON}" && "${VOLUME_JSON}" != "null" ]] \
   || fail "Host Volume ${VOLUME_NAME} not found at provider"

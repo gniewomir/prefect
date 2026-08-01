@@ -43,11 +43,11 @@ export IP RESERVED_IP_JSON HOST_JSON REPO_ROOT PLATFORM_ENV
 export VERIFY_SSH_IDENTITY="${VERIFY_SSH_IDENTITY:-}"
 
 # Reserved IP survives Host recreate; host keys do not — drop stale known_hosts before any SSH case.
-prefect_ssh_forget_host "${IP}"
+propraetor_ssh_forget_host "${IP}"
 
 echo "Checking Reserved IP ${IP} (Environment ${PLATFORM_ENV}) ..."
 
-# Prefect Components for the Platform User (idempotent Component Setup; not Initial Host Provisioning).
+# Propraetor Components for the Platform User (idempotent Component Setup; not Initial Host Provisioning).
 "${REPO_ROOT}/internals/ensure-components.sh" --env "${PLATFORM_ENV}"
 
 ALL_CASES=()

@@ -25,7 +25,7 @@ do_api_get() {
 }
 
 provider_cloud_project_json() {
-  local project_name="prefect-${PLATFORM_ENV}"
+  local project_name="propraetor-${PLATFORM_ENV}"
   do_api_get "/v2/projects?per_page=200" \
     | jq -c --arg name "${project_name}" '.projects[] | select(.name == $name)'
 }
@@ -35,7 +35,7 @@ provider_cloud_project_id() {
 }
 
 provider_host_volume_json() {
-  local volume_name="prefect-${PLATFORM_ENV}-web-data"
+  local volume_name="propraetor-${PLATFORM_ENV}-web-data"
   do_api_get "/v2/volumes?name=${volume_name}&region=fra1" \
     | jq -c '.volumes[0] // empty'
 }

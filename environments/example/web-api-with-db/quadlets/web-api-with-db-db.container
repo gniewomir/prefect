@@ -1,5 +1,5 @@
 [Unit]
-Description=Prefect example web-api-with-db private DB sidecar
+Description=Propraetor example web-api-with-db private DB sidecar
 
 [Container]
 Image=docker.io/library/postgres:16-alpine

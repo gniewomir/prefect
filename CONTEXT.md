@@ -1,11 +1,11 @@
-# Prefect
+# Propraetor
 
-Prefect owns reusable Hosts and a thin Workload contract so a solo operator can ship many small projects, experiments, and MVPs without repeating platform work, paying for managed infrastructure too early, or becoming dependent on a PaaS that is costly to leave. It removes unproductive friction (platform TLS, repeated provisioning) and keeps productive friction (declaring how containers run). Host capacity changes should remain routine and low-disruption; scale vertically while the shared Host remains sufficient, then graduate a Workload to dedicated infrastructure.
+Propraetor owns reusable Hosts and a thin Workload contract so a solo operator can ship many small projects, experiments, and MVPs without repeating platform work, paying for managed infrastructure too early, or becoming dependent on a PaaS that is costly to leave. It removes unproductive friction (platform TLS, repeated provisioning) and keeps productive friction (declaring how containers run). Host capacity changes should remain routine and low-disruption; scale vertically while the shared Host remains sufficient, then graduate a Workload to dedicated infrastructure.
 
 ## Language
 
-**Prefect**:
-The name of this project: infrastructure-as-code for the platform other projects run on (Hosts, networks, environments) — without deciding what those projects are. From Latin *praefectus*: an appointed authority placed over a defined sphere under delegated power, not ownership of the work’s purpose.
+**Propraetor**:
+The name of this project: infrastructure-as-code for the platform other projects run on (Hosts, networks, environments) — without deciding what those projects are. From Latin *propraetor*: delegated provincial command on the same Roman magistracy ladder as *praefectus* / *legatus* — an appointed authority placed over a defined sphere under delegated power, not ownership of the work’s purpose.
 _Avoid_: Infra, platform repo, DevOps project (when you mean this project)
 
 **Stack**:
@@ -13,11 +13,11 @@ A Terraform root module that owns a cohesive slice of infrastructure for one pro
 _Avoid_: Project, workspace (Terraform State slices are an implementation detail — see Environment); Environment (when you mean the module itself rather than an instance)
 
 **Environment**:
-A namespaced instance of a Stack under one provider account: its own State and its own account-unique cloud names (including Cloud Project, Host, Host Volume, Domain, tags, Firewall, SSH key). Identified by an open-ended operator-chosen slug (e.g. `test`, `prod`, `dev`, `staging` — no fixed enum). When no Environment is explicitly selected, the operator is on the **test** Environment. In operator tooling, `test` and `default` refer to that same Environment (`default` is the only alias). Prefect operator CLI is safe by default: every operator entrypoint accepts an Environment parameter and affects **test** unless another Environment is explicitly specified. A `prod` Environment is optional — created only when needed. Distinct from the provider Cloud Project’s metadata `environment` field (Production / Staging / …), which is billing/UI labeling only.
+A namespaced instance of a Stack under one provider account: its own State and its own account-unique cloud names (including Cloud Project, Host, Host Volume, Domain, tags, Firewall, SSH key). Identified by an open-ended operator-chosen slug (e.g. `test`, `prod`, `dev`, `staging` — no fixed enum). When no Environment is explicitly selected, the operator is on the **test** Environment. In operator tooling, `test` and `default` refer to that same Environment (`default` is the only alias). Propraetor operator CLI is safe by default: every operator entrypoint accepts an Environment parameter and affects **test** unless another Environment is explicitly specified. A `prod` Environment is optional — created only when needed. Distinct from the provider Cloud Project’s metadata `environment` field (Production / Staging / …), which is billing/UI labeling only.
 _Avoid_: Workspace, stage, stack instance, Terraform workspace (when you mean this concept); environment variable / process environment (shell); Cloud Project `environment` field
 
 **Cloud Project**:
-A provider-side folder that groups billable resources for UI and billing. Distinct from Prefect, Stack, and Environment. Each Environment gets its own Cloud Project (namespaced by Environment slug). Resources that cannot be assigned (Firewall, tags, SSH keys) stay Stack-managed only.
+A provider-side folder that groups billable resources for UI and billing. Distinct from Propraetor, Stack, and Environment. Each Environment gets its own Cloud Project (namespaced by Environment slug). Resources that cannot be assigned (Firewall, tags, SSH keys) stay Stack-managed only.
 _Avoid_: Project (bare), DO project (when speaking in domain language)
 
 **Bootstrap**:
@@ -34,7 +34,7 @@ _Avoid_: Key, secret, password (when you mean the provider API token)
 
 **Environment Configuration**:
 The Environment-scoped bag of non-committed key/value pairs the operator supplies for Workload Setup to materialize into one Platform User–local EnvironmentFile per Workload at `~/.config/platform/workloads/<basename>/environment`, wired onto that Workload’s `quadlets/*.container` install units via a Setup-owned Quadlet drop-in (`EnvironmentFile=` — not unit-text substitution, not onto the Host Volume Workload tree). Baseline from gitignored `environments/<slug>/.env` when present, current shell overriding any key; a Workload’s Manifest `environment` list selects which keys that Workload receives (surplus bag keys ignored for that Workload); missing listed keys fail closed in Workload Setup; a non-empty list with no `quadlets/*.container` also fails closed. Re-Setup rewrites the file from current sources (the rotation path). Components do not consume this bag in v1. Key names are operator-owned — Setup does not reserve or reject names — but prefer not to use the `PLATFORM_*` prefix or provider **Credential** names (`DIGITALOCEAN_TOKEN` today; future tokens in the same Credential role) in Manifest `environment` lists or committed `.env.example`. Distinct from Stack/Terraform configuration under that Environment directory, from the process environment as a concept, and from provider **Credential**.
-_Avoid_: Environment (the Prefect instance); Stack configuration / Terraform config (when you mean files under `environments/<slug>/` other than this bag); environment / env / environment variable (process/shell, when you mean this bag); Operator Configuration (operator-machine vars for Prefect tooling); Credential; secrets (when you mean the whole bag); dotenv / `.env` (when you mean the bag, not the file); placeholder substitution (not the injection path)
+_Avoid_: Environment (the Propraetor instance); Stack configuration / Terraform config (when you mean files under `environments/<slug>/` other than this bag); environment / env / environment variable (process/shell, when you mean this bag); Operator Configuration (operator-machine vars for Propraetor tooling); Credential; secrets (when you mean the whole bag); dotenv / `.env` (when you mean the bag, not the file); placeholder substitution (not the injection path)
 
 **Host**:
 A virtual machine managed by a Stack. The first Host in this Stack is a public web host (HTTP/HTTPS plus SSH).
@@ -54,7 +54,7 @@ _Avoid_: Carrier ready, cloud-init ready, Component Setup ready, Component Setup
 
 **Host diagnostics**:
 An operator pull of Host-local diagnostic artifacts for an Environment (named bundles of files and small command snapshots) for local inspection. Not IHP Done, not an Acceptance Test, and not ongoing Host management.
-_Avoid_: logs (bare), cloud-init logs (when you mean this operator capability); debug dump, support bundle (when you mean this Prefect operation)
+_Avoid_: logs (bare), cloud-init logs (when you mean this operator capability); debug dump, support bundle (when you mean this Propraetor operation)
 
 **Reserved IP**:
 A stable public IPv4 address owned by the Stack and assigned to a Host. It survives Host rebuilds and Park; Teardown removes it with the rest of the Stack. The Host's own public IP does not survive rebuilds.
@@ -66,18 +66,18 @@ _Avoid_: DNS zone, zone file, domain name (bare), subdomain (when you mean this 
 
 **Host Volume**:
 A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds and Park (Teardown removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Domain fronts, Workload Routes, certificates, and ACME HTTP-01 webroot, and each Workload’s ownership tree) is owned by the Platform User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Platform User’s home. One Host Volume per Host — not a separate volume resource per Workload; Workloads own trees under it.
-_Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Prefect resource)
+_Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Propraetor resource)
 
 **Firewall**:
 A provider-enforced network filter attached to Hosts. Inbound default deny (only SSH, HTTP, HTTPS, and ICMP allowed); outbound unrestricted. The Stack does not manage a host-level firewall. Attachment is by Role Tag, not by Host ID alone.
 _Avoid_: Security group, ufw, iptables, cloud firewall (product name when you mean this concept)
 
-**Prefect Tag**:
-A provider tag that marks taggable resources as belonging to Prefect (name derived per Environment, e.g. test: `prefect-test`). Applied to every Prefect Host. Not all Stack resources are taggable (Firewall, Reserved IP, and SSH keys are not).
-_Avoid_: Office Tag, Shared tag, prefect tag (when you mean this concept); Role Tag
+**Propraetor Tag**:
+A provider tag that marks taggable resources as belonging to Propraetor (name derived per Environment, e.g. test: `propraetor-test`). Applied to every Propraetor Host. Not all Stack resources are taggable (Firewall, Reserved IP, and SSH keys are not).
+_Avoid_: Office Tag, Shared tag, propraetor tag (when you mean this concept); Role Tag
 
 **Role Tag**:
-A provider tag that selects Hosts for a policy such as a Firewall (public web for test: `prefect-test-public-web`). Orthogonal to the Prefect Tag; a Host may carry both.
+A provider tag that selects Hosts for a policy such as a Firewall (public web for test: `propraetor-test-public-web`). Orthogonal to the Propraetor Tag; a Host may carry both.
 _Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is not itself tagged)
 
 **Acceptance Test**:
@@ -125,8 +125,8 @@ Permanently remove every resource the Stack currently manages, including Durable
 _Avoid_: Destroy, wipe, delete resources, terraform destroy (when you mean this full removal); Purge (Workload-only)
 
 **Component**:
-An installable unit of Prefect’s mandatory Host shape, owned as its own source tree with an idempotent Component Setup. Today’s Components are the Service Network and the Edge. Workloads are not Components. Component unit trees keep **shape parity** with Workloads (`quadlets/` + `systemd/` by consumer) but have no Manifest — the platform owns Component lifecycle.
-_Avoid_: Package, unit, service, module (when you mean this installable Prefect piece)
+An installable unit of Propraetor’s mandatory Host shape, owned as its own source tree with an idempotent Component Setup. Today’s Components are the Service Network and the Edge. Workloads are not Components. Component unit trees keep **shape parity** with Workloads (`quadlets/` + `systemd/` by consumer) but have no Manifest — the platform owns Component lifecycle.
+_Avoid_: Package, unit, service, module (when you mean this installable Propraetor piece)
 
 **Component Setup**:
 The idempotent, declarative Host-side application of one Component’s desired state. After a successful Component Setup, that Component is in the correct state. Reads that Component’s source tree from the Host Volume (and may source shared Host-local helpers from the components lib on that volume); runs on the Host only; does not discover the Stack, SSH, or copy itself onto the Host. Used for first bring-up after Initial Host Provisioning and for later re-runs without Host recreation. Installs authored `quadlets/` into the Platform User Quadlet directory and authored `systemd/` into the Platform User native systemd directory (same consumer split as Workload Setup).
@@ -137,15 +137,15 @@ The idempotent, declarative Host-side application of one Workload’s Intent fro
 _Avoid_: Setup (bare), Component Setup, install, deploy, Purge (when you mean this Workload action)
 
 **Edge**:
-The mandatory public HTTP/HTTPS front door on a public Host. A Prefect Component (not optional). Sole publisher of Host ports 80/443; terminates TLS using Domain-scoped certificates; owns on-demand ACME as the issuance mechanism. For each want-list FQDN it publishes a Domain front; Workloads attach via operator-authored Routes included into those fronts. ACME’s want-list is the explicit FQDN set from the Environment’s Domain assignment (apex + `names`); ensure-components installs that want-list and the Domain fronts on the Host; ACME does not generate or mutate Domain fronts or Workload Routes. On :80, only ACME challenges and HTTPS redirects — never Workload cleartext.
-_Avoid_: Reverse proxy, ingress, gateway, nginx (when you mean this Prefect role — nginx is today’s implementation)
+The mandatory public HTTP/HTTPS front door on a public Host. A Propraetor Component (not optional). Sole publisher of Host ports 80/443; terminates TLS using Domain-scoped certificates; owns on-demand ACME as the issuance mechanism. For each want-list FQDN it publishes a Domain front; Workloads attach via operator-authored Routes included into those fronts. ACME’s want-list is the explicit FQDN set from the Environment’s Domain assignment (apex + `names`); ensure-components installs that want-list and the Domain fronts on the Host; ACME does not generate or mutate Domain fronts or Workload Routes. On :80, only ACME challenges and HTTPS redirects — never Workload cleartext.
+_Avoid_: Reverse proxy, ingress, gateway, nginx (when you mean this Propraetor role — nginx is today’s implementation)
 
 **Domain front**:
 Edge-owned per-FQDN drop-in for one want-list name: the HTTPS `server` that terminates TLS for that Domain name and includes matching Workload Routes. Publishes Edge baseline `/healthcheck` and the per-name `:80`→HTTPS redirect without a Workload Route. Lives under Edge data `domains/` (not Workload `routes/`); reconciled by ensure-components with the want-list; never Workload-owned and never ACME-mutated.
 _Avoid_: Domain Route, Edge Route, vhost (when you mean this Edge-owned front); Workload Route
 
 **Workload** (alias **workflow**):
-An optional containerized service that runs on a Host. Identified by the basename of its Workload definition tree (the directory that holds the Manifest), not by a Manifest field. Owns that tree’s unit set (`quadlets/` + `systemd/`) and one Host Volume ownership tree for that basename; its canonical Service Network hostname is that basename. Not part of Prefect’s mandatory Host shape, not a Component, and never installed during Initial Host Provisioning; typically reached only via the Edge, not by publishing 80/443 itself. **Workload** is canonical in docs and code; **workflow** is an accepted conversational alias for the same concept.
+An optional containerized service that runs on a Host. Identified by the basename of its Workload definition tree (the directory that holds the Manifest), not by a Manifest field. Owns that tree’s unit set (`quadlets/` + `systemd/`) and one Host Volume ownership tree for that basename; its canonical Service Network hostname is that basename. Not part of Propraetor’s mandatory Host shape, not a Component, and never installed during Initial Host Provisioning; typically reached only via the Edge, not by publishing 80/443 itself. **Workload** is canonical in docs and code; **workflow** is an accepted conversational alias for the same concept.
 _Avoid_: App, service, container, backend (when you mean this concept)
 
 **Workload Manifest**:
@@ -153,7 +153,7 @@ A Workload-owned declaration that is the source of truth for that Workload’s I
 _Avoid_: Manifest (bare), spec, compose file, workload config (when you mean this declaration)
 
 **Workload Intent**:
-The Manifest’s post–Workload Setup expectation — what must be true after Setup succeeds; never Host status or a report of what is currently on the server. Applies to the whole Workload-owned unit set (`quadlets/` + `systemd/`) and that Workload’s Routes. **run** (Always-on units started; On-demand units Armed; Ensure units ensured; operator-authored Routes installed for Domain fronts to include when present — zero Route files is valid; HTTP semantics are whatever those fragments declare inside the Domain front, not Prefect-generated shells; reachability is not a Setup success criterion), **stop** (Always-on stopped; On-demand Disarmed; Ensure resources left in place; that Workload’s Routes are not installed, so the Domain front serves only its Edge baseline — today `/healthcheck` and miss behaviour as configured there — not a Prefect-managed 503), or **trash** (same unit expectation as **stop**; eligible for Purge; associated Workload data retained until Purge).
+The Manifest’s post–Workload Setup expectation — what must be true after Setup succeeds; never Host status or a report of what is currently on the server. Applies to the whole Workload-owned unit set (`quadlets/` + `systemd/`) and that Workload’s Routes. **run** (Always-on units started; On-demand units Armed; Ensure units ensured; operator-authored Routes installed for Domain fronts to include when present — zero Route files is valid; HTTP semantics are whatever those fragments declare inside the Domain front, not Propraetor-generated shells; reachability is not a Setup success criterion), **stop** (Always-on stopped; On-demand Disarmed; Ensure resources left in place; that Workload’s Routes are not installed, so the Domain front serves only its Edge baseline — today `/healthcheck` and miss behaviour as configured there — not a Propraetor-managed 503), or **trash** (same unit expectation as **stop**; eligible for Purge; associated Workload data retained until Purge).
 _Avoid_: Workload Desired State, desired state, running, stopped, trashed, active, disabled, remove, status, phase, current state (when you mean this Manifest field)
 
 **Always-on**:
@@ -181,17 +181,17 @@ The operation that permanently removes every Workload whose Intent is **trash** 
 _Avoid_: Teardown (Stack-level), Destroy, delete, cleanup, gc (when you mean this Workload operation)
 
 **Service Network**:
-The private container network on a Host that the Edge and Workloads join so they can reach each other by name. Owned by Prefect as its own Component (not by the Edge). Distinct from the provider Firewall.
+The private container network on a Host that the Edge and Workloads join so they can reach each other by name. Owned by Propraetor as its own Component (not by the Edge). Distinct from the provider Firewall.
 _Avoid_: Podman network, bridge, CNI (implementation); network (bare — ambiguous with Firewall / provider networking)
 
 **Escape Hatch**:
-An operator-owned deviation from a soft Workload interaction convention that remains possible on the Host but is unsupported: Prefect does not teach, scaffold, or Acceptance-test it, and ownership/Setup/Purge stay on the default contract. Not a supported alternate pattern, not a way around a hard Host-shape floor, and not a compatibility promise if soft conventions later gain optional enforcement.
-_Avoid_: workaround, exception, override, unsupported pattern (when you mean this named stance); supported deviation, documented alternate (those imply Prefect owns the pattern)
+An operator-owned deviation from a soft Workload interaction convention that remains possible on the Host but is unsupported: Propraetor does not teach, scaffold, or Acceptance-test it, and ownership/Setup/Purge stay on the default contract. Not a supported alternate pattern, not a way around a hard Host-shape floor, and not a compatibility promise if soft conventions later gain optional enforcement.
+_Avoid_: workaround, exception, override, unsupported pattern (when you mean this named stance); supported deviation, documented alternate (those imply Propraetor owns the pattern)
 
 **Route**:
 Operator-authored Edge config (native format, server-context only) whose source of truth is `workloads/<name>/routes/` on the Host Volume. Basename is the FQDN of the Domain front it attaches to (`<fqdn>.conf`); Workload Setup installs it as `<name>--<fqdn>.conf` into the Edge routes directory for that Domain front to include (**run** only; **stop** / **trash** remove that Workload’s installed files). Basename must match a want-list FQDN or Setup fails closed. Missing `routes/` is valid (zero Routes). Not a full TLS `server` block, not projected from the Manifest, and not a hostname claim field — the FQDN is the filename. Edge ACME does not generate or mutate Routes; Domain fronts remain Edge-owned; Workload Routes must not be cleared by Component Setup.
-_Avoid_: Vhost, upstream, location block, snippet, server block (when you mean this Workload attachment); Domain front; projected Route, generated shell, interior (removed Prefect Route features)
+_Avoid_: Vhost, upstream, location block, snippet, server block (when you mean this Workload attachment); Domain front; projected Route, generated shell, interior (removed Propraetor Route features)
 
 **Platform User**:
 The Host login account that runs the platform’s rootless user Quadlets (linger enabled so user systemd stays up without an interactive session). Created by Initial Host Provisioning on public Hosts — account and linger only, not Quadlet units. Unix account name: `platform`.
-_Avoid_: Prefect User, prefect (user), edge user, podman user, service account (when you mean this Host account)
+_Avoid_: Prefect User, prefect (user), propraetor (user), edge user, podman user, service account (when you mean this Host account)

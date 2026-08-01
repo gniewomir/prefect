@@ -31,7 +31,7 @@ edge_plant_placeholder_pems() {
     if [[ -f "${full}" && -f "${key}" ]]; then
       continue
     fi
-    tmpcnf="$(mktemp "${TMPDIR:-/tmp}/prefect-placeholder-XXXXXX.cnf")"
+    tmpcnf="$(mktemp "${TMPDIR:-/tmp}/platform-placeholder-XXXXXX.cnf")"
     cat >"${tmpcnf}" <<EOF
 [req]
 distinguished_name = req_dn
@@ -104,7 +104,7 @@ EOF
   if [[ -f "${dest}" ]] && [[ "$(cat "${dest}")" == "${desired}" ]]; then
     return 0
   fi
-  tmp="$(mktemp "${TMPDIR:-/tmp}/prefect-domain-front-XXXXXX.conf")"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/platform-domain-front-XXXXXX.conf")"
   printf '%s\n' "${desired}" >"${tmp}"
   install -m 0644 "${tmp}" "${dest}"
   rm -f "${tmp}"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ensure Prefect Components on the Host (after Initial Host Provisioning).
+# Ensure Propraetor Components on the Host (after Initial Host Provisioning).
 # Copies Component source onto the Host Volume, then runs each Component Setup
 # in order. Component Setups are idempotent — this entrypoint may be re-run freely.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).

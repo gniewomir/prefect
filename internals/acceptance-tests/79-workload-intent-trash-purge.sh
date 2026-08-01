@@ -25,7 +25,7 @@ stage_wl() {
 EOF
   cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF
 [Unit]
-Description=Prefect Workload ${name}
+Description=Propraetor Workload ${name}
 
 [Container]
 Image=docker.io/library/nginx:alpine

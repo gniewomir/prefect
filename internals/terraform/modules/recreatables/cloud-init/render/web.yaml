@@ -1,7 +1,7 @@
 #cloud-config
 ssh_pwauth: false
 # Host Image apt indexes are enough to install podman; skip apt-get update on
-# create (faster Park->Apply). Revisit when Prefect leaves dev-only.
+# create (faster Park->Apply). Revisit when Propraetor leaves dev-only.
 package_update: false
 packages:
   - podman
@@ -77,5 +77,5 @@ runcmd:
 power_state:
   mode: reboot
   delay: now
-  message: Prefect ADR-0030 SSH port cutover
+  message: Propraetor ADR-0030 SSH port cutover
   condition: true

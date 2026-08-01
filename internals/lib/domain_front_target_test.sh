@@ -10,7 +10,7 @@ source "${REPO_ROOT}/internals/lib/domain_front_target.sh"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 
-ANSWERS="$(mktemp "${TMPDIR:-/tmp}/prefect-df-answers.XXXXXX")"
+ANSWERS="$(mktemp "${TMPDIR:-/tmp}/platform-df-answers.XXXXXX")"
 trap 'rm -f "${ANSWERS}"' EXIT
 
 assert_select() {

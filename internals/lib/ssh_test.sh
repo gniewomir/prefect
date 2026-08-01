@@ -195,12 +195,12 @@ fi
 pass "open/bind do not forget known_hosts"
 
 : >"${SSH_KEYGEN_CALLS}"
-prefect_ssh_forget_host "203.0.113.77" || fail "prefect_ssh_forget_host should succeed"
+propraetor_ssh_forget_host "203.0.113.77" || fail "propraetor_ssh_forget_host should succeed"
 grep -Fq -- "-R 203.0.113.77" "${SSH_KEYGEN_CALLS}" \
   || fail "forget must clear bare IP; got: $(cat "${SSH_KEYGEN_CALLS}")"
 grep -Fq -- "-R [203.0.113.77]:${PLATFORM_SSH_PORT}" "${SSH_KEYGEN_CALLS}" \
   || fail "forget must clear [ip]:port; got: $(cat "${SSH_KEYGEN_CALLS}")"
-pass "prefect_ssh_forget_host clears bare IP and [ip]:port"
+pass "propraetor_ssh_forget_host clears bare IP and [ip]:port"
 
 
 

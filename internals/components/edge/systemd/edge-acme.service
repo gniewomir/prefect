@@ -1,5 +1,5 @@
 [Unit]
-Description=Prefect Edge ACME (on-demand)
+Description=Propraetor Edge ACME (on-demand)
 After=edge-pod.service
 
 [Service]

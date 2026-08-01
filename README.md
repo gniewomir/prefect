@@ -1,16 +1,16 @@
-# Prefect
+# Propraetor
 
 Reproducible Environments on a vertically scaled cloud Hosts — Podman pods and containers as first-class citizens, without full orchestration. Ready to graduate to dedicated infrastructure with thin adaptation.
 
 Domain language: [`CONTEXT.md`](CONTEXT.md). Decisions: [`docs/adr/`](docs/adr/).
 
-These principles guide Prefect's development. Prefect is pre-stability, and the current implementation does not yet satisfy all of them.
+These principles guide Propraetor's development. Propraetor is pre-stability, and the current implementation does not yet satisfy all of them.
 
 ## Principles
 
 ### Own the foundation; preserve the exit
 
-Prefer infrastructure we understand and control over opaque app-platform dependencies. Keep the Prefect-specific surface thin and Workload configuration portable, so changing provider or graduating a Workload requires adaptation rather than reinvention.
+Prefer infrastructure we understand and control over opaque app-platform dependencies. Keep the Propraetor-specific surface thin and Workload configuration portable, so changing provider or graduating a Workload requires adaptation rather than reinvention.
 
 ### Automate repetition; preserve meaningful decisions
 
@@ -18,7 +18,7 @@ Automate work that would otherwise be repeated across projects. Keep choices tha
 
 ### Declare intent; expose the mechanism
 
-Prefect declarations describe desired outcomes, and applying one repeatedly should produce the same managed outcome. Except for a minimal Manifest, Workload configuration remains in the underlying software's native formats rather than being replaced by Prefect-specific abstractions. Prefect coordinates tools without concealing their operation behind hidden assumptions or implicit behavior.
+Propraetor declarations describe desired outcomes, and applying one repeatedly should produce the same managed outcome. Except for a minimal Manifest, Workload configuration remains in the underlying software's native formats rather than being replaced by Propraetor-specific abstractions. Propraetor coordinates tools without concealing their operation behind hidden assumptions or implicit behavior.
 
 ### Prefer secure simplicity over generality
 
@@ -30,11 +30,11 @@ The repository and its explicit inputs should be sufficient to recreate equivale
 
 ### Make promises executable
 
-Prefect states its contracts in documentation and verifies their observable behavior with tests. Provider implementations may differ internally, but must satisfy the same Acceptance and Lifecycle behavior.
+Propraetor states its contracts in documentation and verifies their observable behavior with tests. Provider implementations may differ internally, but must satisfy the same Acceptance and Lifecycle behavior.
 
 ### Scale the Host; graduate the exceptions
 
-Make Host capacity changes routine and low-disruption. Prefer vertical scaling while the shared Host remains sufficient; when a Workload outgrows that model, move it to dedicated infrastructure rather than expanding Prefect into a general-purpose orchestrator.
+Make Host capacity changes routine and low-disruption. Prefer vertical scaling while the shared Host remains sufficient; when a Workload outgrows that model, move it to dedicated infrastructure rather than expanding Propraetor into a general-purpose orchestrator.
 
 ## Credentials
 

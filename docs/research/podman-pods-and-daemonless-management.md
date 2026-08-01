@@ -2,7 +2,7 @@
 
 **Researched:** 2026-07-30  
 **Question:** How do Podman pods work, and how does Podman achieve daemonless management of containers and pods?  
-**Scope:** Architecture and operator-relevant defaults for Podman pods (namespaces, infra/pause, networking, lifecycle, Quadlets, rootful vs rootless) and the daemonless process model (CLI → conmon → OCI runtime; optional REST API; on-disk state). Not a Prefect-specific design doc.  
+**Scope:** Architecture and operator-relevant defaults for Podman pods (namespaces, infra/pause, networking, lifecycle, Quadlets, rootful vs rootless) and the daemonless process model (CLI → conmon → OCI runtime; optional REST API; on-disk state). Not a Propraetor-specific design doc.  
 **Method:** Primary sources only — Podman man pages on docs.podman.io, containers/podman README and tutorials, containers.conf / storage.conf, containers/conmon README and man page, and libpod source where needed to pin database paths. Secondary blogs/issues used only as leads and verified against primary docs/source.
 
 ---

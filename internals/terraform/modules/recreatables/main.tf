@@ -10,8 +10,8 @@ module "ihp_user_data" {
   ssh_port    = local.ssh_port
 }
 
-resource "digitalocean_tag" "prefect" {
-  name = var.names.prefect_tag
+resource "digitalocean_tag" "propraetor" {
+  name = var.names.propraetor_tag
 }
 
 resource "digitalocean_tag" "public_web" {
@@ -79,7 +79,7 @@ resource "digitalocean_droplet" "web" {
 
   ssh_keys = [digitalocean_ssh_key.web.fingerprint]
   tags = [
-    digitalocean_tag.prefect.id,
+    digitalocean_tag.propraetor.id,
     digitalocean_tag.public_web.id,
   ]
 

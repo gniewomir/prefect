@@ -1,5 +1,5 @@
 [Unit]
-Description=Prefect example hello-service web
+Description=Propraetor example hello-service web
 
 [Container]
 Image=docker.io/library/nginx:alpine

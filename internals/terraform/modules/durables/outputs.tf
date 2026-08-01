@@ -1,5 +1,5 @@
 output "project_id" {
-  value = digitalocean_project.prefect.id
+  value = digitalocean_project.propraetor.id
 }
 
 output "reserved_ip_address" {

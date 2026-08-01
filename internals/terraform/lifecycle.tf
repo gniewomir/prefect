@@ -15,11 +15,11 @@ module "recreatables" {
   source = "./modules/recreatables"
 
   names = {
-    prefect_tag = local.names.prefect_tag
-    role_tag    = local.names.role_tag
-    ssh_key     = local.names.ssh_key
-    host        = local.names.host
-    firewall    = local.names.firewall
+    propraetor_tag = local.names.propraetor_tag
+    role_tag       = local.names.role_tag
+    ssh_key        = local.names.ssh_key
+    host           = local.names.host
+    firewall       = local.names.firewall
   }
   region              = "fra1"
   public_key          = var.DIGITALOCEAN_PUBLIC_KEY

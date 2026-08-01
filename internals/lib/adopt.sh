@@ -31,7 +31,7 @@ adopt_reject_unbound_host() {
   local state_json="$1"
   local environment_slug="$2"
   local address="module.recreatables[0].digitalocean_droplet.web"
-  local expected_name="prefect-${environment_slug}-web"
+  local expected_name="propraetor-${environment_slug}-web"
   local provider_json match_count
 
   if adopt_state_values "${state_json}" "${address}" >/dev/null 2>&1; then
@@ -56,8 +56,8 @@ adopt_reject_unbound_host() {
 adopt_cloud_project() {
   local state_json="$1"
   local environment_slug="$2"
-  local address="module.durables.digitalocean_project.prefect"
-  local expected_name="prefect-${environment_slug}"
+  local address="module.durables.digitalocean_project.propraetor"
+  local expected_name="propraetor-${environment_slug}"
   local provider_json match_count project_id
 
   if adopt_state_values "${state_json}" "${address}" >/dev/null 2>&1; then
@@ -92,7 +92,7 @@ adopt_host_volume() {
   local state_json="$1"
   local environment_slug="$2"
   local address="module.durables.digitalocean_volume.web"
-  local expected_name="prefect-${environment_slug}-web-data"
+  local expected_name="propraetor-${environment_slug}-web-data"
   local expected_region="fra1"
   local provider_json match_count volume_id
 
@@ -312,7 +312,7 @@ adopt_project_memberships() {
     return 0
   fi
 
-  project_values="$(adopt_state_values "${state_json}" "module.durables.digitalocean_project.prefect")" || return 0
+  project_values="$(adopt_state_values "${state_json}" "module.durables.digitalocean_project.propraetor")" || return 0
   project_id="$(jq -er '.id | select(type == "string" and length > 0)' <<<"${project_values}")" \
     || { adopt_fail "Cloud Project in State has no provider id"; return 1; }
   provider_json="$(curl -fsS \

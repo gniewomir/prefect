@@ -1,5 +1,5 @@
 [Unit]
-Description=Prefect example web-api-with-db app
+Description=Propraetor example web-api-with-db app
 
 [Container]
 Image=docker.io/library/nginx:alpine
