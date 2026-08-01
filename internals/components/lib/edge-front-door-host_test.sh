@@ -108,19 +108,19 @@ edge_reload_front_door || fail "inactive edge-pod should not fail reload"
 pass "reload no-ops when edge-pod is not active"
 
 # --- callers share the seam (no local :80 poll loops) ---
-SETUP="${REPO_ROOT}/internals/components/edge/setup.sh"
+EDGE_SETUP="${REPO_ROOT}/internals/components/lib/edge-setup-host.sh"
 ACME_RUN="${REPO_ROOT}/internals/components/edge/acme-run.sh"
 ROUTES="${REPO_ROOT}/internals/components/lib/edge-routes-host.sh"
-[[ -f "${SETUP}" && -f "${ACME_RUN}" && -f "${ROUTES}" ]] || fail "missing Setup/ACME/routes sources"
+[[ -f "${EDGE_SETUP}" && -f "${ACME_RUN}" && -f "${ROUTES}" ]] || fail "missing Setup/ACME/routes sources"
 
-grep -Fq 'edge-front-door-host.sh' "${SETUP}" \
-  || fail "Edge Setup must source edge-front-door-host.sh"
-grep -Eq 'edge_wait_front_door' "${SETUP}" \
-  || fail "Edge Setup must settle via edge_wait_front_door"
-if grep -E 'for _ in \$\(seq|curl .*127\.0\.0\.1' "${SETUP}" >/dev/null; then
-  fail "Edge Setup must not keep a local :80 poll loop"
+grep -Fq 'edge-front-door-host.sh' "${EDGE_SETUP}" \
+  || fail "deep Edge Setup must source edge-front-door-host.sh"
+grep -Eq 'edge_wait_front_door' "${EDGE_SETUP}" \
+  || fail "deep Edge Setup must settle via edge_wait_front_door"
+if grep -E 'for _ in \$\(seq|curl .*127\.0\.0\.1' "${EDGE_SETUP}" >/dev/null; then
+  fail "deep Edge Setup must not keep a local :80 poll loop"
 fi
-pass "Edge Setup uses shared front-door wait"
+pass "deep Edge Setup uses shared front-door wait"
 
 grep -Fq 'edge-front-door-host.sh' "${ACME_RUN}" \
   || fail "acme-run must source edge-front-door-host.sh"
