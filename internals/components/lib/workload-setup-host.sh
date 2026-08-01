@@ -25,8 +25,8 @@ WANT_LIST="${EDGE_DATA}/acme/want-list"
 source "${HERE}/quadlet-user-session.sh"
 # shellcheck source=edge-routes-host.sh
 source "${HERE}/edge-routes-host.sh"
-# shellcheck source=workload-quadlets-host.sh
-source "${HERE}/workload-quadlets-host.sh"
+# shellcheck source=workload-units-host.sh
+source "${HERE}/workload-units-host.sh"
 # shellcheck source=workload-environment-host.sh
 source "${HERE}/workload-environment-host.sh"
 
@@ -82,21 +82,8 @@ fi
 
 mkdir -p "${ROUTES_DIR}" "${WORKLOADS_ROOT}/${WL_NAME}"
 
-PREV_QUADLETS="$(mktemp "${TMPDIR:-/tmp}/platform-prev-quadlets.XXXXXX")"
-PREV_SYSTEMD="$(mktemp "${TMPDIR:-/tmp}/platform-prev-systemd.XXXXXX")"
-PREV_OWNED="$(mktemp "${TMPDIR:-/tmp}/platform-prev-owned.XXXXXX")"
 STAGE_UNITS="$(mktemp "${TMPDIR:-/tmp}/platform-stage-units.XXXXXX")"
-trap 'rm -f "${PREV_QUADLETS}" "${PREV_SYSTEMD}" "${PREV_OWNED}" "${STAGE_UNITS}"' EXIT
-
-workload_quadlet_sot_basenames "${WORKLOADS_ROOT}/${WL_NAME}/quadlets" >"${PREV_QUADLETS}" || true
-workload_quadlet_sot_basenames "${WORKLOADS_ROOT}/${WL_NAME}/systemd" >"${PREV_SYSTEMD}" || true
-{
-  cat "${PREV_QUADLETS}"
-  cat "${PREV_SYSTEMD}"
-} | LC_ALL=C sort -u >"${PREV_OWNED}"
-
-unit_validate_consumer_dir quadlets "${QUADLETS_STAGE}"
-unit_validate_consumer_dir systemd "${SYSTEMD_STAGE}"
+trap 'rm -f "${STAGE_UNITS}"' EXIT
 
 {
   workload_quadlet_sot_basenames "${QUADLETS_STAGE}"
@@ -104,6 +91,12 @@ unit_validate_consumer_dir systemd "${SYSTEMD_STAGE}"
 } | LC_ALL=C sort -u >"${STAGE_UNITS}"
 
 quadlet_user_session_begin
+
+# Environment Configuration must run after unit reconcile (drop-ins beside Host
+# units) and before daemon-reload / Intent. Registered as the units-module hook.
+workload_units_before_reload() {
+  environment_configuration_apply_resolved "${WL_NAME}" "${WL_ENV_RESOLVED}"
+}
 
 # Noop when definition tree equals Host Volume SoT (ADR-0033). Intent run still
 # converges if required unit files are missing (e.g. Host recreated).
@@ -120,20 +113,13 @@ if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${TREE}" "${SOT_TREE}" >/de
     done <"${STAGE_UNITS}"
   fi
   if [[ "${units_ok}" -eq 1 ]]; then
-    # Environment Configuration refresh/removal must not be skipped by SoT noop (ADR-0035).
-    environment_configuration_apply_resolved "${WL_NAME}" "${WL_ENV_RESOLVED}" || exit 1
-    quadlet_user_session_reload
-    workload_unit_apply_intent "${WL_NAME}" "${WL_INTENT}"
+    # Env refresh/removal must not be skipped by SoT noop (ADR-0035); Intent still applied.
+    workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
+    unset -f workload_units_before_reload
     echo "Workload Setup noop: '${WL_NAME}' already matches Host Volume SoT"
     exit 0
   fi
 fi
-
-# Collision check before mutating Host Volume SoT / unit files (spans both Host dirs).
-while IFS= read -r base; do
-  [[ -n "${base}" ]] || continue
-  workload_unit_refuse_foreign_basename "${WL_NAME}" "${base}" "${PREV_OWNED}" || exit 1
-done <"${STAGE_UNITS}"
 
 install -m 0644 "${MANIFEST}" "${WORKLOADS_ROOT}/${WL_NAME}/manifest.json"
 rm -f "${WORKLOADS_ROOT}/${WL_NAME}/interior.conf"
@@ -146,18 +132,12 @@ if [[ -d "${ROUTES_STAGE}" ]]; then
   done
 fi
 
-workload_unit_sync_sot "${WL_NAME}" quadlets "${QUADLETS_STAGE}"
-workload_unit_sync_sot "${WL_NAME}" systemd "${SYSTEMD_STAGE}"
-
-chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}"
-
 edge_reconcile_workload_routes "${WL_NAME}" "${WL_INTENT}" "${WORKLOADS_ROOT}/${WL_NAME}/routes"
 
-workload_unit_reconcile_dual "${WL_NAME}" "${PREV_OWNED}" "${PREV_QUADLETS}" "${PREV_SYSTEMD}"
+workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
+unset -f workload_units_before_reload
 
-environment_configuration_apply_resolved "${WL_NAME}" "${WL_ENV_RESOLVED}" || exit 1
-
-quadlet_user_session_reload
-workload_unit_apply_intent "${WL_NAME}" "${WL_INTENT}"
+# Cover Host Volume SoT (incl. units synced by apply) and Edge data.
+chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}"
 
 edge_reload_front_door_if_routes_changed
