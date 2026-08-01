@@ -12,6 +12,7 @@ STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
 HOST_SCRIPT="${REPO_ROOT}/internals/components/lib/purge-workloads-host.sh"
 QUADLETS_LIB="${REPO_ROOT}/internals/components/lib/workload-quadlets-host.sh"
+UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/components/lib/unit-consumers-host.sh"
 ENV_HOST_LIB="${REPO_ROOT}/internals/components/lib/workload-environment-host.sh"
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
@@ -32,6 +33,10 @@ done
   echo "missing ${QUADLETS_LIB}" >&2
   exit 1
 }
+[[ -f "${UNIT_CONSUMERS_LIB}" ]] || {
+  echo "missing ${UNIT_CONSUMERS_LIB}" >&2
+  exit 1
+}
 [[ -f "${ENV_HOST_LIB}" ]] || {
   echo "missing ${ENV_HOST_LIB}" >&2
   exit 1
@@ -47,6 +52,7 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
 cp "${HOST_SCRIPT}" "${STAGE}/purge-workloads-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
+cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
 
 COPYFILE_DISABLE=1 tar --format=ustar -C "${STAGE}" -cf - . \
