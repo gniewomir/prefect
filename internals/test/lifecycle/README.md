@@ -30,7 +30,7 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
   (case-owned Park → Teardown; Cloud Project, Reserved IP, Host Volume, Domain when
   configured). Applied→Teardown remains covered by additive-case cleanup (`14`/`15`/`16`).
 
-Domain Durable asserts run when Domains are in State (declare them in `environments/<cloud-slug>/domains.json` and Apply before the suite). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs. The Additive Domain case requires a non-empty committed Domain assignment (base apex for `lifecycle-test.<apex>`).
+Domain Durable asserts run when Domains are in State (declare them in `environments/<cloud-slug>/domains.json`; cases Apply when the Stack is not already Applied). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs. The Additive Domain case requires a non-empty committed Domain assignment (base apex for `lifecycle-test.<apex>`).
 
 **Internal Domain override (maintainer / harness only):** if `environments/<slug>/domains.override.json` exists, production Domain loaders use it **instead of** `domains.json` (ADR-0021). Gitignored; not an operator flag. Additive Domain Lifecycle cases may write a derived override (committed map plus `lifecycle-test.<lexicographically-first-apex>`), run Apply/Teardown while it is present, then remove it before re-Apply of committed Domains only.
 
@@ -49,6 +49,8 @@ Credentials must already be in the environment or root `.env` (`DIGITALOCEAN_TOK
 
 **Environment (ADR-0019):** same default-safe rule as Acceptance and other operator entrypoints — no `--env` → **test** (workspace `default`); `--env test` / `--env default` are aliases; any other slug requires explicit `--env <slug>`. When present, `--env` must be last. The runner propagates the resolved Environment into nested `./park.sh` / `./apply.sh` / `./teardown.sh` so child calls cannot flip Environment.
 
+Each case that needs an Applied Stack calls `ensure_stack_applied` first (Apply when fresh, empty, or Parked; no-op when already Applied). Suite order is not a substitute for that — including after `20-teardown.sh` leaves State empty.
+
 The runner asks for exact `teardown` before any Teardown case; the case also confirms into `./teardown.sh`. Do not wire this into CI that assumes a standing Applied Stack. After Teardown, leftover State is empty — `./apply.sh` again before `./test.sh acceptance`.
 
 ## Add a case
@@ -56,6 +58,7 @@ The runner asks for exact `teardown` before any Teardown case; the case also con
 1. Add `NN-short-name.sh` in this directory.
 2. Use observable outcomes (provider presence/absence, Reserved IP value, volume marker bytes, SSH reachability) — not Terraform internals. Exception: Teardown leftover emptiness may be asserted via empty State (glossary Teardown).
 3. Document leftover Stack state in the case header (Parked vs Applied vs empty).
-4. Source `lib.sh` for `pass` / `fail`, provider Durable checks, and SSH helpers.
+4. If the case needs Applied presence, call `ensure_stack_applied` (do not fail closed asking the operator to Apply first).
+5. Source `lib.sh` for `pass` / `fail`, provider Durable checks, and SSH helpers.
 
 Non-case files in this directory (`lib.sh`, `run.sh`, `*_test.sh`, this README) are not executed as cases.

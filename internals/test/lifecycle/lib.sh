@@ -197,6 +197,30 @@ stack_reserved_ip() {
   (cd "${STACK_DIR}" && terraform output -raw reserved_ip)
 }
 
+# Ensure the Stack is Applied before a case that needs Durable + Host presence.
+# Fresh / empty / Parked → ./apply.sh; already Applied → reuse Reserved IP.
+# Exports IP. Does not wait for SSH (callers that need it wait themselves).
+ensure_stack_applied() {
+  local ip host_json
+  ip="$(stack_reserved_ip 2>/dev/null || true)"
+  if [[ -n "${ip}" ]]; then
+    host_json="$(provider_host_by_name_json)"
+    if [[ -n "${host_json}" && "${host_json}" != "null" ]]; then
+      export IP="${ip}"
+      pass "Stack already Applied (${IP})"
+      return 0
+    fi
+    echo "Stack not Applied (Reserved IP present, Host absent) — running Apply ..."
+  else
+    echo "Stack not Applied (no reserved_ip) — running Apply ..."
+  fi
+  "${REPO_ROOT}/apply.sh" --yes --env "${PLATFORM_ENV}"
+  ip="$(stack_reserved_ip 2>/dev/null || true)"
+  [[ -n "${ip}" ]] || fail "no reserved_ip after Apply"
+  export IP="${ip}"
+  pass "Stack Applied (${IP})"
+}
+
 # Assert the Environment Host exists at the provider (Applied Recreatable).
 assert_host_present() {
   local host_json

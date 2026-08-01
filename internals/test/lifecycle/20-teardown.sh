@@ -13,8 +13,7 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh lifecycle)"
 [[ -d "${STACK_DIR}" ]] || fail "missing Stack dir ${STACK_DIR}"
 
-IP="$(stack_reserved_ip 2>/dev/null || true)"
-[[ -n "${IP}" ]] || fail "no reserved_ip output (Apply the Stack before this Lifecycle Test)"
+ensure_stack_applied
 
 DOMAINS_BEFORE="$(stack_domain_names)"
 PROJECT_ID="$(stack_cloud_project_id)"

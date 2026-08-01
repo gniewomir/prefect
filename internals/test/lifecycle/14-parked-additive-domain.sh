@@ -19,9 +19,7 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 trap 'remove_domain_override' EXIT
 
-IP="$(stack_reserved_ip 2>/dev/null || true)"
-[[ -n "${IP}" ]] || fail "no reserved_ip output (Apply the Stack before this Lifecycle Test)"
-export IP
+ensure_stack_applied
 
 PROJECT_ID_BEFORE="$(stack_cloud_project_id)"
 [[ -n "${PROJECT_ID_BEFORE}" ]] || fail "Cloud Project not found at provider before Park"
