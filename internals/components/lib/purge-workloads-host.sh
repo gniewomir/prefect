@@ -16,8 +16,8 @@ ROUTES_DIR="${EDGE_DATA}/routes"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Staged siblings only (Host delivery packs this payload). No Host Volume dual-read (ADR-0018).
-# shellcheck source=workload-quadlets-host.sh
-source "${HERE}/workload-quadlets-host.sh"
+# shellcheck source=workload-units-host.sh
+source "${HERE}/workload-units-host.sh"
 # shellcheck source=workload-environment-host.sh
 source "${HERE}/workload-environment-host.sh"
 # shellcheck source=quadlet-user-session.sh
@@ -48,19 +48,7 @@ PY
     # Remove Environment Configuration before unit/SoT deletion (needs SoT basenames).
     environment_configuration_clear "${WL_NAME}"
 
-    while IFS= read -r base; do
-      [[ -n "${base}" ]] || continue
-      workload_unit_stop_basename quadlets "${base}"
-      rm -f "${UNIT_DIR}/${base}"
-      rm -rf "${UNIT_DIR}/${base}.d"
-    done < <(workload_quadlet_sot_basenames "${wl_dir}/quadlets")
-
-    while IFS= read -r base; do
-      [[ -n "${base}" ]] || continue
-      workload_unit_stop_basename systemd "${base}"
-      rm -f "${SYSTEMD_USER_DIR}/${base}"
-      rm -rf "${SYSTEMD_USER_DIR}/${base}.d"
-    done < <(workload_quadlet_sot_basenames "${wl_dir}/systemd")
+    workload_units_purge "${WL_NAME}"
 
     edge_remove_workload_installed_routes "${WL_NAME}"
 

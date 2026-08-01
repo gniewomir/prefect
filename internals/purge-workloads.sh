@@ -11,6 +11,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
 HOST_SCRIPT="${REPO_ROOT}/internals/components/lib/purge-workloads-host.sh"
+UNITS_LIB="${REPO_ROOT}/internals/components/lib/workload-units-host.sh"
 QUADLETS_LIB="${REPO_ROOT}/internals/components/lib/workload-quadlets-host.sh"
 UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/components/lib/unit-consumers-host.sh"
 ENV_HOST_LIB="${REPO_ROOT}/internals/components/lib/workload-environment-host.sh"
@@ -33,6 +34,10 @@ done
 
 [[ -f "${HOST_SCRIPT}" ]] || {
   echo "missing ${HOST_SCRIPT}" >&2
+  exit 1
+}
+[[ -f "${UNITS_LIB}" ]] || {
+  echo "missing ${UNITS_LIB}" >&2
   exit 1
 }
 [[ -f "${QUADLETS_LIB}" ]] || {
@@ -73,6 +78,7 @@ IP="$(host_session_ip)"
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/platform-purge-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT
 cp "${HOST_SCRIPT}" "${STAGE}/purge-workloads-host.sh"
+cp "${UNITS_LIB}" "${STAGE}/workload-units-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"

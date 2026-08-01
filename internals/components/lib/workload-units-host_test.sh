@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Offline tests: Workload dual-consumer units apply-Intent (#136 / ADR-0034 / ADR-0024).
+# Offline tests: Workload dual-consumer units apply-Intent / purge (#136 / #142 / ADR-0034 / ADR-0024).
 # Ambient UNIT_DIR, SYSTEMD_USER_DIR, WORKLOADS_ROOT, USER_NAME → temp dirs (no SSH / live Host).
 # Stubs quadlet_user / quadlet_user_session_reload at the session boundary.
 set -euo pipefail
@@ -167,5 +167,66 @@ workload_units_apply "${WL_NAME}" stop "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" ||
 [[ -z "$(ls -A "${UNIT_DIR}" 2>/dev/null || true)" ]] || fail "empty stages must not invent Quadlet units"
 [[ -z "$(ls -A "${SYSTEMD_USER_DIR}" 2>/dev/null || true)" ]] || fail "empty stages must not invent systemd units"
 pass "missing/empty quadlets/ and systemd/ are valid"
+
+# --- purge: stops and removes quadlets + systemd unit files for SoT basenames ---
+reset
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/quadlets" "${WORKLOADS_ROOT}/${WL_NAME}/systemd"
+printf '[Container]\nImage=localhost/app\n' >"${WORKLOADS_ROOT}/${WL_NAME}/quadlets/app.container"
+printf '[Service]\nType=oneshot\nExecStart=/bin/true\n' >"${WORKLOADS_ROOT}/${WL_NAME}/systemd/app.service"
+printf '[Container]\nImage=localhost/app\n' >"${UNIT_DIR}/app.container"
+printf '[Service]\nType=oneshot\nExecStart=/bin/true\n' >"${SYSTEMD_USER_DIR}/app.service"
+workload_units_purge "${WL_NAME}" || fail "purge should succeed for dual-consumer SoT"
+[[ ! -f "${UNIT_DIR}/app.container" ]] || fail "purge must remove quadlets unit file"
+[[ ! -f "${SYSTEMD_USER_DIR}/app.service" ]] || fail "purge must remove systemd unit file"
+grep -Eq 'systemctl --user stop app\.service' "${QUADLET_LOG}" ||
+  fail "purge must stop SoT-named units"
+pass "purge stops and removes SoT unit files for both consumers"
+
+# --- purge: removes Setup-owned .d drop-in dirs beside those units ---
+reset
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/quadlets" "${WORKLOADS_ROOT}/${WL_NAME}/systemd"
+printf '[Container]\nImage=localhost/app\n' >"${WORKLOADS_ROOT}/${WL_NAME}/quadlets/app.container"
+printf '[Service]\nType=oneshot\nExecStart=/bin/true\n' >"${WORKLOADS_ROOT}/${WL_NAME}/systemd/app.service"
+printf '[Container]\nImage=localhost/app\n' >"${UNIT_DIR}/app.container"
+printf '[Service]\nType=oneshot\nExecStart=/bin/true\n' >"${SYSTEMD_USER_DIR}/app.service"
+mkdir -p "${UNIT_DIR}/app.container.d" "${SYSTEMD_USER_DIR}/app.service.d"
+printf '[Service]\nEnvironment=X=1\n' >"${UNIT_DIR}/app.container.d/10-env.conf"
+printf '[Service]\nEnvironment=Y=1\n' >"${SYSTEMD_USER_DIR}/app.service.d/10-env.conf"
+workload_units_purge "${WL_NAME}" || fail "purge should remove drop-in dirs"
+[[ ! -d "${UNIT_DIR}/app.container.d" ]] || fail "purge must remove UNIT_DIR drop-in dir"
+[[ ! -d "${SYSTEMD_USER_DIR}/app.service.d" ]] || fail "purge must remove SYSTEMD_USER_DIR drop-in dir"
+pass "purge removes Setup-owned .d drop-in dirs"
+
+# --- purge: does not remove WORKLOADS_ROOT tree (caller owns that) ---
+reset
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/quadlets"
+printf '[Container]\nImage=localhost/app\n' >"${WORKLOADS_ROOT}/${WL_NAME}/quadlets/app.container"
+printf '[Container]\nImage=localhost/app\n' >"${UNIT_DIR}/app.container"
+printf '{"intent":"trash"}\n' >"${WORKLOADS_ROOT}/${WL_NAME}/manifest.json"
+workload_units_purge "${WL_NAME}" || fail "purge should succeed without removing SoT tree"
+[[ -d "${WORKLOADS_ROOT}/${WL_NAME}" ]] || fail "purge must leave WORKLOADS_ROOT tree for caller"
+[[ -f "${WORKLOADS_ROOT}/${WL_NAME}/quadlets/app.container" ]] ||
+  fail "purge must leave SoT unit files under WORKLOADS_ROOT"
+[[ -f "${WORKLOADS_ROOT}/${WL_NAME}/manifest.json" ]] || fail "purge must leave manifest for caller"
+pass "purge leaves WORKLOADS_ROOT tree intact"
+
+# --- purge: missing/empty consumer SoT dirs are fine (no-op success) ---
+reset
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}"
+workload_units_purge "${WL_NAME}" || fail "missing consumer SoT dirs should be no-op success"
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/quadlets" "${WORKLOADS_ROOT}/${WL_NAME}/systemd"
+workload_units_purge "${WL_NAME}" || fail "empty consumer SoT dirs should be no-op success"
+pass "purge: missing/empty consumer SoT dirs are fine"
+
+# --- purge: foreign unit file not listed in SoT is left alone ---
+reset
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/quadlets"
+printf '[Container]\nImage=localhost/app\n' >"${WORKLOADS_ROOT}/${WL_NAME}/quadlets/app.container"
+printf '[Container]\nImage=localhost/app\n' >"${UNIT_DIR}/app.container"
+printf '[Container]\nImage=localhost/foreign\n' >"${UNIT_DIR}/foreign.container"
+workload_units_purge "${WL_NAME}" || fail "purge should succeed with foreign unit present"
+[[ ! -f "${UNIT_DIR}/app.container" ]] || fail "purge must still remove SoT-listed unit"
+[[ -f "${UNIT_DIR}/foreign.container" ]] || fail "purge must leave foreign unit file alone"
+pass "purge leaves foreign UNIT_DIR basenames alone"
 
 echo "All workload-units-host offline tests passed."

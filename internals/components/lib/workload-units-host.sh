@@ -6,6 +6,7 @@
 # Public interface:
 #   workload_units_preflight wl_name quadlets_stage systemd_stage
 #   workload_units_apply wl_name intent quadlets_stage systemd_stage
+#   workload_units_purge wl_name
 #
 # Optional ambient hook (caller-defined, unset after use):
 #   workload_units_before_reload  — runs after reconcile, before daemon-reload
@@ -119,4 +120,29 @@ workload_units_apply() {
 
   rm -f "${prev_quadlets}" "${prev_systemd}" "${prev_owned}"
   return "${rc}"
+}
+
+# Tear down Host unit files + Setup-owned drop-in dirs for one Workload's SoT basenames.
+# Args: wl_name
+# Reads SoT under WORKLOADS_ROOT/wl_name/{quadlets,systemd}
+# For each basename in both consumers: stop (best-effort), rm unit file, rm unit.d drop-in dir.
+# Does NOT remove Host Volume Workload tree, Routes, or Environment Configuration.
+workload_units_purge() {
+  local wl_name="${1:?workload name required}"
+  local base
+  local wl_dir="${WORKLOADS_ROOT}/${wl_name}"
+
+  while IFS= read -r base; do
+    [[ -n "${base}" ]] || continue
+    workload_unit_stop_basename quadlets "${base}"
+    rm -f "${UNIT_DIR}/${base}"
+    rm -rf "${UNIT_DIR}/${base}.d"
+  done < <(workload_quadlet_sot_basenames "${wl_dir}/quadlets")
+
+  while IFS= read -r base; do
+    [[ -n "${base}" ]] || continue
+    workload_unit_stop_basename systemd "${base}"
+    rm -f "${SYSTEMD_USER_DIR}/${base}"
+    rm -rf "${SYSTEMD_USER_DIR}/${base}.d"
+  done < <(workload_quadlet_sot_basenames "${wl_dir}/systemd")
 }
