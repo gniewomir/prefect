@@ -17,13 +17,20 @@ USER_NAME="${PLATFORM_USER:-platform}"
 
 # shellcheck source=../lib/quadlet-user-session.sh
 source /var/lib/host-volume/components/lib/quadlet-user-session.sh
+# shellcheck source=../lib/edge-want-list-host.sh
+source /var/lib/host-volume/components/lib/edge-want-list-host.sh
 # shellcheck source=../lib/edge-routes-host.sh
 source /var/lib/host-volume/components/lib/edge-routes-host.sh
 
 mkdir -p "${ACME_DIR}" "${ACME_WWW}" "${CERTS_DIR}" "${ROUTES_DIR}"
-[[ -f "${WANT_LIST}" ]] || : >"${WANT_LIST}"
 
-mapfile -t names < <(grep -E -v '^[[:space:]]*(#|$)' "${WANT_LIST}" || true)
+# Shared want-list FQDN reader (same helper as Domain fronts / Route fail-closed).
+names=()
+while IFS= read -r _acme_fqdn || [[ -n "${_acme_fqdn}" ]]; do
+  [[ -n "${_acme_fqdn}" ]] || continue
+  names+=("${_acme_fqdn}")
+done < <(edge_want_list_fqdns)
+unset _acme_fqdn
 # Stamp every oneshot invocation so Acceptance Tests can observe triggers without a live CA.
 date -u +%Y-%m-%dT%H:%M:%SZ >"${ACME_DIR}/last-run"
 

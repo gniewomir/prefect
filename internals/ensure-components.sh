@@ -58,7 +58,7 @@ done
 # Host-local IHP Done gate (IHP done, floor, Platform User, Host Volume mount).
 host_ssh "PLATFORM_USER=${USER_NAME} bash -s" <"${IHP_DONE}"
 
-# Domain-derived ACME want-list (ADR-0023): install before Edge Setup oneshot.
+# Domain-derived ACME want-list (ADR-0023): stage FQDNs only; Edge Setup places Host path.
 WANT_TMP="$(mktemp "${TMPDIR:-/tmp}/platform-acme-want.XXXXXX")"
 domains_acme_fqdns_for "${PLATFORM_ENV}" >"${WANT_TMP}"
 host_scp "${WANT_TMP}" /tmp/platform-acme-want-list
@@ -77,14 +77,12 @@ COMPONENTS=("$@")
 
 COMPONENTS_ROOT=/var/lib/host-volume/components
 DATA_ROOT=/var/lib/host-volume/components_data
-ACME_DIR="${DATA_ROOT}/edge/acme"
-WANT_LIST="${ACME_DIR}/want-list"
 
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/platform-components.XXXXXX")"
 trap 'rm -rf "${STAGE}" /tmp/platform-components.tar /tmp/platform-acme-want-list' EXIT
 tar -C "${STAGE}" -xf /tmp/platform-components.tar
 
-mkdir -p "${COMPONENTS_ROOT}" "${DATA_ROOT}" "${ACME_DIR}"
+mkdir -p "${COMPONENTS_ROOT}" "${DATA_ROOT}"
 rm -rf "${COMPONENTS_ROOT}/lib"
 cp -a "${STAGE}/lib" "${COMPONENTS_ROOT}/lib"
 
@@ -94,10 +92,14 @@ for component in "${COMPONENTS[@]}"; do
   chmod a+x "${COMPONENTS_ROOT}/${component}/setup.sh"
 done
 
-install -m 0644 /tmp/platform-acme-want-list "${WANT_LIST}"
-
 # Mount root stays root-owned; everything under it is Platform User–owned.
 chown -R "${USER_NAME}:${USER_NAME}" "${COMPONENTS_ROOT}" "${DATA_ROOT}"
+
+# Fail closed if Domain FQDN stage is missing before Component Setup (Edge places Host path).
+[[ -f /tmp/platform-acme-want-list ]] || {
+  echo "ensure-components: staged ACME FQDN list missing at /tmp/platform-acme-want-list" >&2
+  exit 1
+}
 
 for component in "${COMPONENTS[@]}"; do
   echo "Running Component Setup: ${component}" >&2

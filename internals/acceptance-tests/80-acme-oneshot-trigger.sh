@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: ensure-components installs Domain ACME want-list and starts oneshot (ADR-0023 / #56)
+# Acceptance Test: ensure-components stages Domain ACME FQDNs; Edge Setup installs want-list and starts oneshot (ADR-0023 / #56 / #131)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -43,7 +43,7 @@ for _ in $(seq 1 30); do
 done
 [[ "${after}" != "missing" ]] || fail "ACME oneshot did not write last-run stamp"
 [[ "${after}" != "${before}" ]] || fail "ACME oneshot was not triggered (last-run unchanged: ${after})"
-pass "ensure-components starts Edge ACME oneshot after Domain want-list install"
+pass "ensure-components starts Edge ACME oneshot after Domain want-list is installed"
 
 timer="$(host_ssh bash -s <<'REMOTE'
 UID_NUM=$(id -u platform)

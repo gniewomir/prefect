@@ -137,11 +137,11 @@ The idempotent, declarative Host-side application of one Workload’s Intent fro
 _Avoid_: Setup (bare), Component Setup, install, deploy, Purge (when you mean this Workload action)
 
 **Edge**:
-The mandatory public HTTP/HTTPS front door on a public Host. A Propraetor Component (not optional). Sole publisher of Host ports 80/443; terminates TLS using Domain-scoped certificates; owns on-demand ACME as the issuance mechanism. For each want-list FQDN it publishes a Domain front; Workloads attach via operator-authored Routes included into those fronts. ACME’s want-list is the explicit FQDN set from the Environment’s Domain assignment (apex + `names`); ensure-components installs that want-list and the Domain fronts on the Host; ACME does not generate or mutate Domain fronts or Workload Routes. On :80, only ACME challenges and HTTPS redirects — never Workload cleartext.
+The mandatory public HTTP/HTTPS front door on a public Host. A Propraetor Component (not optional). Sole publisher of Host ports 80/443; terminates TLS using Domain-scoped certificates; owns on-demand ACME as the issuance mechanism. For each want-list FQDN it publishes a Domain front; Workloads attach via operator-authored Routes included into those fronts. ACME’s want-list is the explicit FQDN set from the Environment’s Domain assignment (apex + `names`); ensure-components stages that FQDN list and Edge Setup installs it into the Host want-list and reconciles Domain fronts; ACME does not generate or mutate Domain fronts or Workload Routes. On :80, only ACME challenges and HTTPS redirects — never Workload cleartext.
 _Avoid_: Reverse proxy, ingress, gateway, nginx (when you mean this Propraetor role — nginx is today’s implementation)
 
 **Domain front**:
-Edge-owned per-FQDN drop-in for one want-list name: the HTTPS `server` that terminates TLS for that Domain name and includes matching Workload Routes. Publishes Edge baseline `/healthcheck` and the per-name `:80`→HTTPS redirect without a Workload Route. Lives under Edge data `domains/` (not Workload `routes/`); reconciled by ensure-components with the want-list; never Workload-owned and never ACME-mutated.
+Edge-owned per-FQDN drop-in for one want-list name: the HTTPS `server` that terminates TLS for that Domain name and includes matching Workload Routes. Publishes Edge baseline `/healthcheck` and the per-name `:80`→HTTPS redirect without a Workload Route. Lives under Edge data `domains/` (not Workload `routes/`); reconciled by Edge Setup with the want-list; never Workload-owned and never ACME-mutated.
 _Avoid_: Domain Route, Edge Route, vhost (when you mean this Edge-owned front); Workload Route
 
 **Workload** (alias **workflow**):

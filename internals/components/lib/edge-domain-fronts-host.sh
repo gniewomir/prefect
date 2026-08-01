@@ -21,7 +21,7 @@ edge_plant_placeholder_pems() {
   while IFS= read -r fqdn || [[ -n "${fqdn}" ]]; do
     [[ -n "${fqdn}" ]] || continue
     names+=("${fqdn}")
-  done < <(_edge_want_list_fqdns)
+  done < <(edge_want_list_fqdns)
 
   for fqdn in "${names[@]+"${names[@]}"}"; do
     dest="${CERTS_DIR}/${fqdn}"
@@ -129,7 +129,7 @@ edge_reconcile_domain_fronts() {
   while IFS= read -r fqdn || [[ -n "${fqdn}" ]]; do
     [[ -n "${fqdn}" ]] || continue
     names+=("${fqdn}")
-  done < <(_edge_want_list_fqdns)
+  done < <(edge_want_list_fqdns)
 
   for fqdn in "${names[@]+"${names[@]}"}"; do
     _edge_write_domain_front "${fqdn}"

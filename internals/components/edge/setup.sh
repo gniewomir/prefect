@@ -15,6 +15,8 @@ ACME_DIR="${DATA_ROOT}/acme"
 WANT_LIST="${ACME_DIR}/want-list"
 # shellcheck source=../lib/quadlet-user-session.sh
 source "${SRC}/../lib/quadlet-user-session.sh"
+# shellcheck source=../lib/edge-want-list-host.sh
+source "${SRC}/../lib/edge-want-list-host.sh"
 # shellcheck source=../lib/edge-domain-fronts-host.sh
 source "${SRC}/../lib/edge-domain-fronts-host.sh"
 # shellcheck source=../lib/component-units-host.sh
@@ -23,7 +25,8 @@ source "${SRC}/../lib/component-units-host.sh"
 quadlet_user_session_begin
 
 mkdir -p "${ROUTES_DIR}" "${DOMAINS_DIR}" "${CERTS_DIR}" "${ACME_WWW}" "${ACME_DIR}"
-[[ -f "${WANT_LIST}" ]] || : >"${WANT_LIST}"
+# Staged by ensure-components; Edge owns Host want-list path (ADR-0023 / #131).
+edge_install_want_list /tmp/platform-acme-want-list
 
 component_units_install "${SRC}"
 chmod a+x "${SRC}/acme-run.sh"

@@ -31,7 +31,7 @@ _edge_route_fqdn_on_want_list() {
   while IFS= read -r candidate || [[ -n "${candidate}" ]]; do
     [[ -n "${candidate}" ]] || continue
     [[ "${candidate}" == "${fqdn}" ]] && return 0
-  done < <(_edge_want_list_fqdns)
+  done < <(edge_want_list_fqdns)
   return 1
 }
 
