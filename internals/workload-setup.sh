@@ -82,8 +82,10 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
 
 RESOLVED_REMOTE_ROOT="/tmp/platform-workload-setup"
-eval "$(environment_configuration_stage_for_setup \
+# Capture before eval: `eval "$(cmd)" || exit` ignores cmd's failure (eval of empty succeeds).
+STAGE_OUT="$(environment_configuration_stage_for_setup \
   "${STAGE}" "${MANIFEST_ABS}" "${ENV_DIR}" "${MANIFEST_DIR}" "${RESOLVED_REMOTE_ROOT}")" || exit 1
+eval "${STAGE_OUT}"
 
 cp "${HOST_SCRIPT}" "${STAGE}/workload-setup-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
