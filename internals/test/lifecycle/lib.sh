@@ -346,15 +346,17 @@ wait_until_ssh_reachable() {
   acceptance_host_session
   local timeout="${SSH_READY_TIMEOUT_SECONDS:-300}"
   local deadline=$((SECONDS + timeout))
+  local last_err=""
   echo "Waiting for SSH at ${IP} (up to ${timeout}s) ..."
   while ((SECONDS < deadline)); do
-    if host_ssh "true" >/dev/null 2>&1; then
+    if last_err="$(host_ssh "true" 2>&1)"; then
       pass "SSH reachable at ${IP}"
       return 0
     fi
     sleep 5
   done
-  fail "SSH not reachable at ${IP} within ${timeout}s"
+  [[ -n "${last_err}" ]] && echo "${last_err}" >&2
+  fail "SSH not usable at ${IP} within ${timeout}s (pubkey session could not run a command)"
 }
 
 # Poll until Host Volume is mounted at /var/lib/host-volume (does not wait for full IHP).

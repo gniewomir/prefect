@@ -87,6 +87,10 @@ abort('missing udev late-attach rule') unless by_path['/etc/udev/rules.d/99-host
 
 abort('missing power_state reboot') unless d.dig('power_state', 'mode') == 'reboot'
 
+bootcmd = (d['bootcmd'] || []).map { |x| Array(x).join(' ') }.join(\"\\n\")
+abort('bootcmd must clear root password ageing (DO lastchg=0 breaks BatchMode SSH)') unless bootcmd.include?('chage -d -1 -M -1 root')
+abort('bootcmd must lock root password') unless bootcmd.include?('passwd -l root')
+
 runcmd = (d['runcmd'] || []).map(&:to_s).join(\"\\n\")
 abort('runcmd must not wait/mount Host Volume scsi device') if runcmd.include?('scsi-0DO_Volume')
 
