@@ -21,6 +21,8 @@ source "${REPO_ROOT}/internals/lib/environment.sh"
 source "${REPO_ROOT}/internals/lib/environment-configuration.sh"
 # shellcheck source=lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
+# shellcheck source=lib/host-delivery.sh
+source "${REPO_ROOT}/internals/lib/host-delivery.sh"
 
 environment_activate "${STACK_DIR}" "$@" || exit 1
 set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
@@ -78,14 +80,12 @@ QUADLETS_SRC="${MANIFEST_DIR}/quadlets"
 SYSTEMD_SRC="${MANIFEST_DIR}/systemd"
 ENV_DIR="${REPO_ROOT}/environments/${PLATFORM_ENV}"
 
-STAGE="$(mktemp -d)"
+STAGE="$(mktemp -d "${TMPDIR:-/tmp}/platform-workload-setup-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT
 
 RESOLVED_REMOTE_ROOT="/tmp/platform-workload-setup"
-# Capture before eval: `eval "$(cmd)" || exit` ignores cmd's failure (eval of empty succeeds).
-STAGE_OUT="$(environment_configuration_stage_for_setup \
-  "${STAGE}" "${MANIFEST_ABS}" "${ENV_DIR}" "${MANIFEST_DIR}" "${RESOLVED_REMOTE_ROOT}")" || exit 1
-eval "${STAGE_OUT}"
+environment_configuration_stage_for_setup \
+  "${STAGE}" "${MANIFEST_ABS}" "${ENV_DIR}" "${MANIFEST_DIR}" "${RESOLVED_REMOTE_ROOT}" || exit 1
 
 cp "${HOST_SCRIPT}" "${STAGE}/workload-setup-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
@@ -115,10 +115,7 @@ if [[ -d "${SYSTEMD_SRC}" ]]; then
   done
 fi
 
-COPYFILE_DISABLE=1 tar --format=ustar -C "${STAGE}" -cf - . \
-  | host_ssh "rm -rf ${RESOLVED_REMOTE_ROOT} && mkdir -p ${RESOLVED_REMOTE_ROOT} && tar -C ${RESOLVED_REMOTE_ROOT} -xf -"
-
-host_ssh \
+host_delivery_run "${STAGE}" "${RESOLVED_REMOTE_ROOT}" \
   "PLATFORM_USER=${USER_NAME} WL_ENV_RESOLVED=${WL_ENV_RESOLVED_REMOTE} bash ${RESOLVED_REMOTE_ROOT}/workload-setup-host.sh ${RESOLVED_REMOTE_ROOT}/${WL_NAME}"
 
 echo "Workload Setup finished on ${IP}."

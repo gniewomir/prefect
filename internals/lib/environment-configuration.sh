@@ -8,12 +8,12 @@
 #   environment_configuration_clear WL_NAME
 #     Remove EnvironmentFile tree + Setup-owned env drop-ins.
 #   environment_configuration_stage_for_setup STAGE MANIFEST ENV_DIR TREE REMOTE_ROOT
-#     SSH staging adapter: resolve+gate into STAGE; prints WL_ENV_ACTIVE and
-#     WL_ENV_RESOLVED_REMOTE for the Host invoke (empty when inactive).
+#     SSH staging adapter: resolve+gate into STAGE; sets WL_ENV_ACTIVE and
+#     WL_ENV_RESOLVED_REMOTE (under REMOTE_ROOT when active; empty when inactive).
 #   environment_configuration_apply_resolved WL_NAME RESOLVED_SRC
 #     Host half after staging (empty/unset → clear).
 #
-# Offline tests exercise materialize|clear. prepare / install_host are adapter internals.
+# Offline tests exercise materialize|clear|stage_for_setup. prepare / install_host are adapter internals.
 
 _ENVCFG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=environment-configuration-declaration.sh
@@ -137,7 +137,8 @@ environment_configuration_prepare() {
 }
 
 # SSH staging adapter for Workload Setup: prepare into STAGE/environment.resolved
-# and print WL_ENV_ACTIVE plus WL_ENV_RESOLVED_REMOTE (under REMOTE_ROOT when active).
+# and set WL_ENV_ACTIVE plus WL_ENV_RESOLVED_REMOTE (under REMOTE_ROOT when active).
+# No stdout assignment protocol — callers read the globals after a successful return.
 environment_configuration_stage_for_setup() {
   local stage="${1:?stage dir required}"
   local manifest="${2:?manifest required}"
@@ -149,15 +150,17 @@ environment_configuration_stage_for_setup() {
 
   prepare_out="$(environment_configuration_prepare "${manifest}" "${env_dir}" "${tree}" "${outfile}")" || return 1
   eval "${prepare_out}"
-  printf '%s\n' "${prepare_out}"
   if [[ "${WL_ENV_ACTIVE}" == "1" ]]; then
     [[ -f "${outfile}" ]] || {
       echo "Environment Configuration resolve produced no file" >&2
       return 1
     }
-    printf 'WL_ENV_RESOLVED_REMOTE=%s\n' "${remote_root}/environment.resolved"
+    # Ambient for Workload Setup Host invoke (read after successful return).
+    # shellcheck disable=SC2034  # intentional ambient output of this adapter
+    WL_ENV_RESOLVED_REMOTE="${remote_root}/environment.resolved"
   else
-    printf 'WL_ENV_RESOLVED_REMOTE=\n'
+    # shellcheck disable=SC2034  # intentional ambient output of this adapter
+    WL_ENV_RESOLVED_REMOTE=""
   fi
   return 0
 }

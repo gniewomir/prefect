@@ -198,18 +198,16 @@ if environment_configuration_materialize "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}"
 fi
 pass "module materialize fails closed on missing key"
 
-# SSH staging adapter: stage_for_setup writes resolved + remote path
-# (capture then eval — never `eval "$(cmd)" || …`, which swallows cmd failure)
+# SSH staging adapter: stage_for_setup sets WL_ENV_* globals (no stdout-eval protocol)
 cat >"${MANIFEST}" <<'EOF'
 { "intent": "run", "environment": ["A"] }
 EOF
 printf 'A=staged\n' >"${ENV_DIR}/.env"
 STAGE_DIR="${TMP}/stage"
 mkdir -p "${STAGE_DIR}"
-STAGE_OUT="$(environment_configuration_stage_for_setup \
-  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup")" \
+environment_configuration_stage_for_setup \
+  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup" \
   || fail "stage_for_setup should succeed for valid list"
-eval "${STAGE_OUT}"
 [[ "${WL_ENV_ACTIVE}" == "1" ]] || fail "stage_for_setup should be active"
 grep -Fx 'A=staged' "${STAGE_DIR}/environment.resolved" >/dev/null \
   || fail "stage_for_setup should write resolved file into STAGE"
@@ -221,10 +219,9 @@ pass "module stage_for_setup SSH staging adapter"
 cat >"${MANIFEST}" <<'EOF'
 { "intent": "run" }
 EOF
-STAGE_OUT="$(environment_configuration_stage_for_setup \
-  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup")" \
+environment_configuration_stage_for_setup \
+  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup" \
   || fail "omit stage should succeed"
-eval "${STAGE_OUT}"
 [[ "${WL_ENV_ACTIVE}" == "0" ]] || fail "omit stage should be inactive"
 [[ -z "${WL_ENV_RESOLVED_REMOTE}" ]] || fail "omit stage should clear remote path"
 pass "module stage_for_setup omit → inactive"
@@ -233,8 +230,8 @@ pass "module stage_for_setup omit → inactive"
 cat >"${MANIFEST}" <<'EOF'
 { "intent": "run", "environment": "A" }
 EOF
-if STAGE_OUT="$(environment_configuration_stage_for_setup \
-  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup" 2>/dev/null)"; then
+if environment_configuration_stage_for_setup \
+  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup" >/dev/null 2>&1; then
   fail "stage_for_setup must fail closed on non-array environment"
 fi
 pass "module stage_for_setup non-array fails closed"
