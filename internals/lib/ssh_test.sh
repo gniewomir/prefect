@@ -147,6 +147,16 @@ printf '%s\n' "${ssh_line}" | grep -Fq -- "root@203.0.113.60" \
   || fail "operator host_ssh missing root@IP; got: ${ssh_line}"
 pass "operator host_ssh argv (no BatchMode, PROPRAETOR_PRIVATE_KEY_PATH)"
 
+# --- Seam 4b: missing private path fails closed ---
+unset PROPRAETOR_PRIVATE_KEY_PATH
+host_session_bind operator "203.0.113.61" || fail "bind for missing-identity test"
+if host_ssh true >/dev/null 2>&1; then
+  fail "host_ssh must fail closed without PROPRAETOR_PRIVATE_KEY_PATH"
+fi
+pass "host_ssh fails closed without PROPRAETOR_PRIVATE_KEY_PATH"
+PROPRAETOR_PRIVATE_KEY_PATH="${TMP_DIR}/operator_key"
+export PROPRAETOR_PRIVATE_KEY_PATH
+
 # --- Seam 5: fail closed before open/bind (fresh process — no ambient session) ---
 if bash -c "source '${REPO_ROOT}/internals/lib/ssh.sh'; host_session_ip" >/dev/null 2>&1; then
   fail "host_session_ip should fail with no session"

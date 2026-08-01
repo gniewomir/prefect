@@ -92,9 +92,11 @@ _host_session_build_opts() {
     operator) ;;
   esac
   identity="${PROPRAETOR_PRIVATE_KEY_PATH:-}"
-  if [[ -n "${identity}" ]]; then
-    _HOST_SESSION_OPTS+=(-i "${identity}" -o IdentitiesOnly=yes)
+  if [[ -z "${identity}" ]]; then
+    echo "host_session: PROPRAETOR_PRIVATE_KEY_PATH is not set (Operator Configuration)" >&2
+    return 1
   fi
+  _HOST_SESSION_OPTS+=(-i "${identity}" -o IdentitiesOnly=yes)
 }
 
 # Run ssh against the ambient Host-session (payload args only).
