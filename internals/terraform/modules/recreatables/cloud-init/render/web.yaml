@@ -14,7 +14,7 @@ bootcmd:
   - [ sysctl, -w, net.ipv4.ip_unprivileged_port_start=80 ]
   # DigitalOcean sets root with lastchg=0 (must change password on first login).
   # Pubkey auth then still hits PAM expiry: BatchMode / non-TTY SSH fails with
-  # "Password change required but no TTY available" — Lifecycle wait and
+  # "Password change required but no TTY available" - Lifecycle wait and
   # Acceptance host_ssh look "unreachable" while interactive ./ssh.sh appears up.
   # Clear ageing and lock the password; root login stays pubkey-only (ssh_pwauth: false).
   - [ chage, -d, -1, -M, -1, root ]
