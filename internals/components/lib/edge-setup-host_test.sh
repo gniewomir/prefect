@@ -163,6 +163,27 @@ grep -Fq 'restart edge-acme.service' "${STATE}/systemctl.calls" \
   || fail "expected ACME oneshot restart"
 pass "edge_setup succeeds: Domains present, units active path, front door answers"
 
+# --- gathers Intent-run Route Declarations from Workload SoT (ADR-0040) ---
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+export CURL_SUCCEED_AFTER=1
+DATA_ROOT="${TMP}/edge-data"
+WORKLOADS_ROOT="$(dirname "${DATA_ROOT}")/workloads"
+mkdir -p "${WORKLOADS_ROOT}/alpha/routes"
+printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/alpha/manifest.json"
+printf '%s\n' 'location /gather { return 200 "g"; }' \
+  >"${WORKLOADS_ROOT}/alpha/routes/alpha.example.test.conf"
+# Prior Edge install must be replaced from SoT on gather.
+printf '%s\n' '# stale' >"${DATA_ROOT}/routes/stale--alpha.example.test.conf"
+edge_setup "${TREE}" "${STAGE}" || fail "edge_setup with Workload SoT should succeed"
+[[ -f "${DATA_ROOT}/routes/alpha--alpha.example.test.conf" ]] \
+  || fail "edge_setup must fulfill Intent-run Route from Workload SoT"
+grep -Fq 'location /gather' "${DATA_ROOT}/routes/alpha--alpha.example.test.conf" \
+  || fail "fulfilled Route must keep SoT bytes"
+[[ ! -f "${DATA_ROOT}/routes/stale--alpha.example.test.conf" ]] \
+  || fail "edge_setup gather must drop orphan Edge Route installs"
+pass "edge_setup gathers Intent-run Route Declarations from Workload SoT"
+
 # --- fail closed when front door never answers ---
 : >"${STATE}/curl_count"
 : >"${STATE}/systemctl.calls"
@@ -212,7 +233,7 @@ grep -Fq 'edge-setup-host.sh' "${SETUP}" \
 grep -Eq 'edge_setup ' "${SETUP}" \
   || fail "setup.sh must call edge_setup"
 # Implementation steps must not remain as a public checklist in setup.sh.
-for step in edge_install_want_list edge_plant_placeholder_pems edge_reconcile_domain_fronts edge_wait_front_door; do
+for step in edge_install_want_list edge_plant_placeholder_pems edge_reconcile_domain_fronts edge_gather_workload_routes edge_wait_front_door; do
   if grep -Eq "${step}" "${SETUP}"; then
     fail "setup.sh must not expose ${step} as a caller checklist (lives in edge_setup)"
   fi

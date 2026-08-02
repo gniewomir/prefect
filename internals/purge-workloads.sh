@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Purge — permanently remove every Workload whose Intent is trash and its Workload-associated data
-# (installed Routes, units, Host Volume Workload tree). Does not delete Domains or Domain-scoped
-# certificate material. Does not affect Workloads whose Intent is run or stop.
+# (units, Host Volume Workload tree including Route Declaration SoT). Does not write Edge Route
+# interior (Edge Component Setup gather drops fulfillment). Does not delete Domains or
+# Domain-scoped certificate material. Does not affect Workloads whose Intent is run or stop.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/purge-workloads.sh [--env <slug>]
 # Optional: PLATFORM_USER=platform
@@ -17,9 +18,6 @@ QUADLETS_LIB="${REPO_ROOT}/internals/components/lib/workload-quadlets-host.sh"
 UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/components/lib/unit-consumers-host.sh"
 ENV_HOST_LIB="${REPO_ROOT}/internals/components/lib/workload-environment-host.sh"
 QUADLET_SESSION_LIB="${REPO_ROOT}/internals/components/lib/quadlet-user-session.sh"
-EDGE_ROUTES_LIB="${REPO_ROOT}/internals/components/lib/edge-routes-host.sh"
-EDGE_WANT_LIST_LIB="${REPO_ROOT}/internals/components/lib/edge-want-list-host.sh"
-EDGE_FRONT_DOOR_LIB="${REPO_ROOT}/internals/components/lib/edge-front-door-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/environment.sh
@@ -64,18 +62,6 @@ environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
   echo "missing ${QUADLET_SESSION_LIB}" >&2
   exit 1
 }
-[[ -f "${EDGE_ROUTES_LIB}" ]] || {
-  echo "missing ${EDGE_ROUTES_LIB}" >&2
-  exit 1
-}
-[[ -f "${EDGE_WANT_LIST_LIB}" ]] || {
-  echo "missing ${EDGE_WANT_LIST_LIB}" >&2
-  exit 1
-}
-[[ -f "${EDGE_FRONT_DOOR_LIB}" ]] || {
-  echo "missing ${EDGE_FRONT_DOOR_LIB}" >&2
-  exit 1
-}
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -91,9 +77,6 @@ cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
 cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
-cp "${EDGE_ROUTES_LIB}" "${STAGE}/edge-routes-host.sh"
-cp "${EDGE_WANT_LIST_LIB}" "${STAGE}/edge-want-list-host.sh"
-cp "${EDGE_FRONT_DOOR_LIB}" "${STAGE}/edge-front-door-host.sh"
 
 host_delivery_run "${STAGE}" "/tmp/platform-purge" \
   "PLATFORM_USER=${USER_NAME} bash /tmp/platform-purge/purge-workloads-host.sh"

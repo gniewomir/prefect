@@ -73,10 +73,16 @@ host_ssh \
 pass "Intent run installs authored Quadlet"
 
 if [[ -n "${HOST}" ]]; then
+  edge_before="$(host_ssh \
+    "ls /var/lib/host-volume/components_data/edge/routes/${WL}.conf \
+         /var/lib/host-volume/components_data/edge/routes/${WL}--* 2>/dev/null || true")"
+  [[ -z "${edge_before}" ]] \
+    || fail "Workload Setup alone must not write Edge Route interior (got: ${edge_before})"
+  ensure_edge_route_fulfillment
   host_ssh \
     "test -f /var/lib/host-volume/components_data/edge/routes/${WL}--${HOST}.conf" \
-    || fail "Intent run should install Route fragment ${WL}--${HOST}.conf"
-  pass "Intent run installs FQDN-keyed Route fragment"
+    || fail "Edge Setup should fulfill Route fragment ${WL}--${HOST}.conf"
+  pass "Edge Setup gathers FQDN-keyed Route fragment after Intent run"
 else
   echo "SOFT-SKIP: empty Domain want-list — Route install/stop assertions"
 fi
@@ -85,10 +91,15 @@ write_manifest stop
 "${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 if [[ -n "${HOST}" ]]; then
+  still_present="$(host_ssh \
+    "ls /var/lib/host-volume/components_data/edge/routes/${WL}.conf /var/lib/host-volume/components_data/edge/routes/${WL}--* 2>/dev/null || true")"
+  [[ -n "${still_present}" ]] \
+    || fail "Workload Setup alone must not drop Edge Routes on Intent stop"
+  ensure_edge_route_fulfillment
   stop_routes="$(host_ssh \
     "ls /var/lib/host-volume/components_data/edge/routes/${WL}.conf /var/lib/host-volume/components_data/edge/routes/${WL}--* 2>/dev/null || true")"
-  [[ -z "${stop_routes}" ]] || fail "Intent stop must remove Workload installed Routes (got: ${stop_routes})"
-  pass "Intent stop removes Workload installed Routes from Edge"
+  [[ -z "${stop_routes}" ]] || fail "Edge Setup must drop fulfillment for Intent stop (got: ${stop_routes})"
+  pass "Edge Setup drops Workload Routes after Intent stop"
 fi
 
 host_ssh \

@@ -226,6 +226,7 @@ pass "Workload publishes no Host ports (app and DB)"
 if [[ -z "${ROUTE_FQDN}" ]]; then
   echo "SOFT-SKIP: empty Domain want-list — Route install / HTTPS attach assertions"
 else
+  ensure_edge_route_fulfillment
   installed="$(host_ssh \
     "cat /var/lib/host-volume/components_data/edge/routes/${WL}--${ROUTE_FQDN}.conf")"
   printf '%s\n' "${installed}" | grep -qE "proxy_pass[[:space:]]+http://${WL}" \

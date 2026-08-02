@@ -15,16 +15,11 @@ QUADLETS_STAGE="${TREE}/quadlets"
 SYSTEMD_STAGE="${TREE}/systemd"
 
 DATA_ROOT=/var/lib/host-volume/components_data
-EDGE_DATA="${DATA_ROOT}/edge"
 WORKLOADS_ROOT="${DATA_ROOT}/workloads"
-ROUTES_DIR="${EDGE_DATA}/routes"
-WANT_LIST="${EDGE_DATA}/acme/want-list"
 
 # Staged siblings only (Host delivery packs this payload). No Host Volume dual-read (ADR-0018).
 # shellcheck source=quadlet-user-session.sh
 source "${HERE}/quadlet-user-session.sh"
-# shellcheck source=edge-routes-host.sh
-source "${HERE}/edge-routes-host.sh"
 # shellcheck source=workload-units-host.sh
 source "${HERE}/workload-units-host.sh"
 # shellcheck source=workload-environment-host.sh
@@ -80,7 +75,7 @@ if [[ -n "${WL_ENV_RESOLVED}" ]]; then
   }
 fi
 
-mkdir -p "${ROUTES_DIR}" "${WORKLOADS_ROOT}/${WL_NAME}"
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}"
 
 STAGE_UNITS="$(mktemp "${TMPDIR:-/tmp}/platform-stage-units.XXXXXX")"
 trap 'rm -f "${STAGE_UNITS}"' EXIT
@@ -121,7 +116,7 @@ if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${TREE}" "${SOT_TREE}" >/de
   fi
 fi
 
-# Refuse foreign / wrong-folder units before mutating Host Volume SoT or Edge.
+# Refuse foreign / wrong-folder units before mutating Host Volume SoT.
 workload_units_preflight "${WL_NAME}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
 
 install -m 0644 "${MANIFEST}" "${WORKLOADS_ROOT}/${WL_NAME}/manifest.json"
@@ -135,12 +130,9 @@ if [[ -d "${ROUTES_STAGE}" ]]; then
   done
 fi
 
-edge_reconcile_workload_routes "${WL_NAME}" "${WL_INTENT}" "${WORKLOADS_ROOT}/${WL_NAME}/routes"
-
+# Route Declarations stay in Workload SoT only (ADR-0040). Edge Component Setup gathers.
 workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
 unset -f workload_units_before_reload
 
-# Cover Host Volume SoT (incl. units synced by apply) and Edge data.
+# Cover Host Volume SoT (incl. units synced by apply).
 chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}"
-
-edge_reload_front_door_if_routes_changed

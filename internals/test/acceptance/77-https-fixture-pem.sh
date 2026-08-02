@@ -40,6 +40,7 @@ host_ssh \
           /var/lib/host-volume/components_data/workloads/${WL}"
 
 "${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
+ensure_edge_route_fulfillment
 
 installed="$(host_ssh \
   "cat /var/lib/host-volume/components_data/edge/routes/${WL}--${HOST}.conf")"

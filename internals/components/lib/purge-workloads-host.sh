@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Host-local Purge. Invoked by internals/purge-workloads.sh.
 # Removes every Workload whose Intent is trash and Workload-associated data
-# (installed Routes, SoT-named units from both Host unit directories, Host Volume tree,
-# Platform User EnvironmentFile tree and Setup-owned Environment Configuration drop-ins).
+# (SoT-named units from both Host unit directories, Host Volume tree including routes/
+# Declarations, Platform User EnvironmentFile tree and Setup-owned Environment
+# Configuration drop-ins). Does not write Edge Route interior — Edge Component Setup
+# gather drops fulfillment after SoT is gone (ADR-0040).
 # Does not delete Domains or Domain-scoped certificate material (ADR-0022 / #54).
 # Does not rebuild ACME want-list (ADR-0023). Thin Manifest / authored units: ADR-0024.
 # Environment Configuration cleanup: ADR-0035.
@@ -10,9 +12,7 @@ set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
 DATA_ROOT=/var/lib/host-volume/components_data
-EDGE_DATA="${DATA_ROOT}/edge"
 WORKLOADS_ROOT="${DATA_ROOT}/workloads"
-ROUTES_DIR="${EDGE_DATA}/routes"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Staged siblings only (Host delivery packs this payload). No Host Volume dual-read (ADR-0018).
@@ -22,8 +22,6 @@ source "${HERE}/workload-units-host.sh"
 source "${HERE}/workload-environment-host.sh"
 # shellcheck source=quadlet-user-session.sh
 source "${HERE}/quadlet-user-session.sh"
-# shellcheck source=edge-routes-host.sh
-source "${HERE}/edge-routes-host.sh"
 
 command -v python3 >/dev/null || {
   echo "python3 required on Host for Purge" >&2
@@ -50,8 +48,6 @@ PY
 
     workload_units_purge "${WL_NAME}"
 
-    edge_remove_workload_installed_routes "${WL_NAME}"
-
     rm -rf "${wl_dir}"
   done
 fi
@@ -59,7 +55,3 @@ fi
 chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}" "${HOME_DIR}/.config" 2>/dev/null || true
 
 quadlet_user_session_reload
-if quadlet_user systemctl --user --quiet is-active edge-pod.service; then
-  quadlet_user systemctl --user restart edge-pod.service
-  quadlet_user systemctl --user --quiet is-active edge-pod.service
-fi
