@@ -49,12 +49,16 @@ The provider distribution image the Stack pins for a Host (today: Ubuntu 26.04 x
 _Avoid_: Droplet image, OS slug, AMI (when you mean this concept)
 
 **Initial Host Provisioning**:
-One-shot Host setup at Host create (provider user-data / cloud-init): carrier outcomes (engine, Platform User, SSH listen port, port floor) and, when delivered this way, the Host Volume mount; installs the Operator Configuration public key for **root** Host login only — not onto the Platform User. May establish some **Fabric** outcomes (today the mount) but is not Fabric and does not establish the Service Network; does not run Component Setup or install Workloads. Not ongoing Host management and not Stack Bootstrap.
-_Avoid_: User Data, cloud-init, userdata (when you mean this concept); provisioning (bare — ambiguous with Stack apply); Fabric (when you mean this delivery); provider account SSH key registry (not how Host login is granted)
+One-shot Host setup at Host create (provider user-data / cloud-init) that produces **Substrate** (engine, Platform User, SSH listen port, port floor, Host Volume mount); installs the Operator Configuration public key for **root** Host login only — not onto the Platform User. Does not run Fabric Setup, Component Setup, or install Workloads. Not ongoing Host management and not Stack Bootstrap.
+_Avoid_: User Data, cloud-init, userdata (when you mean this concept); provisioning (bare — ambiguous with Stack apply); Substrate, Fabric (when you mean this delivery); Carrier; provider account SSH key registry (not how Host login is granted)
 
 **Initial Host Provisioning Done** (alias **IHP Done**):
-Host-local gate that the IHP contract holds on a public Host (IHP finished, SSH port cutover reboot completed, port floor 80, Platform User present, Host Volume mounted). Asserts IHP’s outcomes — including the Fabric mount when IHP delivered it — not that all Fabric is present (Service Network is Fabric and out of this gate) and not that Components or Workloads are installed. Names what completed, not the next consumer. Used by ensure-components and Acceptance Tests before asserting finer capability slices. Delivery mechanics (cloud-init) stay inside the gate’s implementation.
-_Avoid_: Fabric ready, Carrier ready, cloud-init ready, Component Setup ready, Component Setup Done, provisioned (bare), ready (bare)
+Host-local gate that the IHP contract holds on a public Host — that the Host is **Substrate** (IHP finished, SSH port cutover reboot completed, port floor 80, Platform User present, Host Volume mounted). Asserts Substrate readiness for Fabric Setup, not that Fabric is present (Service Network is Fabric and out of this gate) and not that Components or Workloads are installed. Names what completed; Substrate names the resulting Host condition. Used by ensure-components and Acceptance Tests before asserting finer capability slices. Delivery mechanics (cloud-init) stay inside the gate’s implementation.
+_Avoid_: Fabric ready, Substrate ready (prefer IHP Done for the gate), Carrier ready, cloud-init ready, Component Setup ready, Component Setup Done, provisioned (bare), ready (bare)
+
+**Substrate**:
+The Host condition after IHP Done: everything required to run Fabric Setup is present (today: container engine, Platform User, SSH listen port, port floor, and the Host Volume mount), while Fabric itself may still be incomplete. A Host condition — not a Setup kind and not a peer of Fabric, Component, or Workload.
+_Avoid_: Carrier, IHP Done (when you mean the condition rather than the gate), Fabric, provisioned (bare), ready (bare)
 
 **Host diagnostics**:
 An operator pull of Host-local diagnostic artifacts for an Environment (named bundles of files and small command snapshots) for local inspection. Not IHP Done, not an Acceptance Test, and not ongoing Host management.
@@ -69,8 +73,8 @@ The Stack-managed DNS Durable for an Environment: the provider zone and the Stac
 _Avoid_: DNS zone, zone file, domain name (bare), subdomain (when you mean this Durable or part of it); Workload-owned certificate; Manifest hostname claim
 
 **Host Volume**:
-A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds and Park (Teardown removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The **mounted** filesystem at the contract path is a **Fabric** outcome (IHP may establish that mount; Fabric cares that it holds, not which path delivered it). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Domain fronts, Workload Routes, certificates, and ACME HTTP-01 webroot, and each Workload’s ownership tree) is owned by the Platform User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Platform User’s home. One Host Volume per Host — not a separate volume resource per Workload; Workloads own trees under it.
-_Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Propraetor resource); Fabric (when you mean only the Stack block device, not the mount)
+A Stack-owned block volume attached to a public Host for durable data that must survive Host rebuilds and Park (Teardown removes it with the rest of the Stack). Mandatory on public Hosts (one per Host for now). The **mounted** filesystem at the contract path is part of **Substrate** (established by IHP; required before Fabric Setup and before Components/Workloads use the volume). The mount root stays root-owned; everything under it (Component source trees, Component data such as Edge Domain fronts, Workload Routes, certificates, and ACME HTTP-01 webroot, and each Workload’s ownership tree) is owned by the Platform User so rootless Quadlets and Workload Setup can use it. Quadlet units stay under the Platform User’s home. One Host Volume per Host — not a separate volume resource per Workload; Workloads own trees under it.
+_Avoid_: Volume (bare), disk, block storage, persistent volume, DO volume (when you mean this Propraetor resource); Fabric, Substrate (when you mean only the Stack block device, not the mount)
 
 **Firewall**:
 A provider-enforced network filter attached to Hosts. Inbound default deny (only SSH, HTTP, HTTPS, and ICMP allowed); outbound unrestricted. The Stack does not manage a host-level firewall. Attachment is by Role Tag, not by Host ID alone.
@@ -133,23 +137,23 @@ Permanently remove every resource the Stack currently manages, including Durable
 _Avoid_: Destroy, wipe, delete resources, terraform destroy (when you mean this full removal); Purge (Workload-only)
 
 **Fabric**:
-Host-local substrate required before Components and Workloads can run — shared workable-state prerequisites that neither gather declarations nor express operator Intent. Today: the Service Network and the Host Volume mount. Distinct from Initial Host Provisioning (a delivery path that may establish some Fabric outcomes, not the kind itself) and from Components. Members not established by IHP are applied by **Fabric Setup**.
-_Avoid_: IHP, IHP Done, Component, Workload, prerequisite (bare), Host Volume (when you mean the Stack block device rather than the mount)
+The post-Substrate Host-local layer Components and Workloads require before they can run — workable-state members that neither gather Declarations nor express operator Intent. Today: the Service Network. Distinct from **Substrate** (engine, Platform User, ports, Host Volume mount — established by IHP) and from Components. Applied by **Fabric Setup**.
+_Avoid_: Substrate, IHP, IHP Done, Component, Workload, prerequisite (bare), carrier, Host Volume mount (Substrate, not Fabric)
 
 **Fabric Setup**:
-The idempotent, declarative Host-side application of Fabric members that must hold before Components and Workloads run. After success, those Fabric outcomes are in the correct state; re-runs with no change are a noop. Today applies the Service Network (the Host Volume mount is Fabric but is typically established by IHP, not by Fabric Setup). Runs on the Host only; does not gather Workload declarations, does not perform Component fulfillment, and does not install Workloads. Distinct from Component Setup, Workload Setup, and Initial Host Provisioning.
-_Avoid_: Setup (bare), Component Setup, Workload Setup, IHP, ensure-components (when you mean this Fabric action)
+The idempotent, declarative Host-side application of Fabric. Requires **Substrate**; after success, Fabric outcomes are in the correct state; re-runs with no change are a noop. Today applies the Service Network. Runs on the Host only; does not gather Workload declarations, does not perform Component fulfillment, and does not install Workloads. Distinct from Component Setup, Workload Setup, and Initial Host Provisioning.
+_Avoid_: Setup (bare), Component Setup, Workload Setup, IHP, Substrate Setup, ensure-components (when you mean this Fabric action)
 
 **Component**:
 A platform-provided Host capability that owns a shared resource and fulfills **Declarations** from agreed SoT (Workload trees and/or Environment config such as Domain assignment). Gather → ensure → publish is Component-owned; Workload Setup does not perform Component fulfillment. Components do not have Workload Intent (`run`/`stop`/`trash`); presence and correctness are Component Setup’s job. Distinct from Fabric and from Workloads. Today: the Edge; later examples may include a shared database. Optionality on a public Host is a separate product bit, not part of this kind.
-_Avoid_: Package, unit, service, module, Fabric, Workload, provider, Intent (when you mean this Propraetor kind)
+_Avoid_: Package, unit, service, module, Fabric, Substrate, Workload, provider, Intent (when you mean this Propraetor kind)
 
 **Declaration**:
 A source-of-truth claim that a Component may gather and fulfill — Workload-authored (today: Routes; later examples may include a database need) or Environment-authored (today: Domain assignment feeding Edge). Distinct from Workload Intent (lifecycle expectation for one Workload) and from fulfillment artifacts inside Component interior.
 _Avoid_: Claim, request, need, requirement, dependency, attachment, binding, spec, Manifest (when you mean this umbrella); Route (when you mean only that kind)
 
 **Component Setup**:
-The idempotent, declarative Host-side application of one Component’s correct state, including gathering Declarations and fulfilling them into that Component’s interior. Re-running after Workload SoT or Environment Declaration inputs change is how fulfillment refreshes; when inputs and interior already match, Setup is a noop. Reads that Component’s source tree from the Host Volume (and may source shared Host-local helpers from the components lib on that volume); runs on the Host only; does not discover the Stack, SSH, or copy itself onto the Host. Used for first bring-up after Fabric Setup (and other Fabric prerequisites) hold and for later re-runs without Host recreation. Installs authored `quadlets/` into the Platform User Quadlet directory and authored `systemd/` into the Platform User native systemd directory (same consumer split as Workload Setup).
+The idempotent, declarative Host-side application of one Component’s correct state, including gathering Declarations and fulfilling them into that Component’s interior. Re-running after Workload SoT or Environment Declaration inputs change is how fulfillment refreshes; when inputs and interior already match, Setup is a noop. Reads that Component’s source tree from the Host Volume (and may source shared Host-local helpers from the components lib on that volume); runs on the Host only; does not discover the Stack, SSH, or copy itself onto the Host. Used for first bring-up after Fabric holds and for later re-runs without Host recreation. Installs authored `quadlets/` into the Platform User Quadlet directory and authored `systemd/` into the Platform User native systemd directory (same consumer split as Workload Setup).
 _Avoid_: Setup (bare), install, deploy, provision, Workload Setup, Fabric Setup (when you mean this Component action)
 
 **Workload Setup**:
