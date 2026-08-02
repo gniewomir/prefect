@@ -204,12 +204,11 @@ edge_setup "${TREE}" "${STAGE}" || fail "edge_setup noop re-run should succeed"
 if grep -Fq 'restart edge-pod.service' "${STATE}/systemctl.calls"; then
   fail "unchanged gather must not restart edge-pod"
 fi
-if grep -Fq 'restart edge-acme.service' "${STATE}/systemctl.calls"; then
-  fail "unchanged gather must not restart edge-acme"
-fi
+grep -Fq 'restart edge-acme.service' "${STATE}/systemctl.calls" \
+  || fail "Edge Setup must still trigger ACME oneshot when Route gather is unchanged (ADR-0015)"
 grep -Fq 'is-active edge-pod.service' "${STATE}/systemctl.calls" \
   || fail "noop re-run must still assert edge-pod is active"
-pass "edge_setup skips bounce when Route gather is unchanged"
+pass "edge_setup skips pod bounce when Route gather is unchanged; ACME oneshot still runs"
 
 # --- fail closed when front door never answers ---
 : >"${STATE}/curl_count"

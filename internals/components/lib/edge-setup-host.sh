@@ -108,15 +108,16 @@ edge_setup() {
 
   quadlet_user_session_reload
   quadlet_user systemctl --user reset-failed edge-pod.service edge-nginx.service edge-acme.service 2>/dev/null || true
-  # Bounce front door when Route fulfillment changed, or when Edge is not yet active
-  # (first bring-up). Unchanged gather → skip restart (Setup noop for Routes).
-  local bounce=0
+  # Bounce Edge Pod when Route fulfillment changed, or when Edge is not yet active
+  # (first bring-up). Unchanged gather → skip pod restart (Route fulfillment noop).
+  # ACME oneshot still always restarts below (ADR-0015 / ADR-0023).
+  local bounce_pod=0
   if [[ "${routes_changed}" == "1" ]]; then
-    bounce=1
+    bounce_pod=1
   elif ! quadlet_user systemctl --user --quiet is-active edge-pod.service; then
-    bounce=1
+    bounce_pod=1
   fi
-  if [[ "${bounce}" == "1" ]]; then
+  if [[ "${bounce_pod}" == "1" ]]; then
     # Quadlet: edge.pod → edge-pod.service (pulls Service Network + edge-nginx).
     quadlet_user systemctl --user restart edge-pod.service
   fi
@@ -125,13 +126,12 @@ edge_setup() {
   # On-demand ACME capability: timer armed even with an empty want-list (ADR-0015).
   quadlet_user systemctl --user enable --now edge-acme.timer
   quadlet_user systemctl --user --quiet is-active edge-acme.timer
-  # Block until the oneshot finishes when we bounce: acme-run reloads the Edge front
-  # door at the end, so returning early races Acceptance/operator HTTP on :80/:443.
-  # CA/DNS failures still soft-succeed (oneshot exit 0 — ADR-0012 / ADR-0015).
-  # restart (not start): re-ensure must re-run oneshot even if a prior oneshot is active.
-  if [[ "${bounce}" == "1" ]]; then
-    quadlet_user systemctl --user restart edge-acme.service
-  fi
+  # Always trigger oneshot after want-list install (ADR-0015 / ADR-0023). Block until
+  # it finishes: acme-run reloads the Edge front door at the end, so returning early
+  # races Acceptance/operator HTTP on :80/:443. CA/DNS failures still soft-succeed
+  # (oneshot exit 0 — ADR-0012 / ADR-0015). restart (not start): re-ensure must
+  # re-run oneshot even if a prior oneshot is still active.
+  quadlet_user systemctl --user restart edge-acme.service
 
   # Shared front-door wait (post-ACME reload / empty want-list / image pull + nginx) — #134.
   if ! edge_wait_front_door; then
