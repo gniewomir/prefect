@@ -1,0 +1,9 @@
+# Fabric, Component, Workload, and Declarations
+
+Propraetor’s Host-side kinds are **Fabric**, **Component**, and **Workload** — not “Components = mandatory Host shape (network + edge).” **Fabric** is workable-state substrate that neither gathers nor fulfills (today: Service Network + Host Volume mount); **Fabric Setup** applies non-IHP Fabric (today: Service Network); IHP may establish some Fabric outcomes (today: the mount) but is not Fabric. **Component** owns a shared resource and fulfills **Declarations** from agreed SoT (Workload trees and/or Environment config); no Workload Intent; Workload Setup does not perform Component fulfillment. **Workload** declares Intent and may author Declarations; does not gather peers. **Declaration** is the umbrella for gatherable claims (today: Routes; Domain assignment into Edge; later e.g. database needs). **Edge** remains a mandatory Component on public Hosts (product bit). Route Declarations live in Workload Host Volume SoT only; **Edge Component Setup** gathers Intent-**run** Routes and fulfills into Edge interior — refresh by re-running Edge Setup after Workload Setup or Purge (noop when unchanged). Day-to-day truth: `CONTEXT.md`.
+
+**Amends:** ADR-0007 (Service Network is Fabric, not a Component peer of Edge); ADR-0010 (ensure path must distinguish Fabric Setup from Component Setup; network is not a Component); ADR-0022 (Setup that gathers Routes is Edge Component Setup — not Workload Setup installing into Edge). Operator-authored Route SoT under the Workload tree and Manifest-free projection stay as in ADR-0022.
+
+**Rejected:** Collapsing Component and Workload into one kind; Workload Intent on Components; keeping Route fulfillment in Workload Setup; defining Fabric as “everything IHP does.”
+
+**Status:** accepted (glossary updated; Host scripts still push Routes into Edge until an implementation cutover).
