@@ -6,4 +6,4 @@ Propraetor’s Host-side ladder is **Substrate** → **Fabric** → **Component*
 
 **Rejected:** Collapsing Component and Workload into one kind; Workload Intent on Components; keeping Route fulfillment in Workload Setup; defining Fabric as “everything IHP does”; putting the Host Volume mount in Fabric; collapsing Substrate into Fabric or into the IHP Done gate.
 
-**Status:** accepted (glossary updated; Host scripts still push Routes into Edge until an implementation cutover).
+**Status:** accepted (glossary updated; Host cutover complete — Edge Component Setup gathers Routes; ensure distinguishes Fabric Setup vs Component Setup).
