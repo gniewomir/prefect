@@ -103,10 +103,16 @@ write_purge_route
 ROUTE_INSTALLED_NAME=""
 if [[ -n "${ROUTE_FQDN}" ]]; then
   ROUTE_INSTALLED_NAME="purge-me--${ROUTE_FQDN}.conf"
+  edge_before="$(host_ssh \
+    "ls /var/lib/host-volume/components_data/edge/routes/purge-me.conf \
+         /var/lib/host-volume/components_data/edge/routes/purge-me--* 2>/dev/null || true")"
+  [[ -z "${edge_before}" ]] \
+    || fail "Workload Setup alone must not write Edge Route interior (got: ${edge_before})"
+  ensure_edge_route_fulfillment
   host_ssh \
     "test -f /var/lib/host-volume/components_data/edge/routes/${ROUTE_INSTALLED_NAME}" \
-    || fail "Intent run should install operator Route ${ROUTE_INSTALLED_NAME}"
-  pass "Intent run installs purge-me Route fragment"
+    || fail "Edge Setup should fulfill operator Route ${ROUTE_INSTALLED_NAME}"
+  pass "Edge Setup gathers purge-me Route fragment after Intent run"
 else
   echo "SOFT-SKIP: empty Domain want-list — Route install/Purge Route assertions"
 fi
@@ -136,9 +142,16 @@ host_ssh "test ! -e /var/lib/host-volume/components_data/workloads/purge-me" \
   || fail "Purge should remove Intent trash purge-me data"
 host_ssh "test ! -e /var/lib/host-volume/components_data/workloads/trash-a" \
   || fail "Purge should remove Intent trash trash-a data"
+if [[ -n "${ROUTE_FQDN}" ]]; then
+  leftover="$(host_ssh \
+    "ls /var/lib/host-volume/components_data/edge/routes/purge-me.conf /var/lib/host-volume/components_data/edge/routes/purge-me--* 2>/dev/null || true")"
+  [[ -n "${leftover}" ]] \
+    || fail "Purge alone must not clear Edge Routes (fulfillment drop is Edge Setup)"
+  ensure_edge_route_fulfillment
+fi
 purge_routes="$(host_ssh \
   "ls /var/lib/host-volume/components_data/edge/routes/purge-me.conf /var/lib/host-volume/components_data/edge/routes/purge-me--* 2>/dev/null || true")"
-[[ -z "${purge_routes}" ]] || fail "Purge should remove installed Routes for trash Workloads (got: ${purge_routes})"
+[[ -z "${purge_routes}" ]] || fail "Edge Setup after Purge should drop Routes for trash Workloads (got: ${purge_routes})"
 if host_ssh "test -e /home/platform/.config/containers/systemd/purge-me.container"; then
   fail "Purge should remove related Quadlet unit for purge-me"
 fi
@@ -157,4 +170,4 @@ want_after="$(host_ssh \
   "cat /var/lib/host-volume/components_data/edge/acme/want-list 2>/dev/null || true")"
 [[ "${want_after}" == "${want_before}" ]] \
   || fail "Purge must not rewrite ACME want-list"
-pass "Purge removes trash Workloads/Routes/units; keeps Domain-scoped certs; leaves want-list unchanged"
+pass "Purge removes trash Workloads/units; Edge Setup drops Routes; keeps Domain-scoped certs; leaves want-list unchanged"

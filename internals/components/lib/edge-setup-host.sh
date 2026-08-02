@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Deep Edge Component Setup (ADR-0023 / ADR-0028 / #137).
+# Deep Edge Component Setup (ADR-0023 / ADR-0028 / ADR-0040 / #137).
 # Sourced by Edge setup.sh. Success meaning: Domains present, Edge units active,
-# front door answers. Want-list install, placeholders, Domain fronts, oneshot,
-# and wait are implementation behind this interface — not a caller checklist.
+# front door answers, Intent-run Route Declarations fulfilled. Want-list install,
+# placeholders, Domain fronts, Route gather, oneshot, and wait are implementation
+# behind this interface — not a caller checklist.
 #
 # Ambient (optional overrides for offline tests):
 #   USER_NAME, DATA_ROOT  — Host Volume Edge data root defaults apply when unset.
@@ -21,6 +22,8 @@ source "${_edge_setup_lib_dir}/edge-want-list-host.sh"
 source "${_edge_setup_lib_dir}/edge-domain-fronts-host.sh"
 # shellcheck source=edge-front-door-host.sh
 source "${_edge_setup_lib_dir}/edge-front-door-host.sh"
+# shellcheck source=edge-routes-host.sh
+source "${_edge_setup_lib_dir}/edge-routes-host.sh"
 # shellcheck source=component-units-host.sh
 source "${_edge_setup_lib_dir}/component-units-host.sh"
 
@@ -52,6 +55,11 @@ edge_setup() {
   # Domain-front reconcile also drops legacy 00-empty include stubs (empty globs OK).
   edge_plant_placeholder_pems
   edge_reconcile_domain_fronts
+
+  # Route Declarations: gather Intent-run SoT into Edge interior (ADR-0040).
+  # Workload Setup/Purge do not write Edge routes; refresh by re-running Edge Setup.
+  WORKLOADS_ROOT="${WORKLOADS_ROOT:-$(dirname "${DATA_ROOT}")/workloads}"
+  edge_gather_workload_routes "${WORKLOADS_ROOT}" || return 1
 
   chown -R "${USER_NAME}:${USER_NAME}" \
     "${HOME_DIR}/.config" \

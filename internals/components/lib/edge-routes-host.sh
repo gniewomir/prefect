@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Edge Route install helpers (sourced by Workload Setup, Purge, and Edge gather).
+# Edge Route install helpers (sourced by Edge Component Setup gather).
 # Expects: ROUTES_DIR. Intent run also expects WANT_LIST (Host acme/want-list path).
 # Optional: USER_NAME for ownership.
 # Front-door reload lives in edge-front-door-host.sh (#134); this lib sources it so

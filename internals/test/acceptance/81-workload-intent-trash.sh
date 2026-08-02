@@ -70,9 +70,15 @@ write_manifest run
 "${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 if [[ -n "${HOST}" ]]; then
+  edge_before="$(host_ssh \
+    "ls /var/lib/host-volume/components_data/edge/routes/${WL}.conf \
+         /var/lib/host-volume/components_data/edge/routes/${WL}--* 2>/dev/null || true")"
+  [[ -z "${edge_before}" ]] \
+    || fail "Workload Setup alone must not write Edge Route interior (got: ${edge_before})"
+  ensure_edge_route_fulfillment
   host_ssh \
     "test -f /var/lib/host-volume/components_data/edge/routes/${WL}--${HOST}.conf" \
-    || fail "Intent run should install operator Route ${WL}--${HOST}.conf"
+    || fail "Edge Setup should fulfill operator Route ${WL}--${HOST}.conf"
 else
   echo "SOFT-SKIP: empty Domain want-list — Route install assertions"
 fi
@@ -89,6 +95,11 @@ if [[ -n "${HOST}" ]]; then
   host_ssh \
     "test -f /var/lib/host-volume/components_data/workloads/${WL}/routes/${HOST}.conf" \
     || fail "Intent trash should retain Route SoT under Workload tree until Purge"
+  still_present="$(host_ssh \
+    "ls /var/lib/host-volume/components_data/edge/routes/${WL}.conf /var/lib/host-volume/components_data/edge/routes/${WL}--* 2>/dev/null || true")"
+  [[ -n "${still_present}" ]] \
+    || fail "Workload Setup alone must not drop Edge Routes on Intent trash"
+  ensure_edge_route_fulfillment
 fi
 host_ssh "test -f /var/lib/host-volume/components_data/workloads/${WL}/quadlets/${WL}.container" \
   || fail "Intent trash should retain Quadlet SoT until Purge"
@@ -96,7 +107,7 @@ host_ssh "test -f /home/platform/.config/containers/systemd/${WL}.container" \
   || fail "Intent trash should retain unit file until Purge"
 trash_routes="$(host_ssh \
   "ls /var/lib/host-volume/components_data/edge/routes/${WL}.conf /var/lib/host-volume/components_data/edge/routes/${WL}--* 2>/dev/null || true")"
-[[ -z "${trash_routes}" ]] || fail "Intent trash should remove Workload installed Routes (got: ${trash_routes})"
+[[ -z "${trash_routes}" ]] || fail "Edge Setup must drop fulfillment for Intent trash (got: ${trash_routes})"
 active="$(host_ssh bash -s <<REMOTE
 UID_NUM=\$(id -u platform)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
@@ -113,7 +124,7 @@ want_after="$(host_ssh \
   "cat /var/lib/host-volume/components_data/edge/acme/want-list 2>/dev/null || true")"
 [[ "${want_after}" == "${want_before}" ]] \
   || fail "Intent trash must not rewrite ACME want-list"
-pass "Intent trash uninstalls Routes; stops Quadlets; data retained until Purge; want-list unchanged"
+pass "Intent trash drops Edge fulfillment via Edge Setup; stops Quadlets; data retained until Purge; want-list unchanged"
 
 mkdir -p "${FIX_DIR}/reclaim-intent"
 cat >"${FIX_DIR}/reclaim-intent/manifest.json" <<EOF
