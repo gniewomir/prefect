@@ -13,7 +13,7 @@ Committed Environment intent lives under root `environments/<slug>/`, not under 
 - Stack **Apply** stays separate from Workload Setup (ADR-0032). Reconcile-all and “not in tree ⇒ remove” stay deferred.
 - Acceptance fixtures write ephemeral Workload directories under `environments/<active-slug>/`, Setup by name, and remove them on exit — same contract, no override path.
 
-**Setup converge vs noop:** Workload Setup is idempotent. If the definition tree equals the Host Volume stored Workload tree, Setup is a noop for SoT/Routes/Edge — except Intent **run** still converges when required Quadlet unit *files* are missing on the Host (e.g. after Park/Apply recreates the Host while Host Volume SoT survived). Live pod/container health is not part of the noop gate; reboot/crash recovery is linger / unit `Restart=` / diagnostics, not Setup. Setup starts units only when it converges and Intent is **run**.
+**Setup converge vs noop:** Workload Setup is idempotent. If the definition tree equals the Host Volume stored Workload tree, Setup is a noop for SoT (Manifest, Route Declarations, units) — except Intent **run** still converges when required Quadlet unit *files* are missing on the Host (e.g. after Park/Apply recreates the Host while Host Volume SoT survived). Workload Setup does not write Edge interior; Route fulfillment refreshes on Edge Component Setup (ADR-0040). Live pod/container health is not part of the noop gate; reboot/crash recovery is linger / unit `Restart=` / diagnostics, not Setup. Setup starts units only when it converges and Intent is **run**.
 
 **Host Volume unchanged:** Host-local SoT stays under `…/workloads/<name>/` (the Host is already Environment-scoped). Setup identity remains the definition-tree basename.
 
