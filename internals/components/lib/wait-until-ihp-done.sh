@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Wait until Initial Host Provisioning Done (IHP Done) for Component Setup.
 # Runs on the Host only (as root). Success means Initial Host Provisioning
-# outcomes required for Components hold: IHP finished, port floor 80,
-# Platform User present, Host Volume mounted at /var/lib/host-volume.
+# outcomes required for Components hold: IHP finished, ADR-0030 SSH port
+# cutover reboot completed, port floor 80, Platform User present, Host Volume
+# mounted at /var/lib/host-volume.
 # Usage: PLATFORM_USER=platform ./wait-until-ihp-done.sh
 # Optional: PLATFORM_USER (default platform)
+# Test overrides: IHP_POWER_STATE_SEM, IHP_POWER_STATE_SEM_EPOCH, IHP_BOOT_EPOCH,
+#   IHP_CUTOVER_REBOOT_WAIT_SECONDS, IHP_CUTOVER_REBOOT_POLL_SECONDS,
+#   HOST_VOLUME_MOUNT_WAIT_SECONDS, HOST_VOLUME_MOUNT_POLL_SECONDS
 set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
@@ -25,6 +29,35 @@ if [[ ${rc} -ne 0 ]]; then
   cloud-init status --long >&2 || true
   exit 1
 fi
+
+# ADR-0030: power_state schedules reboot as cloud-init exits. status --wait
+# returns on that first boot before shutdown; SSH drops moments later. IHP Done
+# requires a boot newer than the power_state sem (cutover landed). On the first
+# boot this loop runs until reboot kills the session — operator retries SSH.
+SEM="${IHP_POWER_STATE_SEM:-/var/lib/cloud/instance/sem/config_power_state_change}"
+CUTOVER_WAIT_SECONDS="${IHP_CUTOVER_REBOOT_WAIT_SECONDS:-300}"
+CUTOVER_POLL_SECONDS="${IHP_CUTOVER_REBOOT_POLL_SECONDS:-2}"
+echo "Waiting for IHP SSH port cutover reboot..." >&2
+cutover_deadline=$((SECONDS + CUTOVER_WAIT_SECONDS))
+while true; do
+  sem_epoch="${IHP_POWER_STATE_SEM_EPOCH:-}"
+  if [[ -z "${sem_epoch}" && -f "${SEM}" ]]; then
+    sem_epoch="$(stat -c %Y "${SEM}")"
+  fi
+  if [[ -n "${IHP_BOOT_EPOCH:-}" ]]; then
+    btime="${IHP_BOOT_EPOCH}"
+  else
+    btime="$(awk '/^btime / { print $2; exit }' /proc/stat)"
+  fi
+  if [[ -n "${sem_epoch}" && -n "${btime}" && "${btime}" -gt "${sem_epoch}" ]]; then
+    break
+  fi
+  if ((SECONDS >= cutover_deadline)); then
+    echo "IHP SSH port cutover reboot not observed within ${CUTOVER_WAIT_SECONDS}s (ADR-0030)" >&2
+    exit 1
+  fi
+  sleep "${CUTOVER_POLL_SECONDS}"
+done
 
 sysctl --system >/dev/null 2>&1 || true
 floor="$(sysctl -n net.ipv4.ip_unprivileged_port_start 2>/dev/null || true)"

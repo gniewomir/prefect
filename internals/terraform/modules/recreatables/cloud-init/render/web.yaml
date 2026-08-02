@@ -17,7 +17,8 @@ bootcmd:
   # "Password change required but no TTY available" - Lifecycle wait and
   # Acceptance host_ssh look "unreachable" while interactive ./ssh.sh appears up.
   # Clear ageing and lock the password; root login stays pubkey-only (ssh_pwauth: false).
-  - [ chage, -d, -1, -M, -1, root ]
+  # Quote -1: bare YAML integers fail cloud-init 26.1+ bootcmd schema (strings only).
+  - [ chage, -d, "-1", -M, "-1", root ]
   - [ passwd, -l, root ]
 write_files:
   # Root Host login from Operator Configuration (ADR-0037). Written in config
@@ -43,8 +44,7 @@ write_files:
   # Host Volume mount without scripts_user (ADR-0031).
   - path: /usr/local/lib/host-volume/ensure-host-volume-mount.sh
     permissions: "0755"
-    content: |
-${ensure_host_volume_mount_sh}
+    content: ${ensure_host_volume_mount_sh}
   - path: /etc/systemd/system/host-volume.service
     content: |
       [Unit]

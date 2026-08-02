@@ -74,7 +74,10 @@ abort('Port drop-in wrong value') unless port['content'].to_s.include?(\"Port #{
 
 script = by_path['/usr/local/lib/host-volume/ensure-host-volume-mount.sh']
 abort('missing volume script') unless script
-abort('volume script body missing shebang') unless script['content'].to_s.include?('#!/usr/bin/env bash')
+# Shebang must be at byte 0. A leading newline (indent+literal-block trap) makes
+# systemd fail with Exec format error -> runcmd fails -> cloud-init status: error.
+body = script['content'].to_s
+abort('volume script must start with shebang (no leading newline)') unless body.start_with?('#!/usr/bin/env bash')
 
 unit = by_path['/etc/systemd/system/host-volume.service']
 abort('missing host-volume.service') unless unit
@@ -87,9 +90,18 @@ abort('missing udev late-attach rule') unless by_path['/etc/udev/rules.d/99-host
 
 abort('missing power_state reboot') unless d.dig('power_state', 'mode') == 'reboot'
 
-bootcmd = (d['bootcmd'] || []).map { |x| Array(x).join(' ') }.join(\"\\n\")
+bootcmd_rows = d['bootcmd'] || []
+bootcmd = bootcmd_rows.map { |x| Array(x).join(' ') }.join(\"\\n\")
 abort('bootcmd must clear root password ageing (DO lastchg=0 breaks BatchMode SSH)') unless bootcmd.include?('chage -d -1 -M -1 root')
 abort('bootcmd must lock root password') unless bootcmd.include?('passwd -l root')
+# cloud-init schema (26.1+): bootcmd argv items must be strings. Bare YAML -1
+# becomes Integer and fails validation -> degraded done / IHP wait exit 2.
+chage = bootcmd_rows.find { |cmd| Array(cmd).include?('chage') }
+abort('missing chage bootcmd row') unless chage
+Array(chage).each do |arg|
+  next if arg.is_a?(String)
+  abort(\"bootcmd chage arg #{arg.inspect} must be String (cloud-init schema)\")
+end
 
 runcmd = (d['runcmd'] || []).map(&:to_s).join(\"\\n\")
 abort('runcmd must not wait/mount Host Volume scsi device') if runcmd.include?('scsi-0DO_Volume')

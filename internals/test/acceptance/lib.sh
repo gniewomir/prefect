@@ -7,6 +7,8 @@ if [[ -z "${REPO_ROOT:-}" ]]; then
 fi
 # shellcheck source=../../lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
+# shellcheck source=../../lib/ihp.sh
+source "${REPO_ROOT}/internals/lib/ihp.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
@@ -115,15 +117,14 @@ acceptance_host_session() {
   host_session_bind verify "${IP}" || fail "host_session_bind verify failed for ${IP}"
 }
 
-# Run the Host-local ihp-done gate over SSH (IHP done, floor, Platform User, mount).
+# Run the Host-local ihp-done gate over SSH (retries across ADR-0030 reboot).
 # Requires: ambient verify Host-session (acceptance_host_session), REPO_ROOT. Optional: PLATFORM_USER.
 wait_until_ihp_done() {
   require_ip
   [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh acceptance)"
   local script="${REPO_ROOT}/internals/components/lib/wait-until-ihp-done.sh"
-  [[ -f "${script}" ]] || fail "missing ${script}"
   local user="${PLATFORM_USER:-platform}"
-  if ! host_ssh "PLATFORM_USER=${user} bash -s" <"${script}"; then
+  if ! host_wait_until_ihp_done "${script}" "${user}"; then
     fail "Host not ready for Component Setup (see Host output above)"
   fi
 }

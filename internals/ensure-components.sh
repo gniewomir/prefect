@@ -24,6 +24,8 @@ source "${REPO_ROOT}/internals/lib/domains.sh"
 source "${REPO_ROOT}/internals/lib/ssh.sh"
 # shellcheck source=lib/host-delivery.sh
 source "${REPO_ROOT}/internals/lib/host-delivery.sh"
+# shellcheck source=lib/ihp.sh
+source "${REPO_ROOT}/internals/lib/ihp.sh"
 # shellcheck source=lib/operator-dotenv.sh
 source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
 # shellcheck source=lib/operator-configuration.sh
@@ -64,8 +66,8 @@ for component in "${COMPONENTS[@]}"; do
   }
 done
 
-# Host-local IHP Done gate (IHP done, floor, Platform User, Host Volume mount).
-host_ssh "PLATFORM_USER=${USER_NAME} bash -s" <"${IHP_DONE}"
+# Host-local IHP Done gate (retries SSH across ADR-0030 cutover reboot).
+host_wait_until_ihp_done "${IHP_DONE}" "${USER_NAME}"
 
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/platform-ensure-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT

@@ -53,7 +53,7 @@ One-shot Host setup applied when the Host is created (delivered via the provider
 _Avoid_: User Data, cloud-init, userdata (when you mean this concept); provisioning (bare — ambiguous with Stack apply); provider account SSH key registry (not how Host login is granted)
 
 **Initial Host Provisioning Done** (alias **IHP Done**):
-Host-local gate: the Initial Host Provisioning contract outcomes required before Component Setup hold on a public Host (IHP finished, port floor 80, Platform User present, Host Volume mounted). Names what completed, not the next consumer. Used by ensure-components and Acceptance Tests before asserting finer capability slices. Delivery mechanics (cloud-init) stay inside the gate’s implementation.
+Host-local gate: the Initial Host Provisioning contract outcomes required before Component Setup hold on a public Host (IHP finished, SSH port cutover reboot completed, port floor 80, Platform User present, Host Volume mounted). Names what completed, not the next consumer. Used by ensure-components and Acceptance Tests before asserting finer capability slices. Delivery mechanics (cloud-init) stay inside the gate’s implementation.
 _Avoid_: Carrier ready, cloud-init ready, Component Setup ready, Component Setup Done, provisioned (bare), ready (bare)
 
 **Host diagnostics**:

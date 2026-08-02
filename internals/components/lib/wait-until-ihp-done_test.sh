@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unit tests: IHP Done Host Volume mount wait (ADR-0031).
+# Unit tests: IHP Done Host Volume mount wait (ADR-0031) + cutover reboot (ADR-0030).
 # Stubs cloud-init / sysctl / id / findmnt via PATH — no SSH.
 set -euo pipefail
 
@@ -75,6 +75,10 @@ run_gate() {
     HOST_VOLUME_MOUNT_WAIT_SECONDS="${HOST_VOLUME_MOUNT_WAIT_SECONDS:-30}" \
     HOST_VOLUME_MOUNT_POLL_SECONDS="${HOST_VOLUME_MOUNT_POLL_SECONDS:-1}" \
     FINDMT_SUCCEED_AFTER="${FINDMT_SUCCEED_AFTER:-}" \
+    IHP_POWER_STATE_SEM_EPOCH="${IHP_POWER_STATE_SEM_EPOCH:-100}" \
+    IHP_BOOT_EPOCH="${IHP_BOOT_EPOCH:-200}" \
+    IHP_CUTOVER_REBOOT_WAIT_SECONDS="${IHP_CUTOVER_REBOOT_WAIT_SECONDS:-30}" \
+    IHP_CUTOVER_REBOOT_POLL_SECONDS="${IHP_CUTOVER_REBOOT_POLL_SECONDS:-1}" \
     bash "${SCRIPT}" 2>"${STUBS}/err"
 }
 
@@ -99,3 +103,21 @@ grep -q 'Host Volume mount /var/lib/host-volume missing' "${STUBS}/err" \
 grep -q 'host-volume.service' "${STUBS}/err" \
   || fail "expected pointer to host-volume.service, got: $(cat "${STUBS}/err")"
 pass "on timeout points at host-volume.service"
+
+# --- ADR-0030: cutover reboot required (boot newer than power_state sem) ---
+export FINDMT_SUCCEED_AFTER=1
+export HOST_VOLUME_MOUNT_WAIT_SECONDS=10
+export IHP_POWER_STATE_SEM_EPOCH=500
+export IHP_BOOT_EPOCH=400
+export IHP_CUTOVER_REBOOT_WAIT_SECONDS=2
+export IHP_CUTOVER_REBOOT_POLL_SECONDS=1
+if run_gate; then
+  fail "gate should fail when boot is older than power_state sem"
+fi
+grep -q 'cutover reboot not observed' "${STUBS}/err" \
+  || fail "expected cutover timeout message, got: $(cat "${STUBS}/err")"
+pass "fails when cutover reboot has not landed"
+
+export IHP_BOOT_EPOCH=600
+run_gate || fail "gate should pass when boot is newer than power_state sem"
+pass "passes once cutover reboot has landed"
