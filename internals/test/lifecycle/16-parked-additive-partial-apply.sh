@@ -88,7 +88,11 @@ assert_host_membership absent
 assert_reserved_ip_membership "${IP}"
 assert_durables_in_cloud_project "${IP}"
 assert_domains_present "${IP}"
-(cd "${STACK_DIR}" && terraform state list) | grep -Fq "digitalocean_domain.this[\"${FIXTURE_APEX}\"]" \
+# Capture first: under pipefail, `terraform state list | grep -q` can exit non-zero
+# via SIGPIPE after grep closes early on a match (false "missing from State").
+state_list="$(cd "${STACK_DIR}" && terraform state list)" \
+  || fail "terraform state list failed after partial Apply"
+grep -Fq "digitalocean_domain.this[\"${FIXTURE_APEX}\"]" <<<"${state_list}" \
   || fail "fixture Domain ${FIXTURE_APEX} missing from State after failed Apply"
 pass "after failed Apply: Durables (incl. fixture) present in provider+State; Host still absent"
 
