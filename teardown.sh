@@ -22,6 +22,8 @@ source "${REPO_ROOT}/internals/lib/adopt.sh"
 source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
 # shellcheck source=internals/lib/operator-configuration.sh
 source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
+# shellcheck source=internals/lib/ssh.sh
+source "${REPO_ROOT}/internals/lib/ssh.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -100,6 +102,9 @@ read -r confirm
 [[ "${confirm}" == "teardown" ]] || fail "aborted (expected exact 'teardown')"
 
 terraform destroy -input=false -auto-approve "${UNLOCK_VAR[@]}"
+
+# Reserved IP is gone — drop Environment-scoped Host keys (not ~/.ssh/known_hosts).
+propraetor_ssh_known_hosts_reset || true
 
 echo
 echo "Teardown complete. State should be empty; Durables are gone from the provider."

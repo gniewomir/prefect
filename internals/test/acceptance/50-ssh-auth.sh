@@ -14,9 +14,12 @@ else
 fi
 
 # Password auth must not be offered (BatchMode exit alone is a false positive).
+# Same Environment-scoped known_hosts as Host-session (not ~/.ssh/known_hosts).
+KH="$(propraetor_ssh_known_hosts_path)" || fail "Environment known_hosts path unavailable"
 set +e
 SSH_PW_OUT="$(ssh -v -o "Port=${PLATFORM_SSH_PORT}" -o BatchMode=yes \
   -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 \
+  -o "UserKnownHostsFile=${KH}" -o GlobalKnownHostsFile=/dev/null \
   -o PreferredAuthentications=password -o PubkeyAuthentication=no \
   -o NumberOfPasswordPrompts=0 \
   "root@${IP}" "true" 2>&1)"

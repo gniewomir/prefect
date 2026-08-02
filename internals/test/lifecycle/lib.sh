@@ -340,9 +340,13 @@ EOF
 }
 
 # Poll until pubkey SSH to root@$IP works (Host create / boot lag after Apply).
+# Reserved IP survives Host recreate; host keys do not — drop stale entries from
+# the Environment-scoped known_hosts store before polling (Acceptance does the
+# same once at suite start). Host-session never uses ~/.ssh/known_hosts.
 # Optional: SSH_READY_TIMEOUT_SECONDS (default 300).
 wait_until_ssh_reachable() {
   require_ip
+  propraetor_ssh_forget_host "${IP}"
   acceptance_host_session
   local timeout="${SSH_READY_TIMEOUT_SECONDS:-300}"
   local deadline=$((SECONDS + timeout))

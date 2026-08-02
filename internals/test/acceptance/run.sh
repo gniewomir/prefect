@@ -58,7 +58,8 @@ HOST_JSON="$(do_api_get "/v2/droplets/${HOST_ID}" | jq -c '.droplet')"
 
 export IP RESERVED_IP_JSON HOST_JSON REPO_ROOT PLATFORM_ENV
 
-# Reserved IP survives Host recreate; host keys do not — drop stale known_hosts before any SSH case.
+# Reserved IP survives Host recreate; host keys do not — drop stale entries from the
+# Environment-scoped known_hosts store before any SSH case (not ~/.ssh/known_hosts).
 propraetor_ssh_forget_host "${IP}"
 
 echo "Checking Reserved IP ${IP} (Environment ${PLATFORM_ENV}) ..."

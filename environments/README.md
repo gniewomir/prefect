@@ -7,6 +7,7 @@ environments/<cloud-slug>/domains.json
 environments/<cloud-slug>/domains.override.json   # internal; gitignored (ADR-0021)
 environments/<cloud-slug>/.env                    # Environment Configuration; gitignored (ADR-0035)
 environments/<cloud-slug>/.env.example            # committed key-name teaching; Setup never reads it
+environments/<cloud-slug>/.ssh/known_hosts        # Host-session TOFU; gitignored (lib/ssh.sh)
 environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-0033)
 ```
 

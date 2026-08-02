@@ -2,20 +2,70 @@
 # Sourced by operator SSH clients and Acceptance helpers. Keep the digit in sync
 # with the Terraform local — mismatch locks the operator out.
 # Host-session: bind/open once, then host_ssh / host_scp / host_session_ip.
+# Host keys live in environments/<slug>/.ssh/known_hosts — never ~/.ssh/known_hosts.
 # shellcheck disable=SC2034  # sourced constant; consumers use PLATFORM_SSH_PORT
 PLATFORM_SSH_PORT=9417
+
+# Set when this file is sourced (BASH_SOURCE here is this lib, not the caller).
+_PROPRAETOR_LIB_SSH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Ambient Host-session state (one session per process).
 _HOST_SESSION_IP=""
 _HOST_SESSION_PROFILE=""
 
-# Reserved IP survives Host recreate; host keys do not. OpenSSH stores non-22
-# ports as [host]:port — clearing only the bare IP leaves a stale entry that
-# fails StrictHostKeyChecking=accept-new (accept-new does not replace mismatches).
+_propraetor_ssh_repo_root() {
+  if [[ -n "${REPO_ROOT:-}" ]]; then
+    printf '%s\n' "${REPO_ROOT}"
+    return 0
+  fi
+  printf '%s\n' "$(cd "${_PROPRAETOR_LIB_SSH_DIR}/../.." && pwd)"
+}
+
+# Environment-scoped known_hosts path (ADR-0033 dotdir under environments/<slug>/).
+# Requires PLATFORM_ENV (environment_activate). Prints path on stdout.
+propraetor_ssh_known_hosts_path() {
+  local root slug
+  root="$(_propraetor_ssh_repo_root)"
+  slug="${PLATFORM_ENV:-}"
+  if [[ -z "${slug}" ]]; then
+    echo "propraetor_ssh_known_hosts_path: PLATFORM_ENV is not set (environment_activate first)" >&2
+    return 1
+  fi
+  printf '%s\n' "${root}/environments/${slug}/.ssh/known_hosts"
+}
+
+# Ensure the Environment .ssh dir exists; print known_hosts path.
+_propraetor_ssh_prepare_known_hosts() {
+  local kh dir
+  kh="$(propraetor_ssh_known_hosts_path)" || return 1
+  dir="$(dirname "${kh}")"
+  mkdir -p "${dir}" || {
+    echo "host_session: could not create ${dir}" >&2
+    return 1
+  }
+  chmod 700 "${dir}" 2>/dev/null || true
+  printf '%s\n' "${kh}"
+}
+
+# Reserved IP survives Host recreate; host keys do not. Clear entries from the
+# Environment-scoped store (not ~/.ssh/known_hosts). OpenSSH stores non-22 ports
+# as [host]:port — clearing only the bare IP leaves a stale entry that fails
+# StrictHostKeyChecking=accept-new (accept-new does not replace mismatches).
 propraetor_ssh_forget_host() {
   local ip="${1:?propraetor_ssh_forget_host requires IP}"
-  ssh-keygen -R "${ip}" >/dev/null 2>&1 || true
-  ssh-keygen -R "[${ip}]:${PLATFORM_SSH_PORT}" >/dev/null 2>&1 || true
+  local kh
+  kh="$(propraetor_ssh_known_hosts_path)" || return 1
+  [[ -f "${kh}" ]] || return 0
+  ssh-keygen -R "${ip}" -f "${kh}" >/dev/null 2>&1 || true
+  ssh-keygen -R "[${ip}]:${PLATFORM_SSH_PORT}" -f "${kh}" >/dev/null 2>&1 || true
+  rm -f "${kh}.old"
+}
+
+# Drop the whole Environment known_hosts store (Teardown — Reserved IP gone).
+propraetor_ssh_known_hosts_reset() {
+  local kh
+  kh="$(propraetor_ssh_known_hosts_path)" || return 1
+  rm -f "${kh}" "${kh}.old"
 }
 
 _host_session_validate_profile() {
@@ -75,12 +125,18 @@ host_session_ip() {
 
 # Populate _HOST_SESSION_OPTS from ambient profile. Fails closed if no session.
 _host_session_build_opts() {
-  local identity=""
+  local identity="" kh=""
   [[ -n "${_HOST_SESSION_IP}" && -n "${_HOST_SESSION_PROFILE}" ]] || {
     echo "host_session: no Host-session (call host_session_open or host_session_bind first)" >&2
     return 1
   }
-  _HOST_SESSION_OPTS=(-o "Port=${PLATFORM_SSH_PORT}" -o StrictHostKeyChecking=accept-new)
+  kh="$(_propraetor_ssh_prepare_known_hosts)" || return 1
+  _HOST_SESSION_OPTS=(
+    -o "Port=${PLATFORM_SSH_PORT}"
+    -o StrictHostKeyChecking=accept-new
+    -o "UserKnownHostsFile=${kh}"
+    -o GlobalKnownHostsFile=/dev/null
+  )
   case "${_HOST_SESSION_PROFILE}" in
     verify)
       _HOST_SESSION_OPTS+=(

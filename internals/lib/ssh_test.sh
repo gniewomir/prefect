@@ -12,6 +12,23 @@ pass() { echo "PASS: $*"; }
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ssh-session-test.XXXXXX")"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
+# Isolate Environment known_hosts under TMP (never touch the real environments/ tree).
+export REPO_ROOT="${TMP_DIR}/repo"
+export PLATFORM_ENV=test
+mkdir -p "${REPO_ROOT}/environments/test"
+EXPECTED_KH="${REPO_ROOT}/environments/test/.ssh/known_hosts"
+
+# --- Seam 0: known_hosts path ---
+got="$(propraetor_ssh_known_hosts_path)" || fail "known_hosts path should resolve"
+[[ "${got}" == "${EXPECTED_KH}" ]] || fail "known_hosts path: want ${EXPECTED_KH}, got '${got}'"
+pass "propraetor_ssh_known_hosts_path → environments/<slug>/.ssh/known_hosts"
+
+LIB_SSH="${_PROPRAETOR_LIB_SSH_DIR}/ssh.sh"
+if bash -c "source '${LIB_SSH}'; unset PLATFORM_ENV; propraetor_ssh_known_hosts_path" >/dev/null 2>&1; then
+  fail "known_hosts path must fail closed without PLATFORM_ENV"
+fi
+pass "known_hosts path fails closed without PLATFORM_ENV"
+
 # --- Seam 1: bind → IP accessor ---
 host_session_bind verify "203.0.113.10" || fail "bind verify should succeed"
 got="$(host_session_ip)" || fail "host_session_ip should succeed after bind"
@@ -95,6 +112,10 @@ printf '%s\n' "${ssh_line}" | grep -Fq -- "-o BatchMode=yes" \
   || fail "verify host_ssh missing BatchMode=yes; got: ${ssh_line}"
 printf '%s\n' "${ssh_line}" | grep -Fq -- "-o StrictHostKeyChecking=accept-new" \
   || fail "verify host_ssh missing StrictHostKeyChecking; got: ${ssh_line}"
+printf '%s\n' "${ssh_line}" | grep -Fq -- "-o UserKnownHostsFile=${EXPECTED_KH}" \
+  || fail "verify host_ssh missing UserKnownHostsFile; got: ${ssh_line}"
+printf '%s\n' "${ssh_line}" | grep -Fq -- "-o GlobalKnownHostsFile=/dev/null" \
+  || fail "verify host_ssh missing GlobalKnownHostsFile=/dev/null; got: ${ssh_line}"
 printf '%s\n' "${ssh_line}" | grep -Fq -- "-o ConnectTimeout=10" \
   || fail "verify host_ssh missing ConnectTimeout; got: ${ssh_line}"
 printf '%s\n' "${ssh_line}" | grep -Fq -- "-o PreferredAuthentications=publickey" \
@@ -105,7 +126,8 @@ printf '%s\n' "${ssh_line}" | grep -Fq -- "root@203.0.113.50" \
   || fail "verify host_ssh missing root@IP; got: ${ssh_line}"
 printf '%s\n' "${ssh_line}" | grep -Eq '(^| )true( |$)' \
   || fail "verify host_ssh missing remote command true; got: ${ssh_line}"
-pass "verify host_ssh argv (port, BatchMode, identity, root@IP)"
+[[ -d "$(dirname "${EXPECTED_KH}")" ]] || fail "host_ssh must create environments/<slug>/.ssh"
+pass "verify host_ssh argv (port, BatchMode, env known_hosts, identity, root@IP)"
 
 touch "${TMP_DIR}/local.txt"
 : >"${SCP_CALLS}"
@@ -115,13 +137,15 @@ printf '%s\n' "${scp_line}" | grep -Fq -- "-o Port=${PLATFORM_SSH_PORT}" \
   || fail "verify host_scp missing Port; got: ${scp_line}"
 printf '%s\n' "${scp_line}" | grep -Fq -- "-o BatchMode=yes" \
   || fail "verify host_scp missing BatchMode; got: ${scp_line}"
+printf '%s\n' "${scp_line}" | grep -Fq -- "-o UserKnownHostsFile=${EXPECTED_KH}" \
+  || fail "verify host_scp missing UserKnownHostsFile; got: ${scp_line}"
 printf '%s\n' "${scp_line}" | grep -Fq -- "-i ${PROPRAETOR_PRIVATE_KEY_PATH}" \
   || fail "verify host_scp missing -i identity; got: ${scp_line}"
 printf '%s\n' "${scp_line}" | grep -Fq -- "${TMP_DIR}/local.txt" \
   || fail "verify host_scp missing local path; got: ${scp_line}"
 printf '%s\n' "${scp_line}" | grep -Fq -- "root@203.0.113.50:/tmp/remote.txt" \
   || fail "verify host_scp missing root@IP:remote; got: ${scp_line}"
-pass "verify host_scp argv (opts, identity, root@IP:path)"
+pass "verify host_scp argv (opts, env known_hosts, identity, root@IP:path)"
 
 # --- Seam 4: operator profile opts ---
 PROPRAETOR_PRIVATE_KEY_PATH="${TMP_DIR}/operator_key"
@@ -135,6 +159,8 @@ printf '%s\n' "${ssh_line}" | grep -Fq -- "-o Port=${PLATFORM_SSH_PORT}" \
   || fail "operator host_ssh missing Port; got: ${ssh_line}"
 printf '%s\n' "${ssh_line}" | grep -Fq -- "-o StrictHostKeyChecking=accept-new" \
   || fail "operator host_ssh missing StrictHostKeyChecking; got: ${ssh_line}"
+printf '%s\n' "${ssh_line}" | grep -Fq -- "-o UserKnownHostsFile=${EXPECTED_KH}" \
+  || fail "operator host_ssh missing UserKnownHostsFile; got: ${ssh_line}"
 if printf '%s\n' "${ssh_line}" | grep -Fq -- "BatchMode"; then
   fail "operator host_ssh must not set BatchMode; got: ${ssh_line}"
 fi
@@ -145,7 +171,7 @@ printf '%s\n' "${ssh_line}" | grep -Fq -- "-i ${PROPRAETOR_PRIVATE_KEY_PATH}" \
   || fail "operator host_ssh missing -i PROPRAETOR_PRIVATE_KEY_PATH; got: ${ssh_line}"
 printf '%s\n' "${ssh_line}" | grep -Fq -- "root@203.0.113.60" \
   || fail "operator host_ssh missing root@IP; got: ${ssh_line}"
-pass "operator host_ssh argv (no BatchMode, PROPRAETOR_PRIVATE_KEY_PATH)"
+pass "operator host_ssh argv (no BatchMode, env known_hosts, PROPRAETOR_PRIVATE_KEY_PATH)"
 
 # --- Seam 4b: missing private path fails closed ---
 unset PROPRAETOR_PRIVATE_KEY_PATH
@@ -158,22 +184,22 @@ PROPRAETOR_PRIVATE_KEY_PATH="${TMP_DIR}/operator_key"
 export PROPRAETOR_PRIVATE_KEY_PATH
 
 # --- Seam 5: fail closed before open/bind (fresh process — no ambient session) ---
-if bash -c "source '${REPO_ROOT}/internals/lib/ssh.sh'; host_session_ip" >/dev/null 2>&1; then
+if bash -c "source '${LIB_SSH}'; host_session_ip" >/dev/null 2>&1; then
   fail "host_session_ip should fail with no session"
 fi
 pass "host_session_ip fails closed with no session"
 
-if bash -c "source '${REPO_ROOT}/internals/lib/ssh.sh'; host_ssh true" >/dev/null 2>&1; then
+if bash -c "source '${LIB_SSH}'; host_ssh true" >/dev/null 2>&1; then
   fail "host_ssh should fail with no session"
 fi
 pass "host_ssh fails closed with no session"
 
-if bash -c "source '${REPO_ROOT}/internals/lib/ssh.sh'; host_scp /tmp/a /tmp/b" >/dev/null 2>&1; then
+if bash -c "source '${LIB_SSH}'; host_scp /tmp/a /tmp/b" >/dev/null 2>&1; then
   fail "host_scp should fail with no session"
 fi
 pass "host_scp fails closed with no session"
 
-# --- Seam 6: forget stays explicit ---
+# --- Seam 6: forget targets Environment store; open/bind do not forget ---
 cat >"${TMP_DIR}/bin/ssh-keygen" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -203,14 +229,22 @@ if [[ -s "${SSH_KEYGEN_CALLS}" ]]; then
 fi
 pass "open/bind do not forget known_hosts"
 
+mkdir -p "$(dirname "${EXPECTED_KH}")"
+printf 'stale\n' >"${EXPECTED_KH}"
 : >"${SSH_KEYGEN_CALLS}"
 propraetor_ssh_forget_host "203.0.113.77" || fail "propraetor_ssh_forget_host should succeed"
 grep -Fq -- "-R 203.0.113.77" "${SSH_KEYGEN_CALLS}" \
   || fail "forget must clear bare IP; got: $(cat "${SSH_KEYGEN_CALLS}")"
 grep -Fq -- "-R [203.0.113.77]:${PLATFORM_SSH_PORT}" "${SSH_KEYGEN_CALLS}" \
   || fail "forget must clear [ip]:port; got: $(cat "${SSH_KEYGEN_CALLS}")"
-pass "propraetor_ssh_forget_host clears bare IP and [ip]:port"
+grep -Fq -- "-f ${EXPECTED_KH}" "${SSH_KEYGEN_CALLS}" \
+  || fail "forget must target Environment known_hosts (-f); got: $(cat "${SSH_KEYGEN_CALLS}")"
+pass "propraetor_ssh_forget_host clears bare IP and [ip]:port in Environment store"
 
-
-
-
+# --- Seam 7: reset drops the Environment store ---
+printf 'stale\n' >"${EXPECTED_KH}"
+printf 'stale\n' >"${EXPECTED_KH}.old"
+propraetor_ssh_known_hosts_reset || fail "reset should succeed"
+[[ ! -e "${EXPECTED_KH}" ]] || fail "reset must remove known_hosts"
+[[ ! -e "${EXPECTED_KH}.old" ]] || fail "reset must remove known_hosts.old"
+pass "propraetor_ssh_known_hosts_reset removes Environment store"
