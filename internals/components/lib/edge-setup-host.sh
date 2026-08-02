@@ -60,6 +60,7 @@ edge_setup() {
   # Workload Setup/Purge do not write Edge routes; refresh by re-running Edge Setup.
   WORKLOADS_ROOT="${WORKLOADS_ROOT:-$(dirname "${DATA_ROOT}")/workloads}"
   edge_gather_workload_routes "${WORKLOADS_ROOT}" || return 1
+  local routes_changed="${EDGE_ROUTES_CHANGED:-0}"
 
   chown -R "${USER_NAME}:${USER_NAME}" \
     "${HOME_DIR}/.config" \
@@ -107,18 +108,30 @@ edge_setup() {
 
   quadlet_user_session_reload
   quadlet_user systemctl --user reset-failed edge-pod.service edge-nginx.service edge-acme.service 2>/dev/null || true
-  # Quadlet: edge.pod → edge-pod.service (pulls Service Network + edge-nginx).
-  quadlet_user systemctl --user restart edge-pod.service
+  # Bounce front door when Route fulfillment changed, or when Edge is not yet active
+  # (first bring-up). Unchanged gather → skip restart (Setup noop for Routes).
+  local bounce=0
+  if [[ "${routes_changed}" == "1" ]]; then
+    bounce=1
+  elif ! quadlet_user systemctl --user --quiet is-active edge-pod.service; then
+    bounce=1
+  fi
+  if [[ "${bounce}" == "1" ]]; then
+    # Quadlet: edge.pod → edge-pod.service (pulls Service Network + edge-nginx).
+    quadlet_user systemctl --user restart edge-pod.service
+  fi
   quadlet_user systemctl --user --quiet is-active edge-pod.service
 
   # On-demand ACME capability: timer armed even with an empty want-list (ADR-0015).
   quadlet_user systemctl --user enable --now edge-acme.timer
   quadlet_user systemctl --user --quiet is-active edge-acme.timer
-  # Block until the oneshot finishes: acme-run reloads the Edge front door at the end,
-  # so returning early races Acceptance/operator HTTP on :80/:443. CA/DNS failures still
-  # soft-succeed (oneshot exit 0 — ADR-0012 / ADR-0015). restart (not start): re-ensure
-  # must re-run oneshot even if a prior oneshot is still active.
-  quadlet_user systemctl --user restart edge-acme.service
+  # Block until the oneshot finishes when we bounce: acme-run reloads the Edge front
+  # door at the end, so returning early races Acceptance/operator HTTP on :80/:443.
+  # CA/DNS failures still soft-succeed (oneshot exit 0 — ADR-0012 / ADR-0015).
+  # restart (not start): re-ensure must re-run oneshot even if a prior oneshot is active.
+  if [[ "${bounce}" == "1" ]]; then
+    quadlet_user systemctl --user restart edge-acme.service
+  fi
 
   # Shared front-door wait (post-ACME reload / empty want-list / image pull + nginx) — #134.
   if ! edge_wait_front_door; then

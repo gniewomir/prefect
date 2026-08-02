@@ -2,11 +2,10 @@
 # Edge Route install helpers (sourced by Edge Component Setup gather).
 # Expects: ROUTES_DIR. Intent run also expects WANT_LIST (Host acme/want-list path).
 # Optional: USER_NAME for ownership.
-# Front-door reload lives in edge-front-door-host.sh (#134); this lib sources it so
-# edge_reload_front_door_if_routes_changed can call the shared seam.
 #
 # Sets EDGE_ROUTES_CHANGED=1 when installed Route file contents for a reconcile/gather
-# changed; else 0.
+# changed; else 0. Edge Component Setup uses that flag to skip front-door bounce when
+# gather is a noop.
 # ADR-0028: Routes are FQDN-keyed server-context snippets; Setup fails closed if a basename
 # is not on the Domain want-list.
 # ADR-0040: edge_gather_workload_routes collects Intent-run Declarations across Workload SoT.
@@ -14,8 +13,6 @@
 _edge_routes_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=edge-want-list-host.sh
 source "${_edge_routes_lib_dir}/edge-want-list-host.sh"
-# shellcheck source=edge-front-door-host.sh
-source "${_edge_routes_lib_dir}/edge-front-door-host.sh"
 
 # Remove legacy projected `<name>.conf` and all `<name>--*` installed Routes for one Workload.
 edge_remove_workload_installed_routes() {
@@ -120,22 +117,12 @@ edge_reconcile_workload_routes() {
   fi
 }
 
-# Reload Edge only when installed Routes changed (avoids bouncing :80/:443 on no-op Setup).
-edge_reload_front_door_if_routes_changed() {
-  if [[ "${EDGE_ROUTES_CHANGED:-0}" == "1" ]]; then
-    edge_reload_front_door
-  fi
-}
-
-# Workload name encoded in an Edge interior Route basename (<wl>--<fqdn>.conf or legacy <wl>.conf).
+# Workload name encoded in an Edge interior Route basename (<wl>--<fqdn>.conf).
 _edge_installed_route_workload_name() {
   local base="$1"
   case "${base}" in
     *--*)
       printf '%s\n' "${base%%--*}"
-      ;;
-    *.conf)
-      printf '%s\n' "${base%.conf}"
       ;;
     *)
       printf '%s\n' ""
@@ -170,7 +157,7 @@ PY
 edge_gather_workload_routes() {
   local workloads_root="${1:-${WORKLOADS_ROOT-}}"
   local routes_before routes_after
-  local wl_dir wl_name intent sot_dir f installed_wl
+  local wl_dir wl_name intent sot_dir f base installed_wl
 
   if [[ -z "${workloads_root}" ]]; then
     echo "edge_gather_workload_routes: workloads root required (arg or WORKLOADS_ROOT)" >&2
@@ -195,10 +182,17 @@ edge_gather_workload_routes() {
   fi
 
   # Drop fulfillments whose Workload SoT tree (with Manifest) is gone.
+  # Interior is only <wl>--<fqdn>.conf; delete leftover projected <wl>.conf (no --) one-shot.
   while IFS= read -r f; do
     [[ -n "${f}" ]] || continue
-    installed_wl="$(_edge_installed_route_workload_name "$(basename "${f}")")"
-    [[ -n "${installed_wl}" ]] || continue
+    base="$(basename "${f}")"
+    installed_wl="$(_edge_installed_route_workload_name "${base}")"
+    if [[ -z "${installed_wl}" ]]; then
+      case "${base}" in
+        *.conf) rm -f "${f}" ;;
+      esac
+      continue
+    fi
     if [[ ! -f "${workloads_root}/${installed_wl}/manifest.json" ]]; then
       rm -f "${f}"
     fi

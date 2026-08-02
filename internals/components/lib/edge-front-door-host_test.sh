@@ -131,13 +131,16 @@ if grep -E 'for _ in \$\(seq|curl .*127\.0\.0\.1' "${ACME_RUN}" >/dev/null; then
 fi
 pass "ACME uses shared front-door reload"
 
-grep -Fq 'edge-front-door-host.sh' "${ROUTES}" \
-  || fail "edge-routes-host must source edge-front-door-host.sh"
-grep -Eq 'edge_reload_front_door' "${ROUTES}" \
-  || fail "edge-routes-host must call edge_reload_front_door for Route reload"
+# Route gather sets EDGE_ROUTES_CHANGED; Edge Setup owns front-door bounce (#151).
+if grep -Fq 'edge-front-door-host.sh' "${ROUTES}"; then
+  fail "edge-routes-host must not source front-door helpers (Setup owns bounce)"
+fi
+if grep -Eq 'edge_reload_front_door' "${ROUTES}"; then
+  fail "edge-routes-host must not call edge_reload_front_door (Setup owns bounce)"
+fi
 if grep -E 'curl .*127\.0\.0\.1' "${ROUTES}" >/dev/null; then
   fail "edge-routes-host must not own the :80 poll loop"
 fi
-pass "Route reload uses shared front-door reload"
+pass "Route gather does not own front-door reload"
 
 echo "All edge-front-door-host offline tests passed."
