@@ -12,6 +12,8 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${TEST_DIR}/lib.sh"
 # shellcheck source=../run-buffered-case.sh
 source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
+# shellcheck source=internals/lib/cli.sh
+source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=internals/lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=internals/lib/operator-dotenv.sh
@@ -26,8 +28,15 @@ source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 
-environment_activate "${STACK_DIR}" "$@" || exit 1
-set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
+CLI_env=""
+CLI_selector=""
+cli_operator_parse CLI pos:selector:optional -- "$@" || exit 1
+environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
+if [[ -n "${CLI_selector}" ]]; then
+  set -- "${CLI_selector}"
+else
+  set --
+fi
 
 command -v terraform >/dev/null || fail "terraform not found"
 command -v jq >/dev/null || fail "jq not found"

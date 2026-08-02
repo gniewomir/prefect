@@ -14,6 +14,8 @@ USER_NAME="${PLATFORM_USER:-platform}"
 # Hardcoded order: Service Network before Edge (ADR-0010).
 COMPONENTS=(network edge)
 HOST_SCRIPT="${REPO_ROOT}/internals/components/lib/ensure-components-host.sh"
+# shellcheck source=lib/cli.sh
+source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=lib/domains.sh
@@ -30,11 +32,9 @@ source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 operator_configuration_require private || exit 1
 
-environment_activate "${STACK_DIR}" "$@" || exit 1
-for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
-  echo "unknown argument: ${arg} (only optional --env is accepted)" >&2
-  exit 1
-done
+CLI_env=""
+cli_operator_parse CLI -- "$@" || exit 1
+environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }

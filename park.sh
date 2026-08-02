@@ -9,6 +9,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
+# shellcheck source=internals/lib/cli.sh
+source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=internals/lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=internals/lib/adopt.sh
@@ -24,11 +26,8 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 
-environment_parse_args "$@" || exit 1
-for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
-  fail "unknown argument: ${arg} (only optional --env is accepted)"
-done
-WORKSPACE="$(environment_workspace_for "${ENVIRONMENT_RAW}")" || exit 1
+CLI_env=""
+cli_operator_parse CLI -- "$@" || exit 1
 
 command -v terraform >/dev/null || fail "terraform not found"
 
@@ -36,7 +35,7 @@ provider_credential_require || exit 1
 
 cd "${STACK_DIR}"
 
-environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
+environment_activate "${STACK_DIR}" "${CLI_env}" || fail "could not select Environment"
 
 adopt_preflight park "${ENVIRONMENT_RAW}" || exit 1
 

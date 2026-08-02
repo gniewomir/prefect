@@ -51,7 +51,7 @@ rm -f /home/platform/.config/containers/systemd/${WL}.pod \
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR systemctl --user daemon-reload
 REMOTE
 
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
   "test -f /var/lib/host-volume/components_data/workloads/${WL}/quadlets/${WL}.pod" \
@@ -157,4 +157,4 @@ pass "Workload publishes no Host ports"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 { "intent": "trash" }
 EOF
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"

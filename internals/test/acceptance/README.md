@@ -18,7 +18,7 @@ From the repo root:
 ./test.sh acceptance 70-podman --env test
 ```
 
-**Environment (ADR-0019):** every operator entrypoint is safe by default — no `--env` selects the **test** Environment (Terraform workspace `default`). `--env test` and `--env default` are the same alias; any other slug selects that Environment’s workspace. Targeting prod (or any non-test Environment) always requires an explicit `--env <slug>`. When present, `--env` must be last.
+**Environment (ADR-0019):** every operator entrypoint is safe by default — no `--env` selects the **test** Environment (Terraform workspace `default`). `--env test` and `--env default` are the same alias; any other slug selects that Environment’s workspace. Targeting prod (or any non-test Environment) always requires an explicit `--env <slug>`. Positionals first, then flags; flag order free (ADR-0039).
 
 Requires Provider Credential and Operator Configuration private key path (root `.env` or process environment — ADR-0038).
 

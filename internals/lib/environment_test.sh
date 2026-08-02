@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Mapping/alias checks for Environment resolution (ADR-0019 / #40).
-# No cloud Apply — pure helper seam.
+# No cloud Apply — pure helper seam. Argv grammar is cli_test.sh (ADR-0039).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -55,32 +55,5 @@ assert_workspace_fails "Test" "mixed-case slug (not aliased)"
 assert_workspace_fails "default " "trailing whitespace"
 assert_workspace_fails "../evil" "path-like slug"
 assert_workspace_fails "has space" "slug with space"
-
-parse_ok() {
-  environment_parse_args "$@" || fail "parse failed for: $*"
-  printf '%s\t%s\n' "${ENVIRONMENT_RAW}" "${ENVIRONMENT_REST[*]-}"
-}
-
-got="$(parse_ok --yes)"
-[[ "${got}" == $'\t'--yes ]] || fail "no --env should leave env empty and keep --yes; got '${got}'"
-pass "parse: --yes alone leaves env empty"
-
-got="$(parse_ok --env test --yes)"
-[[ "${got}" == $'test\t--yes' ]] || fail "want test + --yes; got '${got}'"
-pass "parse: --env test --yes"
-
-got="$(parse_ok --yes --env=prod)"
-[[ "${got}" == $'prod\t--yes' ]] || fail "want prod + --yes; got '${got}'"
-pass "parse: --yes --env=prod"
-
-if environment_parse_args --env 2>/dev/null; then
-  fail "expected failure for --env without value"
-fi
-pass "parse: rejects --env without value"
-
-if environment_parse_args --env test --env prod 2>/dev/null; then
-  fail "expected failure for duplicate --env"
-fi
-pass "parse: rejects duplicate --env"
 
 echo "All Environment helper checks passed."

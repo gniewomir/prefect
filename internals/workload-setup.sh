@@ -3,7 +3,7 @@
 # Idempotent: identical Host Volume SoT (and Intent run unit files when required) → noop (ADR-0033).
 # Does not wait for ACME issuance. Does not heal crashed pods.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
-# Usage: ./internals/workload-setup.sh [--env <slug>] <workload-name>
+# Usage: ./internals/workload-setup.sh <workload-name> [--env <slug>]
 # Resolves to environments/<slug>/<name>/ (fail closed). Identity = directory basename (ADR-0024).
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
@@ -21,6 +21,8 @@ QUADLET_SESSION_LIB="${REPO_ROOT}/internals/components/lib/quadlet-user-session.
 EDGE_ROUTES_LIB="${REPO_ROOT}/internals/components/lib/edge-routes-host.sh"
 EDGE_WANT_LIST_LIB="${REPO_ROOT}/internals/components/lib/edge-want-list-host.sh"
 EDGE_FRONT_DOOR_LIB="${REPO_ROOT}/internals/components/lib/edge-front-door-host.sh"
+# shellcheck source=lib/cli.sh
+source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=lib/environment-configuration.sh
@@ -37,14 +39,14 @@ source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 operator_configuration_require private || exit 1
 
-environment_activate "${STACK_DIR}" "$@" || exit 1
-set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
-
-[[ $# -eq 1 ]] || {
-  echo "Usage: $0 [--env <slug>] <workload-name>" >&2
+CLI_env=""
+CLI_workload=""
+cli_operator_parse CLI pos:workload:required -- "$@" || {
+  echo "Usage: $0 <workload-name> [--env <slug>]" >&2
   exit 1
 }
-WL_NAME="$1"
+environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
+WL_NAME="${CLI_workload}"
 
 if [[ -z "${WL_NAME}" || "${WL_NAME}" == "." || "${WL_NAME}" == ".." ]] ||
   [[ "${WL_NAME}" == .* ]] ||

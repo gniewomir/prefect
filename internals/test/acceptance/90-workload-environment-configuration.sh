@@ -70,7 +70,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 }
 EOF
 write_container "${FIX_DIR}/${WL}" "${WL}" "${WL}"
-if "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}" >/dev/null 2>&1; then
+if "${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
   fail "Manifest with unknown keys plus environment must still fail allowlist"
 fi
 pass "allowlist still rejects unknown keys alongside environment"
@@ -81,7 +81,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
   "environment": "ENVCFG_TOKEN"
 }
 EOF
-if "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}" >/dev/null 2>&1; then
+if "${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
   fail "non-array environment must fail closed"
 fi
 pass "non-array environment fails closed"
@@ -92,7 +92,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
   "environment": ["ENVCFG_TOKEN", ""]
 }
 EOF
-if "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}" >/dev/null 2>&1; then
+if "${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
   fail "empty-string environment key must fail closed"
 fi
 pass "empty-string environment key fails closed"
@@ -106,7 +106,7 @@ cat >"${FIX_DIR}/${WL_NC}/manifest.json" <<'EOF'
 }
 EOF
 printf 'ENVCFG_TOKEN=x\n' >"${ENV_FILE}"
-if "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL_NC}" >/dev/null 2>&1; then
+if "${REPO_ROOT}/internals/workload-setup.sh" "${WL_NC}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
   fail "non-empty environment without quadlets/*.container must fail closed"
 fi
 pass "non-empty environment without .container fails closed"
@@ -115,13 +115,13 @@ pass "non-empty environment without .container fails closed"
 cat >"${FIX_DIR}/${WL_NC}/manifest.json" <<'EOF'
 { "intent": "run" }
 EOF
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL_NC}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL_NC}" --env "${ENV_SLUG}"
 pass "omit environment with no containers succeeds"
 
 cat >"${FIX_DIR}/${WL_NC}/manifest.json" <<'EOF'
 { "intent": "run", "environment": [] }
 EOF
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL_NC}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL_NC}" --env "${ENV_SLUG}"
 pass "[] environment with no containers succeeds"
 
 # --- invalid dotenv fails ---
@@ -132,7 +132,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 }
 EOF
 printf 'export ENVCFG_TOKEN=nope\n' >"${ENV_FILE}"
-if "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}" >/dev/null 2>&1; then
+if "${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
   fail "invalid dotenv (export) must fail closed"
 fi
 pass "invalid dotenv fails closed"
@@ -140,7 +140,7 @@ pass "invalid dotenv fails closed"
 # --- missing listed key fails ---
 printf 'ENVCFG_MODE=dev\n' >"${ENV_FILE}"
 unset ENVCFG_TOKEN ENVCFG_MODE || true
-if ENVCFG_MODE=dev "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}" >/dev/null 2>&1; then
+if ENVCFG_MODE=dev "${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
   fail "missing listed key must fail closed"
 fi
 # restore manifest keys both required
@@ -150,7 +150,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
   "environment": ["ENVCFG_TOKEN", "ENVCFG_MODE"]
 }
 EOF
-if "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}" >/dev/null 2>&1; then
+if "${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
   fail "missing ENVCFG_TOKEN must fail closed"
 fi
 pass "missing listed key fails closed"
@@ -164,7 +164,7 @@ EOF
 unset ENVCFG_TOKEN ENVCFG_MODE ENVCFG_SURPLUS || true
 export ENVCFG_TOKEN="${SECRET_OVERRIDE}"
 
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}"
 
 acceptance_wait_user_unit_active "${WL}.service" \
   || fail "Intent run should start ${WL}.service"
@@ -185,7 +185,7 @@ pass "bag values absent from Host Volume SoT"
 printf 'ENVCFG_TOKEN=%s\nENVCFG_MODE=rotated\n' "${SECRET_OVERRIDE}" >"${ENV_FILE}"
 unset ENVCFG_TOKEN || true
 export ENVCFG_TOKEN="${SECRET_OVERRIDE}"
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}"
 acceptance_wait_user_unit_active "${WL}.service" \
   || fail "SoT noop re-Setup should keep ${WL}.service active"
 acceptance_assert_container_env "${WL}" ENVCFG_MODE rotated
@@ -203,7 +203,7 @@ write_container "${FIX_DIR}/${WL2}" "${WL2}-a" "${WL2}-a"
 write_container "${FIX_DIR}/${WL2}" "${WL2}-b" "${WL2}-b"
 printf 'ENVCFG_TOKEN=%s\n' "${SECRET_OVERRIDE}" >"${ENV_FILE}"
 export ENVCFG_TOKEN="${SECRET_OVERRIDE}"
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL2}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL2}" --env "${ENV_SLUG}"
 
 acceptance_wait_user_unit_active "${WL2}-a.service" \
   || fail "multi-container Setup should start ${WL2}-a.service"

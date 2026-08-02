@@ -5,11 +5,13 @@
 # Output: omitted → $TMPDIR/platform-diagnostics-<env>-<bundle>-<timestamp>/; or --out <dir>.
 # Requires: terraform, ssh; applied State with a live Host (Reserved IP assigned);
 # Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
-# Usage: ./internals/diagnostics.sh [--env <slug>] --bundle <id> [--out <dir>]
+# Usage: ./internals/diagnostics.sh --bundle <id> [--env <slug>] [--out <dir>]
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
+# shellcheck source=internals/lib/cli.sh
+source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=internals/lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=internals/lib/diagnostics.sh
@@ -26,17 +28,16 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 operator_configuration_require private || exit 1
 
-environment_activate "${STACK_DIR}" "$@" || exit 1
-set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
-diagnostics_parse_args "$@" || exit 1
-
-if [[ -z "${DIAGNOSTICS_BUNDLE_RAW}" ]]; then
+CLI_env=""
+CLI_bundle=""
+CLI_out=""
+cli_operator_parse CLI flag:bundle:value:required flag:out:value -- "$@" || {
   diagnostics_usage
-  echo >&2
-  fail "--bundle is required"
-fi
+  exit 1
+}
+environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
 
-BUNDLE="$(diagnostics_resolve_bundle "${DIAGNOSTICS_BUNDLE_RAW}")" || exit 1
+BUNDLE="$(diagnostics_resolve_bundle "${CLI_bundle}")" || exit 1
 ENV_SLUG="${PLATFORM_ENV}"
 
 command -v terraform >/dev/null || fail "terraform not found"
@@ -45,7 +46,7 @@ command -v ssh >/dev/null || fail "ssh not found"
 host_session_open operator "${STACK_DIR}" || exit 1
 IP="$(host_session_ip)"
 
-OUT_DIR="${DIAGNOSTICS_OUT}"
+OUT_DIR="${CLI_out}"
 if [[ -z "${OUT_DIR}" ]]; then
   ts="$(date -u +%Y%m%dT%H%M%SZ)"
   OUT_DIR="${TMPDIR:-/tmp}/platform-diagnostics-${ENV_SLUG}-${BUNDLE}-${ts}"

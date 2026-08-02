@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Environment selection for Propraetor operator CLI (ADR-0019).
+# Environment selection for Propraetor operator CLI (ADR-0019 / ADR-0039).
 # Sourced by Apply / Park / Teardown / runners / Host helpers.
 # Safe by default: omitted / default / test → Terraform workspace `default`.
+# Argv parsing lives in cli.sh; this Module maps slug → workspace / PLATFORM_ENV.
 #
-# After environment_parse_args: ENVIRONMENT_RAW (slug or empty), ENVIRONMENT_REST (argv array).
-# After environment_activate: also PLATFORM_ENV (cloud slug for nested --env propagation).
+# After environment_activate: ENVIRONMENT_RAW (slug or empty), PLATFORM_ENV (cloud slug).
 
 # Resolve an Environment slug (or empty) to a Terraform workspace name.
 # Prints the workspace on stdout. Fails closed on invalid / ambiguous slugs.
@@ -45,48 +45,6 @@ environment_volume_name_for() {
   printf 'propraetor-%s-web-data\n' "${cloud_slug}"
 }
 
-# Parse argv for a single optional --env / --env=<slug>.
-# Sets ENVIRONMENT_RAW and ENVIRONMENT_REST. Fails on missing value or duplicate --env.
-environment_parse_args() {
-  ENVIRONMENT_RAW=""
-  ENVIRONMENT_REST=()
-  local seen_env=false
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --env)
-        if [[ "${seen_env}" == true ]]; then
-          echo "FAIL: duplicate --env (specify Environment once)" >&2
-          return 1
-        fi
-        if [[ $# -lt 2 ]]; then
-          echo "FAIL: --env requires a slug (e.g. --env test)" >&2
-          return 1
-        fi
-        ENVIRONMENT_RAW="$2"
-        seen_env=true
-        shift 2
-        ;;
-      --env=*)
-        if [[ "${seen_env}" == true ]]; then
-          echo "FAIL: duplicate --env (specify Environment once)" >&2
-          return 1
-        fi
-        ENVIRONMENT_RAW="${1#--env=}"
-        if [[ -z "${ENVIRONMENT_RAW}" ]]; then
-          echo "FAIL: --env requires a slug (e.g. --env=test)" >&2
-          return 1
-        fi
-        seen_env=true
-        shift
-        ;;
-      *)
-        ENVIRONMENT_REST+=("$1")
-        shift
-        ;;
-    esac
-  done
-}
-
 # Select (create if missing) the Terraform workspace for this invocation.
 # Always selects explicitly — does not trust a leftover current workspace.
 environment_select_workspace() {
@@ -113,16 +71,17 @@ environment_select_workspace() {
   )
 }
 
-# Parse --env, select workspace, set PLATFORM_ENV for nested operator calls.
-# Callers pass stack_dir then "$@"; remaining args stay in ENVIRONMENT_REST.
+# Select workspace and set PLATFORM_ENV for nested operator calls.
+# Callers pass stack_dir and the raw --env slug (may be empty).
 environment_activate() {
   local stack_dir="$1"
-  shift
-  environment_parse_args "$@" || return 1
+  local slug="${2-}"
+  # shellcheck disable=SC2034  # ENVIRONMENT_RAW is read by callers after activate
+  ENVIRONMENT_RAW="${slug}"
   local workspace
-  workspace="$(environment_workspace_for "${ENVIRONMENT_RAW}")" || return 1
+  workspace="$(environment_workspace_for "${slug}")" || return 1
   environment_select_workspace "${stack_dir}" "${workspace}" || return 1
   # Canonical CLI slug for propagation (empty / default → test).
-  PLATFORM_ENV="$(environment_slug_for "${ENVIRONMENT_RAW}")" || return 1
+  PLATFORM_ENV="$(environment_slug_for "${slug}")" || return 1
   export PLATFORM_ENV
 }

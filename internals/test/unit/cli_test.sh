@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CLI seam for ./test.sh (ADR-0036 / docs/agents/testing.md).
+# CLI seam for ./test.sh (ADR-0036 / ADR-0039 / docs/agents/testing.md).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -33,7 +33,7 @@ assert_help_and_fail "unit rejects --env" unit --env test
 assert_help_and_fail "unit rejects --env with selector" unit environment_test --env test
 assert_help_and_fail "--env missing slug" acceptance --env
 assert_help_and_fail "too many positionals" acceptance one two
-assert_help_and_fail "--env not last" acceptance --env test 70-podman
+assert_help_and_fail "selector after flags" acceptance --env test 70-podman
 assert_help_and_fail "unknown flag" unit --bogus
 
 # Dispatch reached the unit runner (unknown selector is a suite-level error, not Usage).
@@ -44,12 +44,15 @@ run_test_sh unit __no_such_unit_test_selector__
   || fail "unit unknown selector: unexpected output: ${OUT}"
 pass "unit dispatches to suite runner"
 
-# --verbose is accepted by the dispatcher (still reaches the suite runner).
-run_test_sh unit --verbose __no_such_unit_test_selector__
-[[ "${STATUS}" -ne 0 ]] || fail "unit --verbose unknown selector: expected non-zero"
-[[ "${OUT}" != *"Usage:"* ]] || fail "unit --verbose: should not be dispatcher Usage"
+# --verbose after positionals is accepted by the dispatcher.
+run_test_sh unit __no_such_unit_test_selector__ --verbose
+[[ "${STATUS}" -ne 0 ]] || fail "unit selector --verbose: expected non-zero"
+[[ "${OUT}" != *"Usage:"* ]] || fail "unit selector --verbose: should not be dispatcher Usage"
 [[ "${OUT}" == *"no Unit Test matches"* || "${OUT}" == *"matches selector"* ]] \
-  || fail "unit --verbose unknown selector: unexpected output: ${OUT}"
-pass "unit --verbose dispatches to suite runner"
+  || fail "unit selector --verbose: unexpected output: ${OUT}"
+pass "unit selector --verbose dispatches"
+
+# Flag before selector is rejected (positionals then flags).
+assert_help_and_fail "verbose before selector" unit --verbose __no_such_unit_test_selector__
 
 echo "All ./test.sh CLI checks passed."

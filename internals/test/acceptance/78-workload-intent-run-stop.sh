@@ -62,7 +62,7 @@ host_ssh \
    rm -f /home/platform/.config/containers/systemd/${WL}.container"
 
 write_manifest run
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
   "test -f /var/lib/host-volume/components_data/workloads/${WL}/quadlets/${WL}.container" \
@@ -82,7 +82,7 @@ else
 fi
 
 write_manifest stop
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 if [[ -n "${HOST}" ]]; then
   stop_routes="$(host_ssh \

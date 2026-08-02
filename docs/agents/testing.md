@@ -1,21 +1,22 @@
 # Testing
 
-How agents run and extend Propraetor’s executable checks. Glossary: **Acceptance Test**, **Lifecycle Test**, **Unit Test** in root `CONTEXT.md`. Decision: [ADR-0036](../adr/0036-unified-test-entrypoint.md).
+How agents run and extend Propraetor’s executable checks. Glossary: **Acceptance Test**, **Lifecycle Test**, **Unit Test** in root `CONTEXT.md`. Decision: [ADR-0036](../adr/0036-unified-test-entrypoint.md). Argv grammar: [ADR-0039](../adr/0039-operator-cli-positionals-then-flags.md).
 
 ## Entrypoint
 
 From the repo root:
 
 ```bash
-./test.sh <suite> [--verbose] [<case-selector>] [--env <slug>]
+./test.sh <suite> [<case-selector>] [--verbose] [--env <slug>]
 ./test.sh <suite> [--verbose] [--env <slug>]
 ```
 
 - `<suite>` is **mandatory** — the name of a subdirectory of `internals/test/` (`acceptance`, `lifecycle`, or `unit`).
 - `<case-selector>` is optional — unique substring of one case filename (Acceptance/Lifecycle) or of a Unit Test path/basename; multiple matches fail.
+- Positionals come first; flags follow; flag order is free (ADR-0039).
 - `--verbose` (or `TEST_VERBOSE=1`) streams each case live instead of quiet-on-pass buffering.
-- `--env <slug>` is optional and, when present, **must be last**. Valid only for `acceptance` and `lifecycle` (ADR-0019 defaults). Passing `--env` to `unit` is invalid.
-- Any other shape (missing suite, unknown suite, bad flag order) → print help and exit non-zero.
+- `--env <slug>` is optional. Valid only for `acceptance` and `lifecycle` (ADR-0019 defaults). Passing `--env` to `unit` is invalid.
+- Any other shape (missing suite, unknown suite, flag before positional, unknown flag) → print help and exit non-zero.
 
 `./test.sh` is a thin dispatcher: it validates the suite directory, then execs `internals/test/<suite>/run.sh` with the remaining args.
 

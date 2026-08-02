@@ -10,12 +10,12 @@ diagnostics_known_bundles() {
 # Usage / help for the diagnostics operator entrypoint (stderr).
 diagnostics_usage() {
   cat <<'EOF' >&2
-Usage: ./internals/diagnostics.sh [--env <slug>] --bundle <id> [--out <dir>]
+Usage: ./internals/diagnostics.sh --bundle <id> [--env <slug>] [--out <dir>]
 
 Pull Host diagnostics (named artifact bundles) for local inspection.
 
-  --env <slug>     Environment (omitted / default / test → test)
   --bundle <id>    Required. Artifact bundle to pull
+  --env <slug>     Environment (omitted / default / test → test)
   --out <dir>      Output directory (default: $TMPDIR/platform-diagnostics-<env>-<bundle>-<timestamp>/)
 
 Bundles:
@@ -68,72 +68,3 @@ diagnostics_bundle_status_snapshot() {
   esac
 }
 
-# Parse argv for required --bundle and optional --out (closed surface).
-# Sets DIAGNOSTICS_BUNDLE_RAW and DIAGNOSTICS_OUT.
-# Does not require --bundle by itself — caller checks and prints usage.
-diagnostics_parse_args() {
-  DIAGNOSTICS_BUNDLE_RAW=""
-  DIAGNOSTICS_OUT=""
-  local seen_bundle=false
-  local seen_out=false
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --bundle)
-        if [[ "${seen_bundle}" == true ]]; then
-          echo "FAIL: duplicate --bundle (specify bundle once)" >&2
-          return 1
-        fi
-        if [[ $# -lt 2 ]]; then
-          echo "FAIL: --bundle requires an id (e.g. --bundle ihp)" >&2
-          return 1
-        fi
-        DIAGNOSTICS_BUNDLE_RAW="$2"
-        seen_bundle=true
-        shift 2
-        ;;
-      --bundle=*)
-        if [[ "${seen_bundle}" == true ]]; then
-          echo "FAIL: duplicate --bundle (specify bundle once)" >&2
-          return 1
-        fi
-        DIAGNOSTICS_BUNDLE_RAW="${1#--bundle=}"
-        if [[ -z "${DIAGNOSTICS_BUNDLE_RAW}" ]]; then
-          echo "FAIL: --bundle requires an id (e.g. --bundle=ihp)" >&2
-          return 1
-        fi
-        seen_bundle=true
-        shift
-        ;;
-      --out)
-        if [[ "${seen_out}" == true ]]; then
-          echo "FAIL: duplicate --out (specify output directory once)" >&2
-          return 1
-        fi
-        if [[ $# -lt 2 ]]; then
-          echo "FAIL: --out requires a directory path" >&2
-          return 1
-        fi
-        DIAGNOSTICS_OUT="$2"
-        seen_out=true
-        shift 2
-        ;;
-      --out=*)
-        if [[ "${seen_out}" == true ]]; then
-          echo "FAIL: duplicate --out (specify output directory once)" >&2
-          return 1
-        fi
-        DIAGNOSTICS_OUT="${1#--out=}"
-        if [[ -z "${DIAGNOSTICS_OUT}" ]]; then
-          echo "FAIL: --out requires a directory path" >&2
-          return 1
-        fi
-        seen_out=true
-        shift
-        ;;
-      *)
-        echo "FAIL: unknown argument: $1 (only optional --env, required --bundle, and optional --out are accepted)" >&2
-        return 1
-        ;;
-    esac
-  done
-}

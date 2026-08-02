@@ -20,6 +20,8 @@ QUADLET_SESSION_LIB="${REPO_ROOT}/internals/components/lib/quadlet-user-session.
 EDGE_ROUTES_LIB="${REPO_ROOT}/internals/components/lib/edge-routes-host.sh"
 EDGE_WANT_LIST_LIB="${REPO_ROOT}/internals/components/lib/edge-want-list-host.sh"
 EDGE_FRONT_DOOR_LIB="${REPO_ROOT}/internals/components/lib/edge-front-door-host.sh"
+# shellcheck source=lib/cli.sh
+source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=lib/ssh.sh
@@ -34,11 +36,9 @@ source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 operator_configuration_require private || exit 1
 
-environment_activate "${STACK_DIR}" "$@" || exit 1
-for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
-  echo "unknown argument: ${arg} (only optional --env is accepted)" >&2
-  exit 1
-done
+CLI_env=""
+cli_operator_parse CLI -- "$@" || exit 1
+environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
 
 [[ -f "${HOST_SCRIPT}" ]] || {
   echo "missing ${HOST_SCRIPT}" >&2

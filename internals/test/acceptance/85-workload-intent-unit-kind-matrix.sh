@@ -154,7 +154,7 @@ REMOTE
 
 # --- Intent run ---
 write_manifest run
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh "test -f /home/platform/.config/containers/systemd/${WL}.container" \
   || fail "Always-on unit file missing after run"
@@ -189,7 +189,7 @@ pass "Intent run ensures Ensure volume"
 
 # --- Intent stop ---
 write_manifest stop
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 always_active="$(unit_state "${WL}.service" ActiveState)"
 [[ "${always_active}" != "active" ]] \
@@ -216,7 +216,7 @@ pass "Intent stop leaves Ensure resources in place; unit files retained"
 
 # --- Intent trash (same unit expectation as stop) ---
 write_manifest trash
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 always_active="$(unit_state "${WL}.service" ActiveState)"
 [[ "${always_active}" != "active" ]] \

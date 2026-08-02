@@ -7,6 +7,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 CASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
+# shellcheck source=internals/lib/cli.sh
+source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=internals/lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=internals/lib/operator-dotenv.sh
@@ -20,8 +22,15 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 
-environment_activate "${STACK_DIR}" "$@" || exit 1
-set -- "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"
+CLI_env=""
+CLI_selector=""
+cli_operator_parse CLI pos:selector:optional -- "$@" || exit 1
+environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
+if [[ -n "${CLI_selector}" ]]; then
+  set -- "${CLI_selector}"
+else
+  set --
+fi
 
 command -v terraform >/dev/null || fail "terraform not found"
 command -v curl >/dev/null || fail "curl not found"

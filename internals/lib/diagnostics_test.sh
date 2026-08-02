@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Host diagnostics arg/bundle seam (pure helper — no SSH).
+# Host diagnostics bundle seam (pure helper — no SSH). Argv grammar: cli_test.sh.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -46,52 +46,5 @@ assert_eq "$(diagnostics_bundle_log_files ihp | tr '\n' ' ')" \
 assert_eq "$(diagnostics_bundle_status_snapshot ihp)" \
   "cloud-init-status-long.txt" \
   "ihp status snapshot name"
-
-# --- parse args ---
-parse_ok() {
-  diagnostics_parse_args "$@" || fail "parse failed for: $*"
-  printf '%s\t%s\n' "${DIAGNOSTICS_BUNDLE_RAW}" "${DIAGNOSTICS_OUT}"
-}
-
-got="$(parse_ok)"
-[[ "${got}" == $'\t' ]] || fail "no flags should leave bundle and out empty; got '${got}'"
-pass "parse: no flags leaves bundle empty (caller requires it)"
-
-got="$(parse_ok --bundle=ihp)"
-[[ "${got}" == $'ihp\t' ]] || fail "want ihp + empty out; got '${got}'"
-pass "parse: --bundle=ihp"
-
-got="$(parse_ok --bundle ihp --out /tmp/diag-out)"
-[[ "${got}" == $'ihp\t/tmp/diag-out' ]] || fail "want ihp + /tmp/diag-out; got '${got}'"
-pass "parse: --bundle ihp --out /tmp/diag-out"
-
-got="$(parse_ok --out=/tmp/x)"
-[[ "${got}" == $'\t/tmp/x' ]] || fail "want empty bundle + /tmp/x; got '${got}'"
-pass "parse: --out alone leaves bundle empty"
-
-if diagnostics_parse_args --bundle 2>/dev/null; then
-  fail "expected failure for --bundle without value"
-fi
-pass "parse: rejects --bundle without value"
-
-if diagnostics_parse_args --out 2>/dev/null; then
-  fail "expected failure for --out without value"
-fi
-pass "parse: rejects --out without value"
-
-if diagnostics_parse_args --bundle=ihp --bundle=ihp 2>/dev/null; then
-  fail "expected failure for duplicate --bundle"
-fi
-pass "parse: rejects duplicate --bundle"
-
-if diagnostics_parse_args --out=/a --out=/b 2>/dev/null; then
-  fail "expected failure for duplicate --out"
-fi
-pass "parse: rejects duplicate --out"
-
-if diagnostics_parse_args --paths=/var/log/x 2>/dev/null; then
-  fail "expected failure for unknown flag"
-fi
-pass "parse: rejects unknown flag"
 
 echo "All Host diagnostics helper checks passed."

@@ -86,7 +86,7 @@ REMOTE
 
 # --- Intent run: Arm ---
 write_manifest run
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
   "test -f /var/lib/host-volume/components_data/workloads/${WL}/quadlets/${WL}-${ROLE}.container" \
@@ -117,7 +117,7 @@ pass "Intent run Arms On-demand timer"
 
 # --- Intent stop: Disarm ---
 write_manifest stop
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 job_active="$(unit_state "${WL}-${ROLE}.service" ActiveState)"
 [[ "${job_active}" != "active" ]] \
@@ -132,7 +132,7 @@ pass "Intent stop Disarms On-demand timer and job"
 
 # --- Intent trash: same Disarm expectation ---
 write_manifest trash
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${PLATFORM_ENV:-test}" "${WL}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 job_active="$(unit_state "${WL}-${ROLE}.service" ActiveState)"
 [[ "${job_active}" != "active" ]] \

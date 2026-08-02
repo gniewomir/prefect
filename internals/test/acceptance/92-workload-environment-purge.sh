@@ -74,7 +74,7 @@ stage_wl "${WL_TRASH}" run
 stage_wl "${WL_KEEP}" run
 
 for name in "${WL_STOP}" "${WL_TRASH}" "${WL_KEEP}"; do
-  "${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${name}"
+  "${REPO_ROOT}/internals/workload-setup.sh" "${name}" --env "${ENV_SLUG}"
   acceptance_wait_user_unit_active "${name}.service" \
     || fail "${name} should be active after run Setup"
   acceptance_assert_container_env "${name}" ENVPURGE_TOKEN "${SECRET}"
@@ -88,7 +88,7 @@ cat >"${FIX_DIR}/${WL_STOP}/manifest.json" <<EOF
   "environment": ["ENVPURGE_TOKEN"]
 }
 EOF
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL_STOP}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL_STOP}" --env "${ENV_SLUG}"
 host_ssh "test -d $(env_tree "${WL_STOP}")" \
   || fail "Intent stop must retain Platform User Environment Configuration tree"
 host_ssh "test -f /home/platform/.config/containers/systemd/${WL_STOP}.container" \
@@ -102,7 +102,7 @@ cat >"${FIX_DIR}/${WL_TRASH}/manifest.json" <<EOF
   "environment": ["ENVPURGE_TOKEN"]
 }
 EOF
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL_TRASH}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL_TRASH}" --env "${ENV_SLUG}"
 host_ssh "test -d $(env_tree "${WL_TRASH}")" \
   || fail "Intent trash must retain Platform User Environment Configuration tree until Purge"
 host_ssh "test -f /home/platform/.config/containers/systemd/${WL_TRASH}.container" \
@@ -116,7 +116,7 @@ cat >"${FIX_DIR}/${WL_KEEP}/manifest.json" <<EOF
   "environment": ["ENVPURGE_TOKEN"]
 }
 EOF
-"${REPO_ROOT}/internals/workload-setup.sh" --env "${ENV_SLUG}" "${WL_KEEP}"
+"${REPO_ROOT}/internals/workload-setup.sh" "${WL_KEEP}" --env "${ENV_SLUG}"
 
 "${REPO_ROOT}/internals/purge-workloads.sh" --env "${ENV_SLUG}"
 

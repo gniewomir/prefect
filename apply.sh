@@ -12,6 +12,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 PRESENCE_VAR=(-var=recreatables_present=true)
+# shellcheck source=internals/lib/cli.sh
+source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=internals/lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=internals/lib/adopt.sh
@@ -25,16 +27,11 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 
-environment_parse_args "$@" || exit 1
+CLI_yes=0
+CLI_env=""
+cli_operator_parse CLI flag:yes:bool -- "$@" || exit 1
 YES=false
-for arg in "${ENVIRONMENT_REST[@]+"${ENVIRONMENT_REST[@]}"}"; do
-  case "${arg}" in
-    --yes) YES=true ;;
-    *) fail "unknown argument: ${arg} (only optional --yes and --env are accepted)" ;;
-  esac
-done
-
-WORKSPACE="$(environment_workspace_for "${ENVIRONMENT_RAW}")" || exit 1
+[[ "${CLI_yes}" -eq 1 ]] && YES=true
 
 command -v terraform >/dev/null || fail "terraform not found"
 
@@ -48,7 +45,7 @@ operator_configuration_export_host_root_ssh_public_key || exit 1
 
 cd "${STACK_DIR}"
 
-environment_select_workspace "${STACK_DIR}" "${WORKSPACE}" || fail "could not select Environment workspace '${WORKSPACE}'"
+environment_activate "${STACK_DIR}" "${CLI_env}" || fail "could not select Environment"
 
 adopt_preflight apply "${ENVIRONMENT_RAW}" || exit 1
 

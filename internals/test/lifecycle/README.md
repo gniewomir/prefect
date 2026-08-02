@@ -47,7 +47,7 @@ Credentials must already be in the environment or root `.env` (`DIGITALOCEAN_TOK
 ./test.sh lifecycle park-apply --env test
 ```
 
-**Environment (ADR-0019):** same default-safe rule as Acceptance and other operator entrypoints — no `--env` → **test** (workspace `default`); `--env test` / `--env default` are aliases; any other slug requires explicit `--env <slug>`. When present, `--env` must be last. The runner propagates the resolved Environment into nested `./park.sh` / `./apply.sh` / `./teardown.sh` so child calls cannot flip Environment.
+**Environment (ADR-0019):** same default-safe rule as Acceptance and other operator entrypoints — no `--env` → **test** (workspace `default`); `--env test` / `--env default` are aliases; any other slug requires explicit `--env <slug>`. Positionals first, then flags; flag order free (ADR-0039). The runner propagates the resolved Environment into nested `./park.sh` / `./apply.sh` / `./teardown.sh` so child calls cannot flip Environment.
 
 Each case that needs an Applied Stack calls `ensure_stack_applied` first (Apply when fresh, empty, or Parked; no-op when already Applied). Suite order is not a substitute for that — including after `20-teardown.sh` leaves State empty.
 
