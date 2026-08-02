@@ -5,6 +5,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 INTERNALS="${REPO_ROOT}/internals"
+# shellcheck source=../run-buffered-case.sh
+source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -42,8 +44,7 @@ fi
 
 for case_path in "${CASES[@]}"; do
   rel="${case_path#"${REPO_ROOT}/"}"
-  echo "--- ${rel} ---"
-  bash "${case_path}" || fail "Unit Test failed: ${rel}"
+  run_buffered_case "${rel}" "${case_path}" || fail "Unit Test failed: ${rel}"
 done
 
 echo "All Unit Tests passed."

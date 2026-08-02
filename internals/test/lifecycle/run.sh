@@ -13,6 +13,8 @@ source "${REPO_ROOT}/internals/lib/environment.sh"
 source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
 # shellcheck source=internals/lib/operator-configuration.sh
 source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
+# shellcheck source=../run-buffered-case.sh
+source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -87,8 +89,8 @@ if [[ "${needs_teardown_confirm}" == true ]]; then
 fi
 
 for case_path in "${CASES[@]}"; do
-  echo "--- $(basename "${case_path}") ---"
-  bash "${case_path}" || fail "Lifecycle Test failed: $(basename "${case_path}")"
+  label="$(basename "${case_path}")"
+  run_buffered_case "${label}" "${case_path}" || fail "Lifecycle Test failed: ${label}"
 done
 
 echo "All Lifecycle Tests passed."

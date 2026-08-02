@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Unified test dispatcher (ADR-0036). Suites live under internals/test/<suite>/run.sh.
-# Usage: ./test.sh <suite> [<case-selector>] [--env <slug>]
+# Usage: ./test.sh <suite> [--verbose] [<case-selector>] [--env <slug>]
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -9,14 +9,15 @@ TEST_ROOT="${REPO_ROOT}/internals/test"
 usage() {
   cat <<EOF
 Usage:
-  ./test.sh <suite> [<case-selector>] [--env <slug>]
-  ./test.sh <suite> [--env <slug>]
+  ./test.sh <suite> [--verbose] [<case-selector>] [--env <slug>]
+  ./test.sh <suite> [--verbose] [--env <slug>]
 
 Suites (subdirectory of internals/test/):
   acceptance   Applied Stack external behavior (Host present; non-destructive)
   lifecycle    Park / Apply-after-Park / Teardown (destructive; opt-in)
   unit         Colocated *_test.sh under internals/ (no Applied Stack)
 
+--verbose (or TEST_VERBOSE=1) streams each case live instead of quiet-on-pass.
 --env is only valid for acceptance and lifecycle (ADR-0019). When present it must be last.
 See docs/agents/testing.md.
 EOF
@@ -87,6 +88,29 @@ for arg in "${REST[@]+"${REST[@]}"}"; do
     fail_usage "--env must be last when present"
   fi
 done
+
+# Optional --verbose anywhere before --env; export for suite runners / run_buffered_case.
+VERBOSE=0
+FILTERED=()
+for arg in "${REST[@]+"${REST[@]}"}"; do
+  case "${arg}" in
+    --verbose)
+      VERBOSE=1
+      ;;
+    -*)
+      fail_usage "unknown flag '${arg}'"
+      ;;
+    *)
+      FILTERED+=("${arg}")
+      ;;
+  esac
+done
+REST=("${FILTERED[@]+"${FILTERED[@]}"}")
+N=${#REST[@]}
+
+if [[ "${VERBOSE}" -eq 1 ]]; then
+  export TEST_VERBOSE=1
+fi
 
 if [[ "${N}" -gt 1 ]]; then
   fail_usage "too many arguments after suite (expected optional case-selector only)"

@@ -7,16 +7,19 @@ How agents run and extend Propraetor’s executable checks. Glossary: **Acceptan
 From the repo root:
 
 ```bash
-./test.sh <suite> [<case-selector>] [--env <slug>]
-./test.sh <suite> [--env <slug>]
+./test.sh <suite> [--verbose] [<case-selector>] [--env <slug>]
+./test.sh <suite> [--verbose] [--env <slug>]
 ```
 
 - `<suite>` is **mandatory** — the name of a subdirectory of `internals/test/` (`acceptance`, `lifecycle`, or `unit`).
 - `<case-selector>` is optional — unique substring of one case filename (Acceptance/Lifecycle) or of a Unit Test path/basename; multiple matches fail.
+- `--verbose` (or `TEST_VERBOSE=1`) streams each case live instead of quiet-on-pass buffering.
 - `--env <slug>` is optional and, when present, **must be last**. Valid only for `acceptance` and `lifecycle` (ADR-0019 defaults). Passing `--env` to `unit` is invalid.
 - Any other shape (missing suite, unknown suite, bad flag order) → print help and exit non-zero.
 
 `./test.sh` is a thin dispatcher: it validates the suite directory, then execs `internals/test/<suite>/run.sh` with the remaining args.
+
+By default, suite runners buffer each case’s stdout+stderr: they print `--- <name> ---` (and a spinner on a TTY) while the case runs, and dump the full log only when the case fails (`internals/test/run-buffered-case.sh`). With `--verbose` / `TEST_VERBOSE=1`, case output streams live. Setup / fixture output before the case loop always streams live.
 
 ## Suites
 

@@ -10,6 +10,8 @@ STACK_DIR="${REPO_ROOT}/internals/terraform"
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib.sh
 source "${TEST_DIR}/lib.sh"
+# shellcheck source=../run-buffered-case.sh
+source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
 # shellcheck source=internals/lib/environment.sh
 source "${REPO_ROOT}/internals/lib/environment.sh"
 # shellcheck source=internals/lib/operator-dotenv.sh
@@ -85,8 +87,8 @@ else
 fi
 
 for case_path in "${CASES[@]}"; do
-  echo "--- $(basename "${case_path}") ---"
-  bash "${case_path}" || fail "Acceptance Test failed: $(basename "${case_path}")"
+  label="$(basename "${case_path}")"
+  run_buffered_case "${label}" "${case_path}" || fail "Acceptance Test failed: ${label}"
 done
 
 echo "All Acceptance Tests passed."

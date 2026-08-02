@@ -34,6 +34,7 @@ assert_help_and_fail "unit rejects --env with selector" unit environment_test --
 assert_help_and_fail "--env missing slug" acceptance --env
 assert_help_and_fail "too many positionals" acceptance one two
 assert_help_and_fail "--env not last" acceptance --env test 70-podman
+assert_help_and_fail "unknown flag" unit --bogus
 
 # Dispatch reached the unit runner (unknown selector is a suite-level error, not Usage).
 run_test_sh unit __no_such_unit_test_selector__
@@ -42,5 +43,13 @@ run_test_sh unit __no_such_unit_test_selector__
 [[ "${OUT}" == *"no Unit Test matches"* || "${OUT}" == *"matches selector"* ]] \
   || fail "unit unknown selector: unexpected output: ${OUT}"
 pass "unit dispatches to suite runner"
+
+# --verbose is accepted by the dispatcher (still reaches the suite runner).
+run_test_sh unit --verbose __no_such_unit_test_selector__
+[[ "${STATUS}" -ne 0 ]] || fail "unit --verbose unknown selector: expected non-zero"
+[[ "${OUT}" != *"Usage:"* ]] || fail "unit --verbose: should not be dispatcher Usage"
+[[ "${OUT}" == *"no Unit Test matches"* || "${OUT}" == *"matches selector"* ]] \
+  || fail "unit --verbose unknown selector: unexpected output: ${OUT}"
+pass "unit --verbose dispatches to suite runner"
 
 echo "All ./test.sh CLI checks passed."
