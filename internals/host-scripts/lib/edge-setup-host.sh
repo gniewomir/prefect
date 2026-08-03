@@ -34,7 +34,7 @@ edge_setup() {
   local staged_want_list="${2:-}"
 
   USER_NAME="${USER_NAME:-platform}"
-  DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/components_data/edge}"
+  DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/edge}"
   ROUTES_DIR="${DATA_ROOT}/routes"
   DOMAINS_DIR="${DATA_ROOT}/domains"
   CERTS_DIR="${DATA_ROOT}/certs"
@@ -56,9 +56,9 @@ edge_setup() {
   edge_plant_placeholder_pems
   edge_reconcile_domain_fronts
 
-  # Route Declarations: gather Intent-run SoT into Edge interior (ADR-0040).
+  # Route Declarations: gather Intent-run SoT into Edge interior (ADR-0040 / ADR-0041).
   # Workload Setup/Purge do not write Edge routes; refresh by re-running Edge Setup.
-  WORKLOADS_ROOT="${WORKLOADS_ROOT:-$(dirname "${DATA_ROOT}")/workloads}"
+  WORKLOADS_ROOT="${WORKLOADS_ROOT:-/var/lib/host-volume/internals/workloads}"
   edge_gather_workload_routes "${WORKLOADS_ROOT}" || return 1
   local routes_changed="${EDGE_ROUTES_CHANGED:-0}"
 

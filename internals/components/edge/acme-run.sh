@@ -6,13 +6,13 @@
 # EDGE_ACME_DIRECTORY=production opts into the Let's Encrypt production directory.
 set -euo pipefail
 
-DATA_ROOT=/var/lib/host-volume/components_data/edge
+DATA_ROOT=/var/lib/host-volume/data/components/edge
 ROUTES_DIR="${DATA_ROOT}/routes"
 CERTS_DIR="${DATA_ROOT}/certs"
 ACME_DIR="${DATA_ROOT}/acme"
 ACME_WWW="${DATA_ROOT}/acme-www"
 WANT_LIST="${ACME_DIR}/want-list"
-LEGO_BIN="${LEGO_BIN:-/var/lib/host-volume/components_data/edge/acme/bin/lego}"
+LEGO_BIN="${LEGO_BIN:-/var/lib/host-volume/data/components/edge/acme/bin/lego}"
 USER_NAME="${PLATFORM_USER:-platform}"
 
 # shellcheck source=../../host-scripts/lib/quadlet-user-session.sh

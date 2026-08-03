@@ -131,12 +131,13 @@ printf '[Container]\nImage=docker.io/library/nginx:alpine\n' >"${TREE}/quadlets/
 
 # Ambient Edge data root (Host Volume substitute).
 DATA_ROOT="${TMP}/edge-data"
+WORKLOADS_ROOT="${TMP}/workloads"
 USER_NAME="$(id -un)"
 STAGE="${TMP}/staged-want-list"
 printf '%s\n' 'alpha.example.test' '# comment' 'beta.example.test' >"${STAGE}"
 
 # Pre-plant lego at the expected version so Setup never hits the network.
-mkdir -p "${DATA_ROOT}/acme/bin"
+mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}"
 cat >"${DATA_ROOT}/acme/bin/lego" <<'EOF'
 #!/usr/bin/env bash
 echo "lego version 5.3.1"
@@ -179,7 +180,7 @@ pass "edge_setup succeeds: Domains present, units active path, front door answer
 : >"${STATE}/systemctl.calls"
 export CURL_SUCCEED_AFTER=1
 DATA_ROOT="${TMP}/edge-data"
-WORKLOADS_ROOT="$(dirname "${DATA_ROOT}")/workloads"
+WORKLOADS_ROOT="${TMP}/workloads"
 mkdir -p "${WORKLOADS_ROOT}/alpha/routes"
 printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/alpha/manifest.json"
 printf '%s\n' 'location /gather { return 200 "g"; }' \
@@ -217,7 +218,8 @@ export CURL_SUCCEED_AFTER=999
 export EDGE_FRONT_DOOR_WAIT_ATTEMPTS=3
 # Fresh data root so want-list/fronts still reconcile; outcome fails on wait.
 DATA_ROOT="${TMP}/edge-data-fail"
-mkdir -p "${DATA_ROOT}/acme/bin"
+WORKLOADS_ROOT="${TMP}/workloads"
+mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}"
 cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
 if edge_setup "${TREE}" "${STAGE}" 2>"${STATE}/setup.err"; then
   fail "edge_setup should fail when front door never answers"

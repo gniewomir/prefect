@@ -9,7 +9,7 @@ require_ip
 acceptance_host_session
 
 USER_NAME="${PLATFORM_USER:-platform}"
-DATA_ROOT=/var/lib/host-volume/components_data/edge
+DATA_ROOT=/var/lib/host-volume/data/components/edge
 ACME_WWW="${DATA_ROOT}/acme-www"
 WANT_LIST="${DATA_ROOT}/acme/want-list"
 TOKEN="edge-acme-foundation-probe"

@@ -5,7 +5,7 @@ Description=Propraetor example web-api-with-db app
 Image=docker.io/library/nginx:alpine
 ContainerName=web-api-with-db-api
 Pod=web-api-with-db.pod
-Volume=/var/lib/host-volume/components_data/workloads/web-api-with-db:/var/lib/workload:rw
+Volume=/var/lib/host-volume/data/workloads/web-api-with-db:/var/lib/workload:rw
 
 [Service]
 Restart=on-failure

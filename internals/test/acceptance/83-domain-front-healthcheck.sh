@@ -18,7 +18,7 @@ source "${REPO_ROOT}/internals/lib/domains/domain_front_target.sh"
 # shellcheck source=../../lib/domains/domain_front_staging_hc.sh
 source "${REPO_ROOT}/internals/lib/domains/domain_front_staging_hc.sh"
 
-DATA_ROOT=/var/lib/host-volume/components_data/edge
+DATA_ROOT=/var/lib/host-volume/data/components/edge
 DOMAINS_HOST="${DATA_ROOT}/domains"
 CERTS_HOST="${DATA_ROOT}/certs"
 STAGING_CA="${REPO_ROOT}/internals/test/acceptance/fixtures/le-staging-roots/le-staging-roots.pem"
@@ -163,7 +163,7 @@ systemctl start "user@\${UID_NUM}.service"
 runuser -u platform -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" \
   systemctl --user stop edge-acme.service 2>/dev/null || true
 runuser -u platform -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" EDGE_ACME_ISSUE=0 \
-  /var/lib/host-volume/components/edge/acme-run.sh
+  /var/lib/host-volume/internals/components/edge/acme-run.sh
 REMOTE
 front_post_acme="$(host_ssh "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
 [[ "${front_pre_acme}" == "${front_post_acme}" ]] \

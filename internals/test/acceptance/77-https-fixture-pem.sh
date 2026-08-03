@@ -35,15 +35,16 @@ location = /tlsprobe {
 EOF
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/components_data/edge/routes/${WL}.conf \
-          /var/lib/host-volume/components_data/edge/routes/${WL}--* \
-          /var/lib/host-volume/components_data/workloads/${WL}"
+  "rm -rf /var/lib/host-volume/data/components/edge/routes/${WL}.conf \
+          /var/lib/host-volume/data/components/edge/routes/${WL}--* \
+          /var/lib/host-volume/internals/workloads/${WL} \
+          /var/lib/host-volume/data/workloads/${WL}"
 
 "${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 ensure_edge_route_fulfillment
 
 installed="$(host_ssh \
-  "cat /var/lib/host-volume/components_data/edge/routes/${WL}--${HOST}.conf")"
+  "cat /var/lib/host-volume/data/components/edge/routes/${WL}--${HOST}.conf")"
 echo "${installed}" | grep -Fq 'location = /tlsprobe' \
   || fail "operator Route fragment must be installed as authored"
 pass "Operator Route fragment installed for Domain-front include (${HOST})"
@@ -74,10 +75,10 @@ pass "Domain-front HTTPS serves Workload Route fragment"
 TOKEN="tls-acme-probe"
 host_ssh bash -s <<REMOTE
 set -euo pipefail
-TOKEN_PATH=/var/lib/host-volume/components_data/edge/acme-www/.well-known/acme-challenge/${TOKEN}
+TOKEN_PATH=/var/lib/host-volume/data/components/edge/acme-www/.well-known/acme-challenge/${TOKEN}
 mkdir -p "\$(dirname "\${TOKEN_PATH}")"
 printf '%s\n' '${TOKEN}' >"\${TOKEN_PATH}"
-chown -R platform:platform /var/lib/host-volume/components_data/edge/acme-www
+chown -R platform:platform /var/lib/host-volume/data/components/edge/acme-www
 REMOTE
 acme_body="$(curl -sS --connect-timeout 10 --max-time 15 \
   -H "Host: ${HOST}" "http://${IP}/.well-known/acme-challenge/${TOKEN}")"

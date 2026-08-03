@@ -11,8 +11,8 @@
 set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
-DATA_ROOT=/var/lib/host-volume/components_data
-WORKLOADS_ROOT="${DATA_ROOT}/workloads"
+WORKLOADS_ROOT=/var/lib/host-volume/internals/workloads
+WORKLOADS_DATA=/var/lib/host-volume/data/workloads
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Staged siblings only (Host delivery packs this payload). No Host Volume dual-read (ADR-0018).
@@ -49,9 +49,11 @@ PY
     workload_units_purge "${WL_NAME}"
 
     rm -rf "${wl_dir}"
+    rm -rf "${WORKLOADS_DATA:?}/${WL_NAME}"
   done
 fi
 
-chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}" "${HOME_DIR}/.config" 2>/dev/null || true
+chown -R "${USER_NAME}:${USER_NAME}" \
+  "${WORKLOADS_ROOT}" "${WORKLOADS_DATA}" "${HOME_DIR}/.config" 2>/dev/null || true
 
 quadlet_user_session_reload

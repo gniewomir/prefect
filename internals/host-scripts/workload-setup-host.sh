@@ -14,8 +14,9 @@ ROUTES_STAGE="${TREE}/routes"
 QUADLETS_STAGE="${TREE}/quadlets"
 SYSTEMD_STAGE="${TREE}/systemd"
 
-DATA_ROOT=/var/lib/host-volume/components_data
-WORKLOADS_ROOT="${DATA_ROOT}/workloads"
+# SoT (Mirrored definition tree) vs durable Host bytes (ADR-0041).
+WORKLOADS_ROOT=/var/lib/host-volume/internals/workloads
+WORKLOADS_DATA=/var/lib/host-volume/data/workloads
 
 # Staged siblings only (Host delivery packs this payload). No Host Volume dual-read (ADR-0018).
 # shellcheck source=quadlet-user-session.sh
@@ -75,7 +76,7 @@ if [[ -n "${WL_ENV_RESOLVED}" ]]; then
   }
 fi
 
-mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}"
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}" "${WORKLOADS_DATA}/${WL_NAME}"
 
 STAGE_UNITS="$(mktemp "${TMPDIR:-/tmp}/platform-stage-units.XXXXXX")"
 trap 'rm -f "${STAGE_UNITS}"' EXIT
@@ -134,5 +135,7 @@ fi
 workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
 unset -f workload_units_before_reload
 
-# Cover Host Volume SoT (incl. units synced by apply).
-chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}"
+# Cover Host Volume SoT (incl. units synced by apply) and durable data root.
+chown -R "${USER_NAME}:${USER_NAME}" \
+  "${WORKLOADS_ROOT}/${WL_NAME}" \
+  "${WORKLOADS_DATA}/${WL_NAME}"

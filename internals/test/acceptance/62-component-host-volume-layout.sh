@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Host Volume Component source/data layout and ownership (ADR-0010)
+# Acceptance Test: Host Volume internals/ + data/ layout and ownership (ADR-0010 / ADR-0041 / #154)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -8,9 +8,13 @@ require_ip
 acceptance_host_session
 
 USER_NAME="${PLATFORM_USER:-platform}"
-COMPONENTS_ROOT=/var/lib/host-volume/components
-DATA_ROOT=/var/lib/host-volume/components_data
-HOST_SCRIPTS_ROOT=/var/lib/host-volume/internals/host-scripts
+INTERNALS_ROOT=/var/lib/host-volume/internals
+FABRIC_ROOT="${INTERNALS_ROOT}/fabric"
+COMPONENTS_ROOT="${INTERNALS_ROOT}/components"
+WORKLOADS_SOT_ROOT="${INTERNALS_ROOT}/workloads"
+HOST_SCRIPTS_ROOT="${INTERNALS_ROOT}/host-scripts"
+DATA_ROOT=/var/lib/host-volume/data
+EDGE_DATA="${DATA_ROOT}/components/edge"
 
 owner_of() {
   host_ssh "stat -c '%U:%G' '$1'" 2>/dev/null || true
@@ -42,16 +46,17 @@ if [[ "${mount_owner}" != "root:root" ]]; then
   fail "/var/lib/host-volume owner expected root:root, got '${mount_owner}'"
 fi
 
-must_be_dir "${COMPONENTS_ROOT}/network"
+must_be_dir "${FABRIC_ROOT}"
 must_be_dir "${COMPONENTS_ROOT}/edge"
+must_be_dir "${WORKLOADS_SOT_ROOT}"
 must_be_dir "${HOST_SCRIPTS_ROOT}/lib"
-must_be_dir "${COMPONENTS_ROOT}/network/quadlets"
+must_be_dir "${FABRIC_ROOT}/quadlets"
 must_be_dir "${COMPONENTS_ROOT}/edge/quadlets"
 must_be_dir "${COMPONENTS_ROOT}/edge/systemd"
 must_be_file "${COMPONENTS_ROOT}/edge/nginx.conf"
-must_be_file "${COMPONENTS_ROOT}/network/setup.sh"
+must_be_file "${FABRIC_ROOT}/setup.sh"
 must_be_file "${COMPONENTS_ROOT}/edge/setup.sh"
-must_be_file "${COMPONENTS_ROOT}/network/quadlets/service-network.network"
+must_be_file "${FABRIC_ROOT}/quadlets/service-network.network"
 must_be_file "${COMPONENTS_ROOT}/edge/quadlets/edge.pod"
 must_be_file "${COMPONENTS_ROOT}/edge/quadlets/edge-nginx.container"
 must_be_file "${COMPONENTS_ROOT}/edge/systemd/edge-acme.service"
@@ -63,34 +68,44 @@ must_be_file "${HOST_SCRIPTS_ROOT}/lib/edge-domain-fronts-host.sh"
 must_be_file "${HOST_SCRIPTS_ROOT}/lib/edge-front-door-host.sh"
 must_not_exist "${COMPONENTS_ROOT}/lib"
 must_not_exist "${COMPONENTS_ROOT}/edge/certs"
+must_not_exist /var/lib/host-volume/components
+must_not_exist /var/lib/host-volume/components_data
 
-must_be_dir "${DATA_ROOT}/edge/routes"
-must_be_dir "${DATA_ROOT}/edge/domains"
-must_be_dir "${DATA_ROOT}/edge/certs"
-must_be_dir "${DATA_ROOT}/edge/acme-www"
-must_be_dir "${DATA_ROOT}/edge/acme"
-must_not_exist "${DATA_ROOT}/edge/routes/00-empty.conf"
-must_not_exist "${DATA_ROOT}/edge/domains/00-empty.conf"
-must_be_file "${DATA_ROOT}/edge/acme/want-list"
+must_be_dir "${DATA_ROOT}/fabric"
+must_be_dir "${DATA_ROOT}/components"
+must_be_dir "${DATA_ROOT}/workloads"
+must_be_dir "${EDGE_DATA}/routes"
+must_be_dir "${EDGE_DATA}/domains"
+must_be_dir "${EDGE_DATA}/certs"
+must_be_dir "${EDGE_DATA}/acme-www"
+must_be_dir "${EDGE_DATA}/acme"
+must_not_exist "${EDGE_DATA}/routes/00-empty.conf"
+must_not_exist "${EDGE_DATA}/domains/00-empty.conf"
+must_be_file "${EDGE_DATA}/acme/want-list"
 must_not_exist "${COMPONENTS_ROOT}/edge/acme-www"
 must_not_exist "${COMPONENTS_ROOT}/edge/acme"
 
 for path in \
+  "${INTERNALS_ROOT}" \
+  "${FABRIC_ROOT}" \
+  "${FABRIC_ROOT}/quadlets" \
   "${COMPONENTS_ROOT}" \
-  "${COMPONENTS_ROOT}/network" \
-  "${COMPONENTS_ROOT}/network/quadlets" \
   "${COMPONENTS_ROOT}/edge" \
   "${COMPONENTS_ROOT}/edge/quadlets" \
   "${COMPONENTS_ROOT}/edge/systemd" \
+  "${WORKLOADS_SOT_ROOT}" \
   "${HOST_SCRIPTS_ROOT}" \
   "${HOST_SCRIPTS_ROOT}/lib" \
   "${DATA_ROOT}" \
-  "${DATA_ROOT}/edge" \
-  "${DATA_ROOT}/edge/routes" \
-  "${DATA_ROOT}/edge/domains" \
-  "${DATA_ROOT}/edge/certs" \
-  "${DATA_ROOT}/edge/acme-www" \
-  "${DATA_ROOT}/edge/acme"
+  "${DATA_ROOT}/fabric" \
+  "${DATA_ROOT}/components" \
+  "${DATA_ROOT}/workloads" \
+  "${EDGE_DATA}" \
+  "${EDGE_DATA}/routes" \
+  "${EDGE_DATA}/domains" \
+  "${EDGE_DATA}/certs" \
+  "${EDGE_DATA}/acme-www" \
+  "${EDGE_DATA}/acme"
 do
   o="$(owner_of "${path}")"
   if [[ "${o}" != "${USER_NAME}:${USER_NAME}" ]]; then
@@ -98,4 +113,4 @@ do
   fi
 done
 
-pass "Host Volume Component source/data layout and ownership"
+pass "Host Volume internals/ + data/ layout and ownership"

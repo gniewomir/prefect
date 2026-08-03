@@ -117,7 +117,8 @@ EOF
 host_ssh bash -s <<'REMOTE'
 set -euo pipefail
 for n in dual-ok dual-empty wrong-q wrong-s clash-sys; do
-  rm -rf "/var/lib/host-volume/components_data/workloads/${n}"
+  rm -rf "/var/lib/host-volume/internals/workloads/${n}" \
+    "/var/lib/host-volume/data/workloads/${n}"
 done
 rm -f /home/platform/.config/containers/systemd/dual-ok.container \
   /home/platform/.config/systemd/user/dual-ok-probe.service \
@@ -126,11 +127,11 @@ REMOTE
 
 "${REPO_ROOT}/internals/workload-setup.sh" "dual-ok" --env "${PLATFORM_ENV:-test}"
 
-host_ssh "test -f /var/lib/host-volume/components_data/workloads/dual-ok/quadlets/dual-ok.container" \
+host_ssh "test -f /var/lib/host-volume/internals/workloads/dual-ok/quadlets/dual-ok.container" \
   || fail "Host Volume SoT missing dual-ok quadlet"
-host_ssh "test -f /var/lib/host-volume/components_data/workloads/dual-ok/systemd/dual-ok-probe.service" \
+host_ssh "test -f /var/lib/host-volume/internals/workloads/dual-ok/systemd/dual-ok-probe.service" \
   || fail "Host Volume SoT missing dual-ok systemd service"
-host_ssh "test -f /var/lib/host-volume/components_data/workloads/dual-ok/systemd/dual-ok-probe.timer" \
+host_ssh "test -f /var/lib/host-volume/internals/workloads/dual-ok/systemd/dual-ok-probe.timer" \
   || fail "Host Volume SoT missing dual-ok systemd timer"
 host_ssh "test -f /home/platform/.config/containers/systemd/dual-ok.container" \
   || fail "Platform User Quadlet dir missing dual-ok.container"
@@ -141,7 +142,7 @@ host_ssh "test -f /home/platform/.config/systemd/user/dual-ok-probe.timer" \
 pass "Workload Setup installs quadlets/ + systemd/ into matching Host directories and SoT"
 
 "${REPO_ROOT}/internals/workload-setup.sh" "dual-empty" --env "${PLATFORM_ENV:-test}"
-host_ssh "test -f /var/lib/host-volume/components_data/workloads/dual-empty/manifest.json" \
+host_ssh "test -f /var/lib/host-volume/internals/workloads/dual-empty/manifest.json" \
   || fail "empty-consumer Workload should still store Manifest"
 dual_empty_q="$(host_ssh \
   "ls /home/platform/.config/containers/systemd/dual-empty* 2>/dev/null || true")"
@@ -180,7 +181,7 @@ EOF
 "${REPO_ROOT}/internals/workload-setup.sh" "dual-ok" --env "${PLATFORM_ENV:-test}"
 "${REPO_ROOT}/internals/purge-workloads.sh" --env "${PLATFORM_ENV:-test}"
 
-host_ssh "test ! -e /var/lib/host-volume/components_data/workloads/dual-ok" \
+host_ssh "test ! -e /var/lib/host-volume/internals/workloads/dual-ok" \
   || fail "Purge should remove dual-ok Host Volume tree"
 host_ssh "test ! -e /home/platform/.config/containers/systemd/dual-ok.container" \
   || fail "Purge should remove dual-ok Quadlet unit"

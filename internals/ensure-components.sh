@@ -13,8 +13,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
-# Hardcoded order: Fabric (Service Network) before Component (Edge) — ADR-0040 / ADR-0010.
-FABRIC=(network)
+# Hardcoded order: Fabric (Service Network) before Component (Edge) — ADR-0040 / ADR-0010 / ADR-0041.
+FABRIC=(fabric)
 COMPONENTS=(edge)
 HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-components-host.sh"
 # shellcheck source=lib/cli.sh
@@ -58,13 +58,23 @@ IHP_DONE="${REPO_ROOT}/internals/host-scripts/wait-until-ihp-done.sh"
   exit 1
 }
 
-for name in "${FABRIC[@]}" "${COMPONENTS[@]}"; do
+for name in "${FABRIC[@]}"; do
+  [[ -d "${REPO_ROOT}/internals/${name}" ]] || {
+    echo "Fabric tree missing: internals/${name}" >&2
+    exit 1
+  }
+  [[ -f "${REPO_ROOT}/internals/${name}/setup.sh" ]] || {
+    echo "Fabric Setup missing: internals/${name}/setup.sh" >&2
+    exit 1
+  }
+done
+for name in "${COMPONENTS[@]}"; do
   [[ -d "${REPO_ROOT}/internals/components/${name}" ]] || {
-    echo "Setup tree missing: internals/components/${name}" >&2
+    echo "Component tree missing: internals/components/${name}" >&2
     exit 1
   }
   [[ -f "${REPO_ROOT}/internals/components/${name}/setup.sh" ]] || {
-    echo "Setup script missing: internals/components/${name}/setup.sh" >&2
+    echo "Component Setup missing: internals/components/${name}/setup.sh" >&2
     exit 1
   }
 done
@@ -81,7 +91,10 @@ domains_acme_fqdns_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme-want-list"
 
 cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"
 cp "${HOST_SCRIPT}" "${STAGE}/ensure-components-host.sh"
-for name in "${FABRIC[@]}" "${COMPONENTS[@]}"; do
+for name in "${FABRIC[@]}"; do
+  cp -a "${REPO_ROOT}/internals/${name}" "${STAGE}/${name}"
+done
+for name in "${COMPONENTS[@]}"; do
   cp -a "${REPO_ROOT}/internals/components/${name}" "${STAGE}/${name}"
 done
 

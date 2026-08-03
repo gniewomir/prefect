@@ -2,7 +2,7 @@
 # Host-local half of ensure-components. Invoked after Host delivery unpacks the stage.
 # Installs staged trees onto the Host Volume, places the staged ACME want-list at the
 # Edge-owned handoff path, then applies Fabric Setup then Component Setup (ADR-0040 /
-# ADR-0010 / ADR-0023). Service Network is Fabric — not a Component peer of Edge.
+# ADR-0010 / ADR-0041 / ADR-0023). Service Network is Fabric — not a Component peer of Edge.
 # Usage:
 #   ensure-components-host.sh <platform-user> \
 #     [--fabric <name>]... [--component <name>]...
@@ -44,9 +44,11 @@ done
 }
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPONENTS_ROOT=/var/lib/host-volume/components
-DATA_ROOT=/var/lib/host-volume/components_data
-HOST_SCRIPTS_ROOT=/var/lib/host-volume/internals/host-scripts
+HV_ROOT=/var/lib/host-volume
+INTERNALS_ROOT="${HV_ROOT}/internals"
+DATA_ROOT="${HV_ROOT}/data"
+COMPONENTS_ROOT="${INTERNALS_ROOT}/components"
+HOST_SCRIPTS_ROOT="${INTERNALS_ROOT}/host-scripts"
 WANT_STAGE="${HERE}/platform-acme-want-list"
 WANT_HANDOFF=/tmp/platform-acme-want-list
 
@@ -57,9 +59,19 @@ WANT_HANDOFF=/tmp/platform-acme-want-list
 cp "${WANT_STAGE}" "${WANT_HANDOFF}"
 trap 'rm -f "${WANT_HANDOFF}"' EXIT
 
-mkdir -p "${COMPONENTS_ROOT}" "${DATA_ROOT}" "${HOST_SCRIPTS_ROOT}"
-# Host-executable helpers ship under internals/host-scripts (ADR-0041); drop legacy components/lib.
-rm -rf "${COMPONENTS_ROOT:?}/lib"
+# Hard cut (ADR-0018 / ADR-0041): retire components/ + components_data/.
+rm -rf "${HV_ROOT:?}/components" "${HV_ROOT:?}/components_data"
+
+mkdir -p \
+  "${INTERNALS_ROOT}/fabric" \
+  "${COMPONENTS_ROOT}" \
+  "${INTERNALS_ROOT}/workloads" \
+  "${HOST_SCRIPTS_ROOT}" \
+  "${DATA_ROOT}/fabric" \
+  "${DATA_ROOT}/components" \
+  "${DATA_ROOT}/workloads"
+
+# Host-executable helpers ship under internals/host-scripts (ADR-0041).
 rm -rf "${HOST_SCRIPTS_ROOT:?}/lib"
 [[ -d "${HERE}/lib" ]] || {
   echo "ensure-components: staged host-scripts lib missing" >&2
@@ -67,15 +79,30 @@ rm -rf "${HOST_SCRIPTS_ROOT:?}/lib"
 }
 cp -a "${HERE}/lib" "${HOST_SCRIPTS_ROOT}/lib"
 
-# Install staged source trees (Fabric + Component share Host Volume components/ today).
-install_staged_tree() {
+# Fabric trees land at internals/<name> (today: fabric). Components at internals/components/<name>.
+install_fabric_tree() {
   local name="$1"
   [[ -d "${HERE}/${name}" ]] || {
-    echo "ensure-components: staged tree missing: ${name}" >&2
+    echo "ensure-components: staged Fabric tree missing: ${name}" >&2
     exit 1
   }
   [[ -f "${HERE}/${name}/setup.sh" ]] || {
-    echo "ensure-components: staged Setup missing: ${name}/setup.sh" >&2
+    echo "ensure-components: staged Fabric Setup missing: ${name}/setup.sh" >&2
+    exit 1
+  }
+  rm -rf "${INTERNALS_ROOT:?}/${name}"
+  cp -a "${HERE}/${name}" "${INTERNALS_ROOT}/${name}"
+  chmod a+x "${INTERNALS_ROOT}/${name}/setup.sh"
+}
+
+install_component_tree() {
+  local name="$1"
+  [[ -d "${HERE}/${name}" ]] || {
+    echo "ensure-components: staged Component tree missing: ${name}" >&2
+    exit 1
+  }
+  [[ -f "${HERE}/${name}/setup.sh" ]] || {
+    echo "ensure-components: staged Component Setup missing: ${name}/setup.sh" >&2
     exit 1
   }
   rm -rf "${COMPONENTS_ROOT:?}/${name}"
@@ -83,12 +110,15 @@ install_staged_tree() {
   chmod a+x "${COMPONENTS_ROOT}/${name}/setup.sh"
 }
 
-for name in "${FABRIC[@]}" "${COMPONENTS[@]}"; do
-  install_staged_tree "${name}"
+for name in "${FABRIC[@]}"; do
+  install_fabric_tree "${name}"
+done
+for name in "${COMPONENTS[@]}"; do
+  install_component_tree "${name}"
 done
 
 # Mount root stays root-owned; everything under it is Platform User–owned.
-chown -R "${USER_NAME}:${USER_NAME}" "${COMPONENTS_ROOT}" "${DATA_ROOT}" "${HOST_SCRIPTS_ROOT}"
+chown -R "${USER_NAME}:${USER_NAME}" "${INTERNALS_ROOT}" "${DATA_ROOT}"
 
 # Fail closed if Domain FQDN handoff is missing before Edge Component Setup.
 [[ -f "${WANT_HANDOFF}" ]] || {
@@ -98,7 +128,7 @@ chown -R "${USER_NAME}:${USER_NAME}" "${COMPONENTS_ROOT}" "${DATA_ROOT}" "${HOST
 
 for name in "${FABRIC[@]}"; do
   echo "Running Fabric Setup: ${name}" >&2
-  PLATFORM_USER="${USER_NAME}" "${COMPONENTS_ROOT}/${name}/setup.sh"
+  PLATFORM_USER="${USER_NAME}" "${INTERNALS_ROOT}/${name}/setup.sh"
 done
 
 for name in "${COMPONENTS[@]}"; do
