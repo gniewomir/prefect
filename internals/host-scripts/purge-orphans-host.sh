@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Host-local Orphan Reap. Invoked by internals/purge-orphans.sh.
+# Removes Host Workloads whose basename is absent from the Environment keep set
+# (Host Volume internals + data trees, Platform User units, EnvironmentFiles).
+# Same cleanup class as Purge; keyed by Environment absence, not Intent trash (ADR-0041 / #156).
+set -euo pipefail
+
+USER_NAME="${PLATFORM_USER:-platform}"
+WORKLOADS_ROOT=/var/lib/host-volume/internals/workloads
+WORKLOADS_DATA=/var/lib/host-volume/data/workloads
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KEEP_FILE="${HERE}/keep.txt"
+
+# Staged siblings only (Host delivery packs this payload). No Host Volume dual-read (ADR-0018).
+# shellcheck source=workload-units-host.sh
+source "${HERE}/workload-units-host.sh"
+# shellcheck source=workload-environment-host.sh
+source "${HERE}/workload-environment-host.sh"
+# shellcheck source=quadlet-user-session.sh
+source "${HERE}/quadlet-user-session.sh"
+# shellcheck source=orphan-reap-host.sh
+source "${HERE}/orphan-reap-host.sh"
+
+[[ -f "${KEEP_FILE}" ]] || {
+  echo "purge-orphans-host: keep.txt missing" >&2
+  exit 1
+}
+
+quadlet_user_session_begin
+
+while IFS= read -r WL_NAME; do
+  [[ -n "${WL_NAME}" ]] || continue
+  environment_configuration_clear "${WL_NAME}"
+  workload_units_purge "${WL_NAME}"
+  rm -rf "${WORKLOADS_ROOT:?}/${WL_NAME}"
+  rm -rf "${WORKLOADS_DATA:?}/${WL_NAME}"
+done < <(orphan_reap_absent_basenames "${WORKLOADS_ROOT}" "${KEEP_FILE}")
+
+chown -R "${USER_NAME}:${USER_NAME}" \
+  "${WORKLOADS_ROOT}" "${WORKLOADS_DATA}" "${HOME_DIR}/.config" 2>/dev/null || true
+
+quadlet_user_session_reload
