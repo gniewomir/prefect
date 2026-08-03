@@ -5,3 +5,5 @@ The Workload Manifest carries a **Workload Intent** (naming: ADR-0017; thin Mani
 **Intent stop drops Edge fulfillment via Edge Setup (no Propraetor 503):** process lifecycle parks without Propraetor-owned Edge HTTP shells (Edge default miss — ADR-0022 / ADR-0040); Domain/certs stay.
 
 **Intent trash + Purge over immediate delete on Manifest edit:** makes removal explicit and batchable.
+
+**Amended by ADR-0041:** **Purge** remains Intent-**trash** only (names still in the Environment). Host Workloads absent from the Environment are removed by **Orphan Reap**, not Purge. **Mirror** upserts Environment Workload trees and leaves orphans alone.
