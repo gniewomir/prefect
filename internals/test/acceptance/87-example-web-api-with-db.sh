@@ -157,6 +157,24 @@ REMOTE
   || fail "api container should reach private DB on localhost:5432 (intra-pod)"
 pass "intra-pod DB reachable on localhost from api container"
 
+# Heal Edge before Service Network / HTTPS probes. Prior Acceptance leftovers may
+# still be Intent-run with location / for the same FQDN — nginx emerg takes Edge down
+# (curl code 000 / connection refused; podman exec systemd-edge-nginx also fails).
+if [[ -n "${ROUTE_FQDN}" ]]; then
+  acceptance_drop_peer_location_root_routes "${ROUTE_FQDN}" "${WL}"
+fi
+ensure_edge_route_fulfillment
+host_ssh bash -s <<REMOTE
+set -euo pipefail
+UID_NUM="\$(id -u platform)"
+export XDG_RUNTIME_DIR="/run/user/\${UID_NUM}"
+systemctl start "user@\${UID_NUM}.service"
+runuser -u platform -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" systemctl --user reset-failed edge-nginx.service edge-pod.service 2>/dev/null || true
+runuser -u platform -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" systemctl --user restart edge-pod.service
+REMOTE
+acceptance_wait_user_unit_active edge-nginx.service 60 \
+  || fail "Edge nginx must be active after Route gather (check duplicate location / leftovers)"
+
 # Soft Host posture: Service Network basename, owned volume, no Workload Host ports.
 reach_ok="$(host_ssh bash -s <<REMOTE
 set -euo pipefail
@@ -226,7 +244,6 @@ pass "Workload publishes no Host ports (app and DB)"
 if [[ -z "${ROUTE_FQDN}" ]]; then
   echo "SOFT-SKIP: empty Domain want-list — Route install / HTTPS attach assertions"
 else
-  ensure_edge_route_fulfillment
   installed="$(host_ssh \
     "cat /var/lib/host-volume/data/components/edge/routes/${WL}--${ROUTE_FQDN}.conf")"
   printf '%s\n' "${installed}" | grep -qE "proxy_pass[[:space:]]+http://${WL}" \
@@ -234,14 +251,6 @@ else
   printf '%s\n' "${installed}" | grep -qE ":5432|${WL}-db" \
     && fail "installed Route must not expose the DB"
   pass "Edge Route fragment installed for app only (${ROUTE_FQDN})"
-
-  host_ssh bash -s <<REMOTE
-set -euo pipefail
-UID_NUM="\$(id -u platform)"
-export XDG_RUNTIME_DIR="/run/user/\${UID_NUM}"
-systemctl start "user@\${UID_NUM}.service"
-runuser -u platform -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" systemctl --user restart edge-pod.service
-REMOTE
 
   body=""
   code=""
