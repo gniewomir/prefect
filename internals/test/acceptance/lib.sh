@@ -92,19 +92,121 @@ probe_allowed_tcp() {
   fi
 }
 
-# Denied TCP: Firewall should DROP (timeout), not allow through to a closed port (refused).
+# True when the Environment Firewall inbound allow-set includes TCP $1 (DO API).
+# Cloud Firewall is default-deny; absence from the allow-set means not allowed.
+firewall_inbound_allows_tcp_port() {
+  local port="$1"
+  local fw_name="propraetor-${PLATFORM_ENV:-test}-public-web"
+  local rules
+  require_do_token
+  rules="$(do_api_get "/v2/firewalls?per_page=200" | jq -c --arg n "${fw_name}" '
+    [.firewalls[] | select(.name == $n) | .inbound_rules[]?]
+  ')"
+  [[ -n "${rules}" && "${rules}" != "null" ]] || {
+    echo "firewall_inbound_allows_tcp_port: Firewall '${fw_name}' not found" >&2
+    return 2
+  }
+  PORT="${port}" RULES="${rules}" python3 - <<'PY'
+import json, os, sys
+port = int(os.environ["PORT"])
+rules = json.loads(os.environ["RULES"])
+for rule in rules:
+    if rule.get("protocol") != "tcp":
+        continue
+    ports = str(rule.get("ports") or "")
+    if ports in ("0", "all"):
+        sys.exit(0)
+    if "-" in ports:
+        lo, _, hi = ports.partition("-")
+        if lo.isdigit() and hi.isdigit() and int(lo) <= port <= int(hi):
+            sys.exit(0)
+    elif ports.isdigit() and int(ports) == port:
+        sys.exit(0)
+sys.exit(1)
+PY
+}
+
+# Host-side SYN capture around one operator TCP probe to $IP:$1.
+# Sets: PROBE_DENIED_SYN (SAW_SYN|NO_SYN), PROBE_DENIED_RC, PROBE_DENIED_OUT.
+# Cloud Firewall sits before the Host — forwarded packets are visible; DROP is not.
+_probe_denied_host_syn_capture() {
+  local port="$1"
+
+  host_ssh env "PORT=${port}" bash -s <<'REMOTE'
+set -euo pipefail
+port="${PORT}"
+rm -f "/tmp/propraetor-fw-${port}.log" "/tmp/propraetor-fw-${port}.pid"
+timeout 25 tcpdump -ni any "tcp and dst port ${port}" -c 20 -tttt \
+  >"/tmp/propraetor-fw-${port}.log" 2>&1 &
+echo $! >"/tmp/propraetor-fw-${port}.pid"
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  if grep -q 'listening on' "/tmp/propraetor-fw-${port}.log" 2>/dev/null; then
+    exit 0
+  fi
+  sleep 0.2
+done
+exit 0
+REMOTE
+
+  set +e
+  PROBE_DENIED_OUT="$(probe_tcp_nc "${port}")"
+  PROBE_DENIED_RC=$?
+  set -e
+
+  sleep 1
+  PROBE_DENIED_SYN="$(host_ssh env "PORT=${port}" bash -s <<'REMOTE'
+set -euo pipefail
+port="${PORT}"
+pid="$(cat "/tmp/propraetor-fw-${port}.pid" 2>/dev/null || true)"
+if [[ -n "${pid}" ]]; then
+  kill "${pid}" 2>/dev/null || true
+  for _ in 1 2 3 4 5; do
+    if ! ps -p "${pid}" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.2
+  done
+fi
+if grep -E 'Flags \[S\]' "/tmp/propraetor-fw-${port}.log" >/dev/null 2>&1; then
+  printf 'SAW_SYN\n'
+else
+  printf 'NO_SYN\n'
+fi
+REMOTE
+)"
+}
+
+# Denied TCP (Cloud Firewall before Host).
+# Verdict:
+#   Host saw SYN  → Firewall forwarded → fail (deny expectation broken).
+#   Host saw nothing + operator timeout → data-plane DROP → pass.
+#   Host saw nothing + operator accept/refuse → path forged reply; pass only if
+#   allow-set excludes the port (control-plane deny). Never treat forged SYN-ACK
+#   as Firewall allow.
 probe_denied_tcp() {
   local port="$1"
-  local out
-  local rc
-  set +e
-  out="$(probe_tcp_nc "${port}")"
-  rc=$?
-  set -e
-  if [[ ${rc} -eq 0 ]]; then
-    fail "inbound TCP ${port} unexpectedly accepted"
-  elif echo "${out}" | grep -qi "refused"; then
-    fail "inbound TCP ${port} reached Host (connection refused) — Firewall likely allowing it"
+  local allow_rc=0
+
+  require_ip
+  # Capture needs verify Host-session (caller opens via acceptance_host_session).
+  _probe_denied_host_syn_capture "${port}"
+
+  if [[ "${PROBE_DENIED_SYN}" == "SAW_SYN" ]]; then
+    fail "inbound TCP ${port} reached Host (Firewall forwarded SYN) — deny expectation broken"
+  fi
+  [[ "${PROBE_DENIED_SYN}" == "NO_SYN" ]] || fail "unexpected Host SYN verdict: ${PROBE_DENIED_SYN}"
+
+  if [[ "${PROBE_DENIED_RC}" -eq 0 ]] || echo "${PROBE_DENIED_OUT}" | grep -qi "refused"; then
+    set +e
+    firewall_inbound_allows_tcp_port "${port}"
+    allow_rc=$?
+    set -e
+    if [[ "${allow_rc}" -eq 0 ]]; then
+      fail "inbound TCP ${port}: operator got a reply and Host saw no SYN, but Firewall allow-set includes ${port}"
+    elif [[ "${allow_rc}" -ne 1 ]]; then
+      fail "inbound TCP ${port}: could not read Firewall allow-set (rc=${allow_rc})"
+    fi
+    pass "inbound TCP ${port} not Firewall-allowed (Host saw no SYN; operator path forged a reply; allow-set excludes port)"
   else
     pass "inbound TCP ${port} filtered (denied by Firewall)"
   fi
