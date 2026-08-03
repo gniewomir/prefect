@@ -22,7 +22,7 @@ From the repo root:
 
 Requires Provider Credential and Operator Configuration private key path (root `.env` or process environment — ADR-0038).
 
-Fabric then Components (empty Edge → HTTP 404 on :80): the runner invokes `./internals/ensure-fabric.sh` then `./internals/ensure-components.sh` (same Environment) before cases (idempotent Fabric Setup + Component Setup on the Host Volume; not Initial Host Provisioning).
+Fabric → Mirror → Orphan Reap → Components → Workloads → Purge (Deploy ladder to **Deployed**): the runner invokes `./internals/ensure.sh` (same Environment) before cases — ADR-0041; not Initial Host Provisioning and not Stack Apply. Operator root entrypoint for the same ladder is `./deploy.sh`.
 
 ## Add a new Acceptance Test
 

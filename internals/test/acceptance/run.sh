@@ -64,9 +64,9 @@ propraetor_ssh_forget_host "${IP}"
 
 echo "Checking Reserved IP ${IP} (Environment ${PLATFORM_ENV}) ..."
 
-# Fabric then Components for the Platform User (idempotent Setups; not Initial Host Provisioning).
-"${REPO_ROOT}/internals/ensure-fabric.sh" --env "${PLATFORM_ENV}"
-"${REPO_ROOT}/internals/ensure-components.sh" --env "${PLATFORM_ENV}"
+# Deploy ladder to Deployed (Fabric → Mirror → Orphan Reap → Components → Workloads → Purge).
+# Idempotent; not Initial Host Provisioning and not Stack Apply — ADR-0041 / #158.
+"${REPO_ROOT}/internals/ensure.sh" --env "${PLATFORM_ENV}"
 
 ALL_CASES=()
 while IFS= read -r case_path; do
