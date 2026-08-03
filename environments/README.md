@@ -13,7 +13,7 @@ environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-
 
 **Rule:** under `environments/<slug>/`, files are configuration or documentation; immediate non-hidden directories are Workload definition trees (identity = basename). Dotdirs are ignored. Workload directory internals are out of scope for ADR-0033.
 
-**Workload Setup:** `./internals/workload-setup.sh <workload-name> [--env <slug>]` — name only; resolves under this tree (fail closed). Stack Apply does not run Workload Setup.
+**Workload Setup:** `./internals/ensure-workload.sh <workload-name> [--env <slug>]` — name only; resolves under this tree (fail closed). Batch: `./internals/ensure-workloads.sh [--env <slug>]` discovers by `manifest.json` and Setups each. Stack Apply does not run Workload Setup.
 
 - **Cloud slug** — `test` (not Terraform workspace `default`), `prod`, `example`, … Same slug as Host naming (`propraetor-test-…`).
 - **Missing `domains.json`** — that Environment has zero Domains.

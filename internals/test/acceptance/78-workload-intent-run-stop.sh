@@ -63,7 +63,7 @@ host_ssh \
    rm -f /home/platform/.config/containers/systemd/${WL}.container"
 
 write_manifest run
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
   "test -f /var/lib/host-volume/internals/workloads/${WL}/quadlets/${WL}.container" \
@@ -89,7 +89,7 @@ else
 fi
 
 write_manifest stop
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 if [[ -n "${HOST}" ]]; then
   still_present="$(host_ssh \

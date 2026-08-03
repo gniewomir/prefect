@@ -42,7 +42,7 @@ host_ssh \
           /var/lib/host-volume/internals/workloads/${WL} \
           /var/lib/host-volume/data/workloads/${WL}"
 
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 ensure_edge_route_fulfillment
 
 route_before="$(host_ssh \

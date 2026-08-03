@@ -58,7 +58,7 @@ export ENVROT_TOKEN="${SECRET1}"
 export ENVROT_MODE=shell-only
 export ENVROT_SURPLUS="${SURPLUS}"
 
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 
 acceptance_wait_user_unit_active "${WL}.service" \
   || fail "shell-only Setup should start ${WL}.service"
@@ -70,7 +70,7 @@ pass "shell-only bag resolves without .env; surplus ignored in container process
 # --- rotation with unchanged SoT ---
 export ENVROT_TOKEN="${SECRET2}"
 export ENVROT_MODE=rotated
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 acceptance_wait_user_unit_active "${WL}.service" \
   || fail "rotation re-Setup should keep ${WL}.service active"
 acceptance_assert_container_env "${WL}" ENVROT_TOKEN "${SECRET2}"
@@ -84,7 +84,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 { "intent": "run" }
 EOF
 unset ENVROT_TOKEN ENVROT_MODE ENVROT_SURPLUS || true
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 
 acceptance_wait_user_unit_active "${WL}.service" \
   || fail "omit Setup should keep ${WL}.service active"
@@ -100,7 +100,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 }
 EOF
 export ENVROT_TOKEN="${SECRET1}"
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 acceptance_wait_user_unit_active "${WL}.service" \
   || fail "re-inject Setup should start ${WL}.service"
 acceptance_assert_container_env "${WL}" ENVROT_TOKEN "${SECRET1}"
@@ -109,7 +109,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 { "intent": "run", "environment": [] }
 EOF
 unset ENVROT_TOKEN || true
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 acceptance_wait_user_unit_active "${WL}.service" \
   || fail "[] Setup should keep ${WL}.service active"
 acceptance_assert_container_env_absent "${WL}" ENVROT_TOKEN

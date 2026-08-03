@@ -209,12 +209,12 @@ cat >"${MANIFEST}" <<'EOF'
 EOF
 printf 'A=staged\n' >"${ENV_DIR}/.env"
 environment_configuration_stage_for_setup \
-  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup" \
+  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-ensure-workload" \
   || fail "stage_for_setup should succeed for valid list"
 [[ "${WL_ENV_ACTIVE}" == "1" ]] || fail "stage_for_setup should be active"
 grep -Fx 'A=staged' "${STAGE_DIR}/environment.resolved" >/dev/null \
   || fail "stage_for_setup should write resolved file into STAGE"
-[[ "${WL_ENV_RESOLVED_REMOTE}" == "/tmp/platform-workload-setup/environment.resolved" ]] \
+[[ "${WL_ENV_RESOLVED_REMOTE}" == "/tmp/platform-ensure-workload/environment.resolved" ]] \
   || fail "expected remote resolved path, got: ${WL_ENV_RESOLVED_REMOTE}"
 pass "module stage_for_setup SSH staging adapter"
 
@@ -223,7 +223,7 @@ cat >"${MANIFEST}" <<'EOF'
 { "intent": "run" }
 EOF
 environment_configuration_stage_for_setup \
-  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup" \
+  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-ensure-workload" \
   || fail "omit stage should succeed"
 [[ "${WL_ENV_ACTIVE}" == "0" ]] || fail "omit stage should be inactive"
 [[ -z "${WL_ENV_RESOLVED_REMOTE}" ]] || fail "omit stage should clear remote path"
@@ -234,7 +234,7 @@ cat >"${MANIFEST}" <<'EOF'
 { "intent": "run", "environment": "A" }
 EOF
 if environment_configuration_stage_for_setup \
-  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-workload-setup" >/dev/null 2>&1; then
+  "${STAGE_DIR}" "${MANIFEST}" "${ENV_DIR}" "${WL_TREE}" "/tmp/platform-ensure-workload" >/dev/null 2>&1; then
   fail "stage_for_setup must fail closed on non-array environment"
 fi
 pass "module stage_for_setup non-array fails closed"

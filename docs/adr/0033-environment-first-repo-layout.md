@@ -8,7 +8,7 @@ Committed Environment intent lives under root `environments/<slug>/`, not under 
 
 **Workload Setup bind (operator contract):**
 
-- Setup accepts a **Workload name** only: `./internals/workload-setup.sh <name> [--env <slug>]` → `environments/<active-slug>/<name>/`. Arbitrary Manifest paths are rejected (fail closed).
+- Setup accepts a **Workload name** only: `./internals/ensure-workload.sh <name> [--env <slug>]` → `environments/<active-slug>/<name>/`. Arbitrary Manifest paths are rejected (fail closed).
 - The Environment tree is the **Setup source** only. Absence from the tree does not invent Intent or Purge; Host leftovers after deleting a directory without **trash** + Purge are operator risk.
 - Stack **Apply** stays separate from Workload Setup (ADR-0032). Reconcile-all and “not in tree ⇒ remove” stay deferred.
 - Acceptance fixtures write ephemeral Workload directories under `environments/<active-slug>/`, Setup by name, and remove them on exit — same contract, no override path.

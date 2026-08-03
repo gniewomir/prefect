@@ -69,7 +69,7 @@ rm -f /var/lib/host-volume/data/components/edge/routes/${WL}.conf \
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR systemctl --user daemon-reload
 REMOTE
 
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
   "test -f /var/lib/host-volume/internals/workloads/${WL}/quadlets/${WL}.pod" \
@@ -211,4 +211,4 @@ fi
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 { "intent": "trash" }
 EOF
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"

@@ -75,31 +75,31 @@ REMOTE
 for name in trash-a keep-me purge-me; do
   stage_wl "${name}" trash
   write_purge_route
-  "${REPO_ROOT}/internals/workload-setup.sh" "${name}" --env "${PLATFORM_ENV:-test}" 2>/dev/null || true
+  "${REPO_ROOT}/internals/ensure-workload.sh" "${name}" --env "${PLATFORM_ENV:-test}" 2>/dev/null || true
 done
-"${REPO_ROOT}/internals/purge-workloads.sh" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/purge-trash.sh" --env "${PLATFORM_ENV:-test}"
 
 stage_wl trash-a run
-"${REPO_ROOT}/internals/workload-setup.sh" "trash-a" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "trash-a" --env "${PLATFORM_ENV:-test}"
 stage_wl trash-a trash
-"${REPO_ROOT}/internals/workload-setup.sh" "trash-a" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "trash-a" --env "${PLATFORM_ENV:-test}"
 
 host_ssh "test -f /var/lib/host-volume/internals/workloads/trash-a/manifest.json" \
   || fail "Intent trash Workload data should remain until Purge"
 pass "Intent trash retains Workload data until Purge"
 
 stage_wl reclaim-b run
-"${REPO_ROOT}/internals/workload-setup.sh" "reclaim-b" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "reclaim-b" --env "${PLATFORM_ENV:-test}"
 host_ssh \
   "test -f /var/lib/host-volume/internals/workloads/reclaim-b/manifest.json" \
   || fail "second Intent run Workload should Setup"
 pass "Intent run Workload Setup does not depend on hostname claims"
 
 stage_wl keep-me stop
-"${REPO_ROOT}/internals/workload-setup.sh" "keep-me" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "keep-me" --env "${PLATFORM_ENV:-test}"
 stage_wl purge-me run
 write_purge_route
-"${REPO_ROOT}/internals/workload-setup.sh" "purge-me" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "purge-me" --env "${PLATFORM_ENV:-test}"
 
 ROUTE_INSTALLED_NAME=""
 if [[ -n "${ROUTE_FQDN}" ]]; then
@@ -127,7 +127,7 @@ fi
 
 stage_wl purge-me trash
 write_purge_route
-"${REPO_ROOT}/internals/workload-setup.sh" "purge-me" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "purge-me" --env "${PLATFORM_ENV:-test}"
 
 if [[ -n "${ROUTE_FQDN}" ]]; then
   host_ssh bash -s <<REMOTE
@@ -137,7 +137,7 @@ chown platform:platform /var/lib/host-volume/data/components/edge/routes/purge-m
 REMOTE
 fi
 
-"${REPO_ROOT}/internals/purge-workloads.sh" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/purge-trash.sh" --env "${PLATFORM_ENV:-test}"
 
 host_ssh "test ! -e /var/lib/host-volume/internals/workloads/purge-me" \
   || fail "Purge should remove Intent trash purge-me SoT"

@@ -79,7 +79,7 @@ rm -rf /home/platform/.config/containers/systemd/${WL}-${ROLE}.container.d
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR systemctl --user daemon-reload
 REMOTE
 
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 
 acceptance_wait_user_unit_active "${WL}-pod.service" \
   || fail "Intent run should start Always-on ${WL}-pod.service"
@@ -99,6 +99,6 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 { "intent": "trash" }
 EOF
 rm -f "${ENV_FILE}"
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${ENV_SLUG}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 
 pass "example env-config Environment Configuration teaching contract"

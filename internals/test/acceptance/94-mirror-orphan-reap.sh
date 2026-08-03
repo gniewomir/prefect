@@ -51,8 +51,8 @@ REMOTE
 
 stage_wl keep-alive
 stage_wl gone-soon
-"${REPO_ROOT}/internals/workload-setup.sh" keep-alive --env "${ENV_SLUG}"
-"${REPO_ROOT}/internals/workload-setup.sh" gone-soon --env "${ENV_SLUG}"
+"${REPO_ROOT}/internals/ensure-workload.sh" keep-alive --env "${ENV_SLUG}"
+"${REPO_ROOT}/internals/ensure-workload.sh" gone-soon --env "${ENV_SLUG}"
 
 host_ssh "mkdir -p /var/lib/host-volume/data/workloads/gone-soon && \
   printf 'durable-orphan\\n' > /var/lib/host-volume/data/workloads/gone-soon/state.bin && \

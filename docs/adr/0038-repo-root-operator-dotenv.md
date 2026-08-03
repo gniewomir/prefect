@@ -4,7 +4,7 @@ Operators need a durable local baseline for **Provider Credential** and **Operat
 
 **Allowlist (fail closed):** only `DIGITALOCEAN_TOKEN`, `PROPRAETOR_PUBLIC_KEY_PATH`, and `PROPRAETOR_PRIVATE_KEY_PATH`. Unknown keys, legacy names (`SSH_IDENTITY`, `VERIFY_SSH_IDENTITY`, `TF_VAR_DIGITALOCEAN_PUBLIC_KEY`, …), and `TF_VAR_host_root_ssh_public_key` in the file are errors — Apply derives pubkey content from the public path (ADR-0037). Empty file values are unset. Operator Configuration paths must be absolute or `~/…` (leading `~/` expands to `$HOME` after load); other relative paths fail closed.
 
-**Who loads:** a shared helper at the start of operator entrypoints that gate on Provider Credential or Operator Configuration (root Apply/Park/Teardown/ssh/`test.sh` acceptance & lifecycle; Host-facing ensure-components, workload-setup, purge, diagnostics). Not loaded for bare Terraform in the Stack dir. Retires docs-only `internals/terraform/.env.dist` (ADR-0018).
+**Who loads:** a shared helper at the start of operator entrypoints that gate on Provider Credential or Operator Configuration (root Apply/Park/Teardown/ssh/`test.sh` acceptance & lifecycle; Host-facing ensure-components, ensure-workload, ensure-workloads, purge-trash, diagnostics). Not loaded for bare Terraform in the Stack dir. Retires docs-only `internals/terraform/.env.dist` (ADR-0018).
 
 ## Considered
 

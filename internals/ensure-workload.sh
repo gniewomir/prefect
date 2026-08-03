@@ -4,16 +4,17 @@
 # Syncs Route Declaration files into Workload SoT only; Edge Component Setup gathers (ADR-0040).
 # Does not wait for ACME issuance. Does not heal crashed pods.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
-# Usage: ./internals/workload-setup.sh <workload-name> [--env <slug>]
+# Usage: ./internals/ensure-workload.sh <workload-name> [--env <slug>]
 # Resolves to environments/<slug>/<name>/ (fail closed). Identity = directory basename (ADR-0024).
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
+# ADR-0041 / #157.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
-HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/workload-setup-host.sh"
+HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-workload-host.sh"
 UNITS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-units-host.sh"
 QUADLETS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-quadlets-host.sh"
 UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh"
@@ -101,14 +102,14 @@ QUADLETS_SRC="${MANIFEST_DIR}/quadlets"
 SYSTEMD_SRC="${MANIFEST_DIR}/systemd"
 ENV_DIR="${REPO_ROOT}/environments/${PLATFORM_ENV}"
 
-STAGE="$(mktemp -d "${TMPDIR:-/tmp}/platform-workload-setup-stage.XXXXXX")"
+STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-workload-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT
 
-RESOLVED_REMOTE_ROOT="/tmp/platform-workload-setup"
+RESOLVED_REMOTE_ROOT="/tmp/platform-ensure-workload"
 environment_configuration_stage_for_setup \
   "${STAGE}" "${MANIFEST_ABS}" "${ENV_DIR}" "${MANIFEST_DIR}" "${RESOLVED_REMOTE_ROOT}" || exit 1
 
-cp "${HOST_SCRIPT}" "${STAGE}/workload-setup-host.sh"
+cp "${HOST_SCRIPT}" "${STAGE}/ensure-workload-host.sh"
 cp "${UNITS_LIB}" "${STAGE}/workload-units-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
@@ -139,6 +140,6 @@ if [[ -d "${SYSTEMD_SRC}" ]]; then
 fi
 
 host_delivery_run "${STAGE}" "${RESOLVED_REMOTE_ROOT}" \
-  "PLATFORM_USER=${USER_NAME} WL_ENV_RESOLVED=${WL_ENV_RESOLVED_REMOTE} bash ${RESOLVED_REMOTE_ROOT}/workload-setup-host.sh ${RESOLVED_REMOTE_ROOT}/${WL_NAME}"
+  "PLATFORM_USER=${USER_NAME} WL_ENV_RESOLVED=${WL_ENV_RESOLVED_REMOTE} bash ${RESOLVED_REMOTE_ROOT}/ensure-workload-host.sh ${RESOLVED_REMOTE_ROOT}/${WL_NAME}"
 
 echo "Workload Setup finished on ${IP}."

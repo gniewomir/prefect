@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Host-local Environment Configuration install / clear (ADR-0035 / #128 / #132).
-# Sourced by workload-setup-host, purge-workloads-host, and the operator module.
+# Sourced by ensure-workload-host, purge-trash-host, purge-orphans-host, and the operator module.
 # Requires: HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT (after quadlet_user_session_begin).
 #
 # Module Host half (Setup/Purge interface):

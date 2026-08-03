@@ -3,16 +3,18 @@
 # (units, Host Volume Workload tree including Route Declaration SoT). Does not write Edge Route
 # interior (Edge Component Setup gather drops fulfillment). Does not delete Domains or
 # Domain-scoped certificate material. Does not affect Workloads whose Intent is run or stop.
+# Distinct from Orphan Reap (Environment-absence destroy). Names still in the Environment only.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
-# Usage: ./internals/purge-workloads.sh [--env <slug>]
+# Usage: ./internals/purge-trash.sh [--env <slug>]
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
+# ADR-0041 / #157.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
-HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/purge-workloads-host.sh"
+HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/purge-trash-host.sh"
 UNITS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-units-host.sh"
 QUADLETS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-quadlets-host.sh"
 UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh"
@@ -69,16 +71,16 @@ command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
 host_session_open verify "${STACK_DIR}" || exit 1
 IP="$(host_session_ip)"
 
-STAGE="$(mktemp -d "${TMPDIR:-/tmp}/platform-purge-stage.XXXXXX")"
+STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-purge-trash-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT
-cp "${HOST_SCRIPT}" "${STAGE}/purge-workloads-host.sh"
+cp "${HOST_SCRIPT}" "${STAGE}/purge-trash-host.sh"
 cp "${UNITS_LIB}" "${STAGE}/workload-units-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
 cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
 
-host_delivery_run "${STAGE}" "/tmp/platform-purge" \
-  "PLATFORM_USER=${USER_NAME} bash /tmp/platform-purge/purge-workloads-host.sh"
+host_delivery_run "${STAGE}" "/tmp/platform-purge-trash" \
+  "PLATFORM_USER=${USER_NAME} bash /tmp/platform-purge-trash/purge-trash-host.sh"
 
 echo "Purge completed on ${IP}."

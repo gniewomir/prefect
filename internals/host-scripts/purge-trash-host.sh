@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Host-local Purge. Invoked by internals/purge-workloads.sh.
+# Host-local Purge. Invoked by internals/purge-trash.sh.
 # Removes every Workload whose Intent is trash and Workload-associated data
 # (SoT-named units from both Host unit directories, Host Volume tree including routes/
 # Declarations, Platform User EnvironmentFile tree and Setup-owned Environment

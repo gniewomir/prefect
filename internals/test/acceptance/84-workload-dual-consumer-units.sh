@@ -125,7 +125,7 @@ rm -f /home/platform/.config/containers/systemd/dual-ok.container \
   /home/platform/.config/systemd/user/dual-ok-probe.timer
 REMOTE
 
-"${REPO_ROOT}/internals/workload-setup.sh" "dual-ok" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "dual-ok" --env "${PLATFORM_ENV:-test}"
 
 host_ssh "test -f /var/lib/host-volume/internals/workloads/dual-ok/quadlets/dual-ok.container" \
   || fail "Host Volume SoT missing dual-ok quadlet"
@@ -141,7 +141,7 @@ host_ssh "test -f /home/platform/.config/systemd/user/dual-ok-probe.timer" \
   || fail "Platform User systemd dir missing dual-ok-probe.timer"
 pass "Workload Setup installs quadlets/ + systemd/ into matching Host directories and SoT"
 
-"${REPO_ROOT}/internals/workload-setup.sh" "dual-empty" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "dual-empty" --env "${PLATFORM_ENV:-test}"
 host_ssh "test -f /var/lib/host-volume/internals/workloads/dual-empty/manifest.json" \
   || fail "empty-consumer Workload should still store Manifest"
 dual_empty_q="$(host_ssh \
@@ -157,7 +157,7 @@ reject_setup() {
   local name="$2"
   local needle="$3"
   set +e
-  "${REPO_ROOT}/internals/workload-setup.sh" "${name}" --env "${PLATFORM_ENV:-test}" \
+  "${REPO_ROOT}/internals/ensure-workload.sh" "${name}" --env "${PLATFORM_ENV:-test}" \
     >/tmp/dual-consumer-setup.out 2>&1
   local rc=$?
   set -e
@@ -178,8 +178,8 @@ pass "Workload Setup refuses basename spanning Host unit directories (clash with
 cat >"${FIX_DIR}/dual-ok/manifest.json" <<'EOF'
 { "intent": "trash" }
 EOF
-"${REPO_ROOT}/internals/workload-setup.sh" "dual-ok" --env "${PLATFORM_ENV:-test}"
-"${REPO_ROOT}/internals/purge-workloads.sh" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "dual-ok" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/purge-trash.sh" --env "${PLATFORM_ENV:-test}"
 
 host_ssh "test ! -e /var/lib/host-volume/internals/workloads/dual-ok" \
   || fail "Purge should remove dual-ok Host Volume tree"

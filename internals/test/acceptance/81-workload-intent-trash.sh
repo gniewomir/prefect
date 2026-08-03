@@ -67,7 +67,7 @@ rm -f /home/platform/.config/containers/systemd/${WL}.container \
 REMOTE
 
 write_manifest run
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 if [[ -n "${HOST}" ]]; then
   edge_before="$(host_ssh \
@@ -87,7 +87,7 @@ host_ssh \
   || fail "Intent run should install authored Quadlet"
 
 write_manifest trash
-"${REPO_ROOT}/internals/workload-setup.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh "test -f /var/lib/host-volume/internals/workloads/${WL}/manifest.json" \
   || fail "Intent trash Workload data should remain until Purge"
@@ -132,7 +132,7 @@ cat >"${FIX_DIR}/reclaim-intent/manifest.json" <<EOF
   "intent": "run"
 }
 EOF
-"${REPO_ROOT}/internals/workload-setup.sh" "reclaim-intent" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "reclaim-intent" --env "${PLATFORM_ENV:-test}"
 host_ssh \
   "test -f /var/lib/host-volume/internals/workloads/reclaim-intent/manifest.json" \
   || fail "second Workload Setup with Intent run should succeed"

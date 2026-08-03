@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Host-local Workload Setup. Invoked by internals/workload-setup.sh (not an operator entrypoint).
-# Usage: PLATFORM_USER=platform bash workload-setup-host.sh /path/to/workload-tree
+# Host-local Workload Setup. Invoked by internals/ensure-workload.sh (not an operator entrypoint).
+# Usage: PLATFORM_USER=platform bash ensure-workload-host.sh /path/to/workload-tree
 # Workload tree must contain manifest.json; optional routes/, quadlets/, systemd/ (ADR-0024).
 # Identity is the basename of the Workload tree directory.
 # Does not build ACME want-list, claim hostnames, or start ACME (ADR-0023).

@@ -143,7 +143,7 @@ host_ssh \
          /home/platform/.config/containers/systemd/legacy.container \
          /home/platform/.config/containers/systemd/shared-name.container"
 
-"${REPO_ROOT}/internals/workload-setup.sh" "alpha" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "alpha" --env "${PLATFORM_ENV:-test}"
 
 if [[ -n "${ROUTE_FQDN}" ]]; then
   sot="$(host_ssh \
@@ -186,7 +186,7 @@ reject_thick() {
   local name="$2"
   local needle="$3"
   set +e
-  "${REPO_ROOT}/internals/workload-setup.sh" "${name}" --env "${PLATFORM_ENV:-test}" >/tmp/thick-setup.out 2>&1
+  "${REPO_ROOT}/internals/ensure-workload.sh" "${name}" --env "${PLATFORM_ENV:-test}" >/tmp/thick-setup.out 2>&1
   local rc=$?
   set -e
   [[ ${rc} -ne 0 ]] || fail "expected failure for ${label}"
@@ -200,7 +200,7 @@ reject_thick "upstream" "upstreamed" "upstream\|unknown keys\|allowlist"
 reject_thick "source" "sourced" "source\|unknown keys\|allowlist"
 pass "Workload Setup rejects thick Manifest keys (ADR-0024 allowlist)"
 
-"${REPO_ROOT}/internals/workload-setup.sh" "zero" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "zero" --env "${PLATFORM_ENV:-test}"
 zero_installed="$(host_ssh \
   "ls /var/lib/host-volume/data/components/edge/routes/zero--* 2>/dev/null || true")"
 [[ -z "${zero_installed}" ]] || fail "zero-Route Workload must not install Edge Route files (got: ${zero_installed})"
@@ -209,7 +209,7 @@ host_ssh "test -f /var/lib/host-volume/internals/workloads/zero/manifest.json" \
 pass "Workload Setup succeeds with Intent run and no routes/ directory"
 
 set +e
-"${REPO_ROOT}/internals/workload-setup.sh" "clash" --env "${PLATFORM_ENV:-test}" >/tmp/clash-setup.out 2>&1
+"${REPO_ROOT}/internals/ensure-workload.sh" "clash" --env "${PLATFORM_ENV:-test}" >/tmp/clash-setup.out 2>&1
 clash_rc=$?
 set -e
 [[ ${clash_rc} -ne 0 ]] || fail "expected failure when quadlet basename collides with Component unit"
@@ -217,9 +217,9 @@ grep -qi 'edge-nginx\|already exists\|not owned' /tmp/clash-setup.out \
   || fail "collision rejection unclear (output: $(cat /tmp/clash-setup.out))"
 pass "Workload Setup refuses unit basename colliding with Component unit"
 
-"${REPO_ROOT}/internals/workload-setup.sh" "owner-a" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "owner-a" --env "${PLATFORM_ENV:-test}"
 set +e
-"${REPO_ROOT}/internals/workload-setup.sh" "owner-b" --env "${PLATFORM_ENV:-test}" >/tmp/owner-b-setup.out 2>&1
+"${REPO_ROOT}/internals/ensure-workload.sh" "owner-b" --env "${PLATFORM_ENV:-test}" >/tmp/owner-b-setup.out 2>&1
 owner_b_rc=$?
 set -e
 [[ ${owner_b_rc} -ne 0 ]] || fail "expected failure when second Workload claims same quadlet basename"
