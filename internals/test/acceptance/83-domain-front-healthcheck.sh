@@ -11,12 +11,12 @@ require_ip
 acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh acceptance)"
 
-# shellcheck source=../../lib/domains.sh
-source "${REPO_ROOT}/internals/lib/domains.sh"
-# shellcheck source=../../lib/domain_front_target.sh
-source "${REPO_ROOT}/internals/lib/domain_front_target.sh"
-# shellcheck source=../../lib/domain_front_staging_hc.sh
-source "${REPO_ROOT}/internals/lib/domain_front_staging_hc.sh"
+# shellcheck source=../../lib/domains/domains.sh
+source "${REPO_ROOT}/internals/lib/domains/domains.sh"
+# shellcheck source=../../lib/domains/domain_front_target.sh
+source "${REPO_ROOT}/internals/lib/domains/domain_front_target.sh"
+# shellcheck source=../../lib/domains/domain_front_staging_hc.sh
+source "${REPO_ROOT}/internals/lib/domains/domain_front_staging_hc.sh"
 
 DATA_ROOT=/var/lib/host-volume/components_data/edge
 DOMAINS_HOST="${DATA_ROOT}/domains"

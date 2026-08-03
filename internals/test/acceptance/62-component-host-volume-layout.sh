@@ -10,6 +10,7 @@ acceptance_host_session
 USER_NAME="${PLATFORM_USER:-platform}"
 COMPONENTS_ROOT=/var/lib/host-volume/components
 DATA_ROOT=/var/lib/host-volume/components_data
+HOST_SCRIPTS_ROOT=/var/lib/host-volume/internals/host-scripts
 
 owner_of() {
   host_ssh "stat -c '%U:%G' '$1'" 2>/dev/null || true
@@ -43,7 +44,7 @@ fi
 
 must_be_dir "${COMPONENTS_ROOT}/network"
 must_be_dir "${COMPONENTS_ROOT}/edge"
-must_be_dir "${COMPONENTS_ROOT}/lib"
+must_be_dir "${HOST_SCRIPTS_ROOT}/lib"
 must_be_dir "${COMPONENTS_ROOT}/network/quadlets"
 must_be_dir "${COMPONENTS_ROOT}/edge/quadlets"
 must_be_dir "${COMPONENTS_ROOT}/edge/systemd"
@@ -55,11 +56,12 @@ must_be_file "${COMPONENTS_ROOT}/edge/quadlets/edge.pod"
 must_be_file "${COMPONENTS_ROOT}/edge/quadlets/edge-nginx.container"
 must_be_file "${COMPONENTS_ROOT}/edge/systemd/edge-acme.service"
 must_be_file "${COMPONENTS_ROOT}/edge/systemd/edge-acme.timer"
-must_be_file "${COMPONENTS_ROOT}/lib/quadlet-user-session.sh"
-must_be_file "${COMPONENTS_ROOT}/lib/edge-routes-host.sh"
-must_be_file "${COMPONENTS_ROOT}/lib/edge-want-list-host.sh"
-must_be_file "${COMPONENTS_ROOT}/lib/edge-domain-fronts-host.sh"
-must_be_file "${COMPONENTS_ROOT}/lib/edge-front-door-host.sh"
+must_be_file "${HOST_SCRIPTS_ROOT}/lib/quadlet-user-session.sh"
+must_be_file "${HOST_SCRIPTS_ROOT}/lib/edge-routes-host.sh"
+must_be_file "${HOST_SCRIPTS_ROOT}/lib/edge-want-list-host.sh"
+must_be_file "${HOST_SCRIPTS_ROOT}/lib/edge-domain-fronts-host.sh"
+must_be_file "${HOST_SCRIPTS_ROOT}/lib/edge-front-door-host.sh"
+must_not_exist "${COMPONENTS_ROOT}/lib"
 must_not_exist "${COMPONENTS_ROOT}/edge/certs"
 
 must_be_dir "${DATA_ROOT}/edge/routes"
@@ -80,7 +82,8 @@ for path in \
   "${COMPONENTS_ROOT}/edge" \
   "${COMPONENTS_ROOT}/edge/quadlets" \
   "${COMPONENTS_ROOT}/edge/systemd" \
-  "${COMPONENTS_ROOT}/lib" \
+  "${HOST_SCRIPTS_ROOT}" \
+  "${HOST_SCRIPTS_ROOT}/lib" \
   "${DATA_ROOT}" \
   "${DATA_ROOT}/edge" \
   "${DATA_ROOT}/edge/routes" \

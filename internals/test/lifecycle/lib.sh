@@ -14,8 +14,8 @@
 
 # shellcheck source=../acceptance/lib.sh
 source "${REPO_ROOT}/internals/test/acceptance/lib.sh"
-# shellcheck source=../../lib/environment.sh
-source "${REPO_ROOT}/internals/lib/environment.sh"
+# shellcheck source=../../lib/environment/environment.sh
+source "${REPO_ROOT}/internals/lib/environment/environment.sh"
 
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 

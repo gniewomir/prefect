@@ -12,24 +12,24 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
-HOST_SCRIPT="${REPO_ROOT}/internals/components/lib/purge-workloads-host.sh"
-UNITS_LIB="${REPO_ROOT}/internals/components/lib/workload-units-host.sh"
-QUADLETS_LIB="${REPO_ROOT}/internals/components/lib/workload-quadlets-host.sh"
-UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/components/lib/unit-consumers-host.sh"
-ENV_HOST_LIB="${REPO_ROOT}/internals/components/lib/workload-environment-host.sh"
-QUADLET_SESSION_LIB="${REPO_ROOT}/internals/components/lib/quadlet-user-session.sh"
+HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/purge-workloads-host.sh"
+UNITS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-units-host.sh"
+QUADLETS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-quadlets-host.sh"
+UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh"
+ENV_HOST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-environment-host.sh"
+QUADLET_SESSION_LIB="${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
-# shellcheck source=lib/environment.sh
-source "${REPO_ROOT}/internals/lib/environment.sh"
+# shellcheck source=lib/environment/environment.sh
+source "${REPO_ROOT}/internals/lib/environment/environment.sh"
 # shellcheck source=lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
 # shellcheck source=lib/host-delivery.sh
 source "${REPO_ROOT}/internals/lib/host-delivery.sh"
-# shellcheck source=lib/operator-dotenv.sh
-source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
-# shellcheck source=lib/operator-configuration.sh
-source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
+# shellcheck source=lib/operator/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
+# shellcheck source=lib/operator/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 operator_configuration_require private || exit 1

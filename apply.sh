@@ -14,14 +14,14 @@ STACK_DIR="${REPO_ROOT}/internals/terraform"
 PRESENCE_VAR=(-var=recreatables_present=true)
 # shellcheck source=internals/lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
-# shellcheck source=internals/lib/environment.sh
-source "${REPO_ROOT}/internals/lib/environment.sh"
-# shellcheck source=internals/lib/adopt.sh
-source "${REPO_ROOT}/internals/lib/adopt.sh"
-# shellcheck source=internals/lib/operator-dotenv.sh
-source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
-# shellcheck source=internals/lib/operator-configuration.sh
-source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
+# shellcheck source=internals/lib/environment/environment.sh
+source "${REPO_ROOT}/internals/lib/environment/environment.sh"
+# shellcheck source=internals/lib/adopt/adopt.sh
+source "${REPO_ROOT}/internals/lib/adopt/adopt.sh"
+# shellcheck source=internals/lib/operator/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
+# shellcheck source=internals/lib/operator/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -35,9 +35,9 @@ YES=false
 
 command -v terraform >/dev/null || fail "terraform not found"
 
-"${REPO_ROOT}/internals/lib/check-cloud-init-ascii.sh"
-"${REPO_ROOT}/internals/lib/check-ssh-port-twins.sh"
-"${REPO_ROOT}/internals/lib/check-domains-config-path.sh"
+"${REPO_ROOT}/internals/lib/checks/check-cloud-init-ascii.sh"
+"${REPO_ROOT}/internals/lib/checks/check-ssh-port-twins.sh"
+"${REPO_ROOT}/internals/lib/checks/check-domains-config-path.sh"
 
 provider_credential_require || exit 1
 operator_configuration_require both || exit 1

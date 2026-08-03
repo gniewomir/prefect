@@ -45,8 +45,8 @@ provider_host_volume_json() {
 environment_domains_path() {
   # Prefer domains.override.json when present (ADR-0021); empty when neither exists.
   if ! declare -F domains_assignment_path >/dev/null 2>&1; then
-    # shellcheck source=../../lib/domains.sh
-    source "${REPO_ROOT}/internals/lib/domains.sh"
+    # shellcheck source=../../lib/domains/domains.sh
+    source "${REPO_ROOT}/internals/lib/domains/domains.sh"
   fi
   domains_assignment_path "${PLATFORM_ENV}"
 }
@@ -122,7 +122,7 @@ acceptance_host_session() {
 wait_until_ihp_done() {
   require_ip
   [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh acceptance)"
-  local script="${REPO_ROOT}/internals/components/lib/wait-until-ihp-done.sh"
+  local script="${REPO_ROOT}/internals/host-scripts/wait-until-ihp-done.sh"
   local user="${PLATFORM_USER:-platform}"
   if ! host_wait_until_ihp_done "${script}" "${user}"; then
     fail "Host not ready for Component Setup (see Host output above)"
@@ -133,8 +133,8 @@ wait_until_ihp_done() {
 # Soft-skip Route attach assertions when empty (ADR-0028 fail-closed needs a want-list name).
 acceptance_route_fqdn() {
   if ! declare -F domains_acme_fqdns_for >/dev/null 2>&1; then
-    # shellcheck source=../../lib/domains.sh
-    source "${REPO_ROOT}/internals/lib/domains.sh"
+    # shellcheck source=../../lib/domains/domains.sh
+    source "${REPO_ROOT}/internals/lib/domains/domains.sh"
   fi
   domains_acme_fqdns_for "${PLATFORM_ENV:-test}" | awk 'NF { print; exit }'
 }

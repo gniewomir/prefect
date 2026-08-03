@@ -14,14 +14,14 @@ OVERRIDE_EXAMPLE="${STACK_DIR}/modules/durables/durable_destroy_override.tf.exam
 UNLOCK_VAR=(-var=allow_durable_destroy=true)
 # shellcheck source=internals/lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
-# shellcheck source=internals/lib/environment.sh
-source "${REPO_ROOT}/internals/lib/environment.sh"
-# shellcheck source=internals/lib/adopt.sh
-source "${REPO_ROOT}/internals/lib/adopt.sh"
-# shellcheck source=internals/lib/operator-dotenv.sh
-source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
-# shellcheck source=internals/lib/operator-configuration.sh
-source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
+# shellcheck source=internals/lib/environment/environment.sh
+source "${REPO_ROOT}/internals/lib/environment/environment.sh"
+# shellcheck source=internals/lib/adopt/adopt.sh
+source "${REPO_ROOT}/internals/lib/adopt/adopt.sh"
+# shellcheck source=internals/lib/operator/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
+# shellcheck source=internals/lib/operator/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
 # shellcheck source=internals/lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
 

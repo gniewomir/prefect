@@ -14,17 +14,17 @@ source "${TEST_DIR}/lib.sh"
 source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
 # shellcheck source=internals/lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
-# shellcheck source=internals/lib/environment.sh
-source "${REPO_ROOT}/internals/lib/environment.sh"
-# shellcheck source=internals/lib/operator-dotenv.sh
-source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
-# shellcheck source=internals/lib/operator-configuration.sh
-source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
+# shellcheck source=internals/lib/environment/environment.sh
+source "${REPO_ROOT}/internals/lib/environment/environment.sh"
+# shellcheck source=internals/lib/operator/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
+# shellcheck source=internals/lib/operator/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
 
-"${REPO_ROOT}/internals/lib/check-stack-names.sh"
-"${REPO_ROOT}/internals/lib/check-cloud-init-ascii.sh"
-"${REPO_ROOT}/internals/lib/check-ssh-port-twins.sh"
-"${REPO_ROOT}/internals/lib/check-domains-config-path.sh"
+"${REPO_ROOT}/internals/lib/checks/check-stack-names.sh"
+"${REPO_ROOT}/internals/lib/checks/check-cloud-init-ascii.sh"
+"${REPO_ROOT}/internals/lib/checks/check-ssh-port-twins.sh"
+"${REPO_ROOT}/internals/lib/checks/check-domains-config-path.sh"
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 

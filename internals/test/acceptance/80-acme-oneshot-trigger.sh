@@ -8,8 +8,8 @@ require_ip
 acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh acceptance)"
 
-# shellcheck source=../../lib/domains.sh
-source "${REPO_ROOT}/internals/lib/domains.sh"
+# shellcheck source=../../lib/domains/domains.sh
+source "${REPO_ROOT}/internals/lib/domains/domains.sh"
 EXPECTED="$(domains_acme_fqdns_for "${PLATFORM_ENV:-test}")"
 
 before="$(host_ssh \

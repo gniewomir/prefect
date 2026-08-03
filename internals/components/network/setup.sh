@@ -7,10 +7,10 @@ set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
 SRC="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=../lib/quadlet-user-session.sh
-source "${SRC}/../lib/quadlet-user-session.sh"
-# shellcheck source=../lib/component-units-host.sh
-source "${SRC}/../lib/component-units-host.sh"
+# shellcheck source=../../host-scripts/lib/quadlet-user-session.sh
+source /var/lib/host-volume/internals/host-scripts/lib/quadlet-user-session.sh
+# shellcheck source=../../host-scripts/lib/component-units-host.sh
+source /var/lib/host-volume/internals/host-scripts/lib/component-units-host.sh
 
 quadlet_user_session_begin
 

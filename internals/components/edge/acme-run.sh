@@ -15,12 +15,12 @@ WANT_LIST="${ACME_DIR}/want-list"
 LEGO_BIN="${LEGO_BIN:-/var/lib/host-volume/components_data/edge/acme/bin/lego}"
 USER_NAME="${PLATFORM_USER:-platform}"
 
-# shellcheck source=../lib/quadlet-user-session.sh
-source /var/lib/host-volume/components/lib/quadlet-user-session.sh
-# shellcheck source=../lib/edge-want-list-host.sh
-source /var/lib/host-volume/components/lib/edge-want-list-host.sh
-# shellcheck source=../lib/edge-front-door-host.sh
-source /var/lib/host-volume/components/lib/edge-front-door-host.sh
+# shellcheck source=../../host-scripts/lib/quadlet-user-session.sh
+source /var/lib/host-volume/internals/host-scripts/lib/quadlet-user-session.sh
+# shellcheck source=../../host-scripts/lib/edge-want-list-host.sh
+source /var/lib/host-volume/internals/host-scripts/lib/edge-want-list-host.sh
+# shellcheck source=../../host-scripts/lib/edge-front-door-host.sh
+source /var/lib/host-volume/internals/host-scripts/lib/edge-front-door-host.sh
 
 mkdir -p "${ACME_DIR}" "${ACME_WWW}" "${CERTS_DIR}" "${ROUTES_DIR}"
 

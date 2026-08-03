@@ -12,9 +12,9 @@ pass() { echo "PASS: $*"; }
 export REPO_ROOT="${TMP_DIR}/repo"
 export PLATFORM_ENV=test
 
-mkdir -p "${REPO_ROOT}/internals/lib" "${REPO_ROOT}/internals/test/acceptance" \
+mkdir -p "${REPO_ROOT}/internals/lib/environment" "${REPO_ROOT}/internals/test/acceptance" \
   "${REPO_ROOT}/environments/test"
-cp "${REAL_ROOT}/internals/lib/environment.sh" "${REPO_ROOT}/internals/lib/environment.sh"
+cp "${REAL_ROOT}/internals/lib/environment/environment.sh" "${REPO_ROOT}/internals/lib/environment/environment.sh"
 cat >"${REPO_ROOT}/internals/test/acceptance/lib.sh" <<'EOF'
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }

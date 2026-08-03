@@ -7,8 +7,8 @@ set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
 SRC="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=../lib/edge-setup-host.sh
-source "${SRC}/../lib/edge-setup-host.sh"
+# shellcheck source=../../host-scripts/lib/edge-setup-host.sh
+source /var/lib/host-volume/internals/host-scripts/lib/edge-setup-host.sh
 
 # Staged want-list handoff from ensure-components (ADR-0023 / #131).
 # Staging pathname enters only at this seam — not every Edge helper's interface.

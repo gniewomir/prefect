@@ -9,12 +9,12 @@ CASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 # shellcheck source=internals/lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
-# shellcheck source=internals/lib/environment.sh
-source "${REPO_ROOT}/internals/lib/environment.sh"
-# shellcheck source=internals/lib/operator-dotenv.sh
-source "${REPO_ROOT}/internals/lib/operator-dotenv.sh"
-# shellcheck source=internals/lib/operator-configuration.sh
-source "${REPO_ROOT}/internals/lib/operator-configuration.sh"
+# shellcheck source=internals/lib/environment/environment.sh
+source "${REPO_ROOT}/internals/lib/environment/environment.sh"
+# shellcheck source=internals/lib/operator/operator-dotenv.sh
+source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
+# shellcheck source=internals/lib/operator/operator-configuration.sh
+source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
 # shellcheck source=../run-buffered-case.sh
 source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
 
