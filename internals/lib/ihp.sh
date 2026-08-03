@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Operator-side IHP Done helpers (ADR-0030 cutover reboot race).
-# Sourced by ensure-components and Acceptance — requires ambient Host-session (host_ssh).
+# Sourced by ensure-fabric, ensure-components, and Acceptance — requires ambient Host-session (host_ssh).
 
 # Run Host-local wait-until-ihp-done over SSH. Retries when SSH exits 255 (connection
 # drop during ADR-0030 power_state reboot). Non-255 failures fail closed immediately.

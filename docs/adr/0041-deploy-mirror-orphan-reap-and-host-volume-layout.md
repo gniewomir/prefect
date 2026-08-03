@@ -10,4 +10,4 @@ Propraetor gains **Deploy** — root `deploy.sh` takes a **Substrate** Host to *
 
 **Rejected:** Expanding Fabric to include Environment mirror; repo-as-SoT for Edge gather; Mirror wipe-and-refill of all `internals/` (breaks live bind mounts); Mirror drop-cleanup conflated with Purge; Purge overloaded to mean orphan reap; Deploy that runs Apply; `ensure-workloads` without a singular `ensure-workload`; garbage-collector as the domain name for Purge.
 
-**Status:** accepted (glossary updated; Host Volume layout hard cut implemented in #154; Deploy ladder / Mirror / Orphan Reap still pending under #152).
+**Status:** accepted (glossary updated; Host Volume layout hard cut implemented in #154; `ensure-fabric` / `ensure-components` split in #155; Deploy ladder / Mirror / Orphan Reap still pending under #152).

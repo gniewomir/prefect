@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Ensure Components on the Host after Initial Host Provisioning.
-# Waits for IHP Done (Host is Substrate), ships Component source, host-scripts, and the
-# ACME want-list via Host delivery, then runs Component Setup (Edge). Idempotent —
-# re-run freely. Does not run Fabric Setup (see ensure-fabric.sh). ADR-0040 / ADR-0041 / #155.
+# Ensure Fabric on the Host after Initial Host Provisioning.
+# Waits for IHP Done (Host is Substrate), ships Fabric source + host-scripts via Host
+# delivery, then runs Fabric Setup (Service Network). Idempotent — re-run freely.
+# Does not run Component Setup (see ensure-components.sh). ADR-0040 / ADR-0041 / #155.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
-# Usage: ./internals/ensure-components.sh [--env <slug>]
+# Usage: ./internals/ensure-fabric.sh [--env <slug>]
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
 set -euo pipefail
@@ -12,14 +12,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
-COMPONENTS=(edge)
-HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-components-host.sh"
+FABRIC=(fabric)
+HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-fabric-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/environment/environment.sh
 source "${REPO_ROOT}/internals/lib/environment/environment.sh"
-# shellcheck source=lib/domains/domains.sh
-source "${REPO_ROOT}/internals/lib/domains/domains.sh"
 # shellcheck source=lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
 # shellcheck source=lib/host-delivery.sh
@@ -55,38 +53,34 @@ IHP_DONE="${REPO_ROOT}/internals/host-scripts/wait-until-ihp-done.sh"
   exit 1
 }
 
-for name in "${COMPONENTS[@]}"; do
-  [[ -d "${REPO_ROOT}/internals/components/${name}" ]] || {
-    echo "Component tree missing: internals/components/${name}" >&2
+for name in "${FABRIC[@]}"; do
+  [[ -d "${REPO_ROOT}/internals/${name}" ]] || {
+    echo "Fabric tree missing: internals/${name}" >&2
     exit 1
   }
-  [[ -f "${REPO_ROOT}/internals/components/${name}/setup.sh" ]] || {
-    echo "Component Setup missing: internals/components/${name}/setup.sh" >&2
+  [[ -f "${REPO_ROOT}/internals/${name}/setup.sh" ]] || {
+    echo "Fabric Setup missing: internals/${name}/setup.sh" >&2
     exit 1
   }
 done
 
-# Host-local IHP Done gate (Substrate) before Component Setup — ADR-0040 / ADR-0030.
+# Host-local IHP Done gate (Substrate) before Fabric Setup — ADR-0040 / ADR-0030.
 host_wait_until_ihp_done "${IHP_DONE}" "${USER_NAME}"
 
-STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-components-stage.XXXXXX")"
+STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-fabric-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT
 
-# Domain-derived ACME want-list (ADR-0023): stage FQDNs into the delivery payload;
-# Host half places the Edge handoff path; Edge Component Setup installs the Host want-list.
-domains_acme_fqdns_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme-want-list"
-
 cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"
-cp "${HOST_SCRIPT}" "${STAGE}/ensure-components-host.sh"
-for name in "${COMPONENTS[@]}"; do
-  cp -a "${REPO_ROOT}/internals/components/${name}" "${STAGE}/${name}"
+cp "${HOST_SCRIPT}" "${STAGE}/ensure-fabric-host.sh"
+for name in "${FABRIC[@]}"; do
+  cp -a "${REPO_ROOT}/internals/${name}" "${STAGE}/${name}"
 done
 
-REMOTE_ROOT="/tmp/platform-ensure-components"
-remote_cmd="bash ${REMOTE_ROOT}/ensure-components-host.sh ${USER_NAME}"
-for name in "${COMPONENTS[@]}"; do
-  remote_cmd+=" --component ${name}"
+REMOTE_ROOT="/tmp/platform-ensure-fabric"
+remote_cmd="bash ${REMOTE_ROOT}/ensure-fabric-host.sh ${USER_NAME}"
+for name in "${FABRIC[@]}"; do
+  remote_cmd+=" --fabric ${name}"
 done
 host_delivery_run "${STAGE}" "${REMOTE_ROOT}" "${remote_cmd}"
 
-echo "Components ensured for Platform User '${USER_NAME}' on ${IP}."
+echo "Fabric ensured for Platform User '${USER_NAME}' on ${IP}."

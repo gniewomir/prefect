@@ -64,7 +64,8 @@ propraetor_ssh_forget_host "${IP}"
 
 echo "Checking Reserved IP ${IP} (Environment ${PLATFORM_ENV}) ..."
 
-# Propraetor Components for the Platform User (idempotent Component Setup; not Initial Host Provisioning).
+# Fabric then Components for the Platform User (idempotent Setups; not Initial Host Provisioning).
+"${REPO_ROOT}/internals/ensure-fabric.sh" --env "${PLATFORM_ENV}"
 "${REPO_ROOT}/internals/ensure-components.sh" --env "${PLATFORM_ENV}"
 
 ALL_CASES=()

@@ -22,7 +22,7 @@ From the repo root:
 
 Requires Provider Credential and Operator Configuration private key path (root `.env` or process environment — ADR-0038).
 
-Components (empty Edge → HTTP 404 on :80): the runner invokes `./internals/ensure-components.sh` (same Environment) before cases (idempotent Component Setup on the Host Volume; not Initial Host Provisioning).
+Fabric then Components (empty Edge → HTTP 404 on :80): the runner invokes `./internals/ensure-fabric.sh` then `./internals/ensure-components.sh` (same Environment) before cases (idempotent Fabric Setup + Component Setup on the Host Volume; not Initial Host Provisioning).
 
 ## Add a new Acceptance Test
 
