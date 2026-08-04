@@ -93,7 +93,7 @@ An executable check that the live Stack’s **Deployed** Host matches the intend
 _Avoid_: Verify script, observability check, smoke test, integration test, Lifecycle Test, Unit Test (when you mean this concept)
 
 **Lifecycle Test**:
-An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Opt-in; **test Environment only**; suite baseline between cases is Stack absent (post-**Teardown**). Distinct from Acceptance Tests and Unit Tests (ADR-0042).
+An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Opt-in; **test Environment only**; suite baseline between cases is Stack absent (post-**Teardown**); suite-start confirm-gated (ADR-0042). Distinct from Acceptance Tests and Unit Tests (ADR-0042).
 _Avoid_: Acceptance Test, Unit Test, destroy test, integration test (when you mean this concept)
 
 **Unit Test**:

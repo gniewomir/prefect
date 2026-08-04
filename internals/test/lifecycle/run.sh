@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Lifecycle Test suite runner — Park / Apply-after-Park / Teardown (destructive; opt-in).
 # Invoked via ./test.sh lifecycle […] (ADR-0036). See README.md.
-# Suite baseline (ADR-0042 / #161): test Environment only; suite confirm 'teardown';
-# Teardown via ./teardown.sh before each case (Stack absent).
+# Suite baseline (ADR-0042 / #161 / #177): test Environment only; suite confirm 'teardown'
+# after case inventory and before credential / Host work; Teardown via ./teardown.sh
+# before each case (Stack absent).
 # Requires: terraform; curl; jq; ssh; Provider Credential; Operator Configuration (both paths).
 set -euo pipefail
 
@@ -40,15 +41,6 @@ else
   set --
 fi
 
-command -v terraform >/dev/null || fail "terraform not found"
-command -v curl >/dev/null || fail "curl not found"
-command -v jq >/dev/null || fail "jq not found"
-command -v ssh >/dev/null || fail "ssh not found"
-
-provider_credential_require || exit 1
-operator_configuration_require both || exit 1
-[[ -d "${STACK_DIR}" ]] || fail "missing Stack dir ${STACK_DIR}"
-
 export REPO_ROOT STACK_DIR PLATFORM_ENV
 
 ALL_CASES=()
@@ -85,7 +77,17 @@ echo "Environment: ${PLATFORM_ENV}"
 echo "Cases: ${#CASES[@]} — see ${CASE_DIR}/README.md"
 echo
 
+# Suite confirm before tools / credentials so wrong confirm is Host-free (#177).
 lifecycle_confirm_suite_teardown || exit 1
+
+command -v terraform >/dev/null || fail "terraform not found"
+command -v curl >/dev/null || fail "curl not found"
+command -v jq >/dev/null || fail "jq not found"
+command -v ssh >/dev/null || fail "ssh not found"
+
+provider_credential_require || exit 1
+operator_configuration_require both || exit 1
+[[ -d "${STACK_DIR}" ]] || fail "missing Stack dir ${STACK_DIR}"
 
 for case_path in "${CASES[@]}"; do
   label="$(basename "${case_path}")"
