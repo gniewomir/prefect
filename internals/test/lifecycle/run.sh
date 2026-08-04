@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Lifecycle Test suite runner — Park / Apply-after-Park / Teardown (destructive; opt-in).
 # Invoked via ./test.sh lifecycle […] (ADR-0036). See README.md.
+# Suite baseline (ADR-0042 / #161): test Environment only; suite confirm 'teardown';
+# Teardown via ./teardown.sh before each case (Stack absent).
 # Requires: terraform; curl; jq; ssh; Provider Credential; Operator Configuration (both paths).
 set -euo pipefail
 
@@ -17,6 +19,8 @@ source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
 source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
 # shellcheck source=../run-buffered-case.sh
 source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
+# shellcheck source=baseline.sh
+source "${CASE_DIR}/baseline.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -26,6 +30,7 @@ CLI_env=""
 CLI_selector=""
 cli_operator_parse CLI pos:selector:optional -- "$@" || exit 1
 environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
+lifecycle_require_test_environment || exit 1
 if [[ -n "${CLI_selector}" ]]; then
   set -- "${CLI_selector}"
 else
@@ -77,28 +82,12 @@ echo "Environment: ${PLATFORM_ENV}"
 echo "Cases: ${#CASES[@]} — see ${CASE_DIR}/README.md"
 echo
 
-needs_teardown_confirm=false
-for case_path in "${CASES[@]}"; do
-  base="$(basename "${case_path}")"
-  if [[ "${base}" == *teardown* || "${base}" == *additive* ]]; then
-    needs_teardown_confirm=true
-    break
-  fi
-done
-
-if [[ "${needs_teardown_confirm}" == true ]]; then
-  echo "WARNING: selected cases include Teardown (full wipe including Durables),"
-  echo "         or Additive Domain cleanup that Teardowns then re-Applies."
-  echo "         Billing for Reserved IP, Host Volume, and Domain stops during Teardown."
-  echo
-  printf "Type exactly 'teardown' to run those Lifecycle cases: "
-  read -r confirm
-  [[ "${confirm}" == "teardown" ]] || fail "aborted (expected exact 'teardown')"
-  echo
-fi
+lifecycle_confirm_suite_teardown || exit 1
 
 for case_path in "${CASES[@]}"; do
   label="$(basename "${case_path}")"
+  echo "Baseline: Teardown → Stack absent before ${label}"
+  lifecycle_baseline_stack_absent || fail "Lifecycle baseline Teardown failed before: ${label}"
   run_buffered_case "${label}" "${case_path}" || fail "Lifecycle Test failed: ${label}"
 done
 
