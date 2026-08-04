@@ -60,6 +60,6 @@ The runner asks for exact `teardown` once at suite start (every invocation wipes
 2. Use observable outcomes (provider presence/absence, Reserved IP value, volume marker bytes, SSH reachability) — not Terraform internals. Exception: Teardown leftover emptiness may be asserted via empty State (glossary Teardown).
 3. Document leftover Stack state in the case header (Parked vs Applied vs empty).
 4. If the case needs Applied presence, call `ensure_stack_applied` (do not fail closed asking the operator to Apply first).
-5. Source `lib.sh` for `pass` / `fail`, provider Durable checks, and SSH helpers.
+5. Source `lib/lib.sh` for `pass` / `fail`, provider Durable checks, and SSH helpers.
 
-Non-case files in this directory (`lib.sh`, `run.sh`, `*_test.sh`, this README) are not executed as cases.
+Non-case files in this directory (`lib/`, `run.sh`, this README) are not executed as cases. Shared helpers and their Unit Tests live under `lib/`.

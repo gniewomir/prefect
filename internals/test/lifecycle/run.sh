@@ -19,8 +19,8 @@ source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
 source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
 # shellcheck source=../run-buffered-case.sh
 source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
-# shellcheck source=baseline.sh
-source "${CASE_DIR}/baseline.sh"
+# shellcheck source=lib/baseline.sh
+source "${CASE_DIR}/lib/baseline.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 

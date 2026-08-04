@@ -2,7 +2,7 @@
 # Seam: wait_until_ssh_reachable — forgets stale known_hosts before polling SSH.
 set -euo pipefail
 
-REAL_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+REAL_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 CASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 export REPO_ROOT="${REAL_ROOT}"
 # shellcheck source=lib.sh
