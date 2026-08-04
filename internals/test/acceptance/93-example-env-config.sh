@@ -71,7 +71,7 @@ UID_NUM=\$(id -u platform)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user stop ${WL}-pod.service ${WL}-${ROLE}.service 2>/dev/null || true
-rm -rf /var/lib/host-volume/internals/workloads/${WL} /var/lib/host-volume/data/workloads/${WL} \
+rm -rf /var/lib/host-volume/internals/workloads/${WL} \
   /home/platform/.config/platform/workloads/${WL}
 rm -f /home/platform/.config/containers/systemd/${WL}.pod \
   /home/platform/.config/containers/systemd/${WL}-${ROLE}.container

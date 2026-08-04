@@ -61,11 +61,9 @@ HOME_DIR=\$(getent passwd platform | cut -d: -f6)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user stop ${WL}-pod.service ${WL}-web.service 2>/dev/null || true
-rm -rf /var/lib/host-volume/internals/workloads/${WL} /var/lib/host-volume/data/workloads/${WL}
+rm -rf /var/lib/host-volume/internals/workloads/${WL}
 rm -f /home/platform/.config/containers/systemd/${WL}.pod \
   /home/platform/.config/containers/systemd/${WL}-web.container
-rm -f /var/lib/host-volume/data/components/edge/routes/${WL}.conf \
-  /var/lib/host-volume/data/components/edge/routes/${WL}--*
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR systemctl --user daemon-reload
 REMOTE
 
@@ -172,9 +170,6 @@ pass "Workload publishes no Host ports"
 if [[ -z "${ROUTE_FQDN}" ]]; then
   echo "SOFT-SKIP: empty Domain want-list — Route install / HTTPS attach assertions"
 else
-  # Prior Acceptance leftovers (e.g. web-api-with-db) may still be Intent-run with
-  # location / for the same FQDN — nginx rejects duplicate root locations.
-  acceptance_drop_peer_location_root_routes "${ROUTE_FQDN}" "${WL}"
   ensure_edge_route_fulfillment
   installed="$(host_ssh \
     "cat /var/lib/host-volume/data/components/edge/routes/${WL}--${ROUTE_FQDN}.conf")"
@@ -191,7 +186,7 @@ runuser -u platform -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" systemctl --user 
 runuser -u platform -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" systemctl --user restart edge-pod.service
 REMOTE
   acceptance_wait_user_unit_active edge-nginx.service 60 \
-    || fail "Edge nginx must be active after Route gather (check duplicate location / leftovers)"
+    || fail "Edge nginx must be active after Route gather"
 
   body=""
   code=""

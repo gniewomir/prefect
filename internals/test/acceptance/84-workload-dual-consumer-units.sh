@@ -117,8 +117,7 @@ EOF
 host_ssh bash -s <<'REMOTE'
 set -euo pipefail
 for n in dual-ok dual-empty wrong-q wrong-s clash-sys; do
-  rm -rf "/var/lib/host-volume/internals/workloads/${n}" \
-    "/var/lib/host-volume/data/workloads/${n}"
+  rm -rf "/var/lib/host-volume/internals/workloads/${n}"
 done
 rm -f /home/platform/.config/containers/systemd/dual-ok.container \
   /home/platform/.config/systemd/user/dual-ok-probe.service \

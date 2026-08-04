@@ -125,19 +125,15 @@ want_before="$(host_ssh \
 
 # Clean durable leftovers
 host_ssh \
-  "rm -rf /var/lib/host-volume/internals/workloads/alpha /var/lib/host-volume/data/workloads/alpha \
-          /var/lib/host-volume/internals/workloads/legacy /var/lib/host-volume/data/workloads/legacy \
-          /var/lib/host-volume/internals/workloads/named /var/lib/host-volume/data/workloads/named \
-          /var/lib/host-volume/internals/workloads/upstreamed /var/lib/host-volume/data/workloads/upstreamed \
-          /var/lib/host-volume/internals/workloads/sourced /var/lib/host-volume/data/workloads/sourced \
-          /var/lib/host-volume/internals/workloads/zero /var/lib/host-volume/data/workloads/zero \
-          /var/lib/host-volume/internals/workloads/clash /var/lib/host-volume/data/workloads/clash \
-          /var/lib/host-volume/internals/workloads/owner-a /var/lib/host-volume/data/workloads/owner-a \
-          /var/lib/host-volume/internals/workloads/owner-b /var/lib/host-volume/data/workloads/owner-b \
-          /var/lib/host-volume/data/components/edge/routes/alpha.conf \
-          /var/lib/host-volume/data/components/edge/routes/alpha--* \
-          /var/lib/host-volume/data/components/edge/routes/zero--* \
-          /var/lib/host-volume/data/components/edge/routes/clash--*; \
+  "rm -rf /var/lib/host-volume/internals/workloads/alpha \
+          /var/lib/host-volume/internals/workloads/legacy \
+          /var/lib/host-volume/internals/workloads/named \
+          /var/lib/host-volume/internals/workloads/upstreamed \
+          /var/lib/host-volume/internals/workloads/sourced \
+          /var/lib/host-volume/internals/workloads/zero \
+          /var/lib/host-volume/internals/workloads/clash \
+          /var/lib/host-volume/internals/workloads/owner-a \
+          /var/lib/host-volume/internals/workloads/owner-b; \
    rm -f /home/platform/.config/containers/systemd/alpha.container \
          /home/platform/.config/containers/systemd/zero.container \
          /home/platform/.config/containers/systemd/legacy.container \

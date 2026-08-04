@@ -35,10 +35,7 @@ location = /tlsprobe {
 EOF
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/data/components/edge/routes/${WL}.conf \
-          /var/lib/host-volume/data/components/edge/routes/${WL}--* \
-          /var/lib/host-volume/internals/workloads/${WL} \
-          /var/lib/host-volume/data/workloads/${WL}"
+  "rm -rf /var/lib/host-volume/internals/workloads/${WL}"
 
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 ensure_edge_route_fulfillment
@@ -73,6 +70,7 @@ done
 pass "Domain-front HTTPS serves Workload Route fragment"
 
 TOKEN="tls-acme-probe"
+acceptance_data_track "components/edge/acme-www/.well-known/acme-challenge/${TOKEN}"
 host_ssh bash -s <<REMOTE
 set -euo pipefail
 TOKEN_PATH=/var/lib/host-volume/data/components/edge/acme-www/.well-known/acme-challenge/${TOKEN}

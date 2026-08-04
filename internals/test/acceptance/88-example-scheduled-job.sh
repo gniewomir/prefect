@@ -77,7 +77,7 @@ runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user stop ${WL}-${ROLE}.service ${WL}-${ROLE}.timer 2>/dev/null || true
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user disable --now ${WL}-${ROLE}.timer 2>/dev/null || true
-rm -rf /var/lib/host-volume/internals/workloads/${WL} /var/lib/host-volume/data/workloads/${WL}
+rm -rf /var/lib/host-volume/internals/workloads/${WL}
 rm -f /home/platform/.config/containers/systemd/${WL}-${ROLE}.container \
   /home/platform/.config/systemd/user/${WL}-${ROLE}.timer \
   /home/platform/.config/systemd/user/timers.target.wants/${WL}-${ROLE}.timer

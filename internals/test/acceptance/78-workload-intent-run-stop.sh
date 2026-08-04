@@ -56,10 +56,7 @@ want_before="$(host_ssh \
   "cat /var/lib/host-volume/data/components/edge/acme/want-list 2>/dev/null || true")"
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/data/components/edge/routes/${WL}.conf \
-          /var/lib/host-volume/data/components/edge/routes/${WL}--* \
-          /var/lib/host-volume/internals/workloads/${WL} \
-          /var/lib/host-volume/data/workloads/${WL}; \
+  "rm -rf /var/lib/host-volume/internals/workloads/${WL}; \
    rm -f /home/platform/.config/containers/systemd/${WL}.container"
 
 write_manifest run
