@@ -269,7 +269,9 @@ acceptance_wl_track() {
   ACCEPTANCE_WL_TRACKED+=("$@")
 }
 
-# Paths relative to environments/<slug>/ to restore from git HEAD on cleanup (ADR-0042).
+# Opt-in: paths relative to environments/<slug>/ that the case mutated in committed
+# SoT — restored from git HEAD on cleanup (ADR-0042 / #178). Ephemeral fixtures use
+# acceptance_wl_track instead; no live Acceptance case mutates committed SoT today.
 acceptance_sot_track() {
   acceptance_require_test_env_for_sot_mutation || return 1
   ACCEPTANCE_SOT_TRACKED+=("$@")
