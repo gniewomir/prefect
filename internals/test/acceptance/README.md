@@ -37,18 +37,19 @@ Requires Provider Credential and Operator Configuration private key path (root `
 2. Add `NN-short-name.sh` — one capability / contract slice per file.
 3. Start from `set -euo pipefail`, source `lib.sh`, and use `pass` / `fail`.
 4. Assume fixture env from the runner (`IP`, provider-observed `RESERVED_IP_JSON` / `HOST_JSON`) and use `do_api_get` for other provider outcomes.
-5. Restore Environment SoT before exit; register any survive-Deploy `data/` creations for cleanup/**G**. Do not clean “whatever previous cases left.”
+5. Restore Environment SoT before exit (`acceptance_wl_track` for fixtures; `acceptance_sot_track` for mutated committed paths). Register survive-Deploy `data/` creations with `acceptance_data_track`. One EXIT trap: `acceptance_wl_cleanup` (fixtures + SoT restore + tracked `data/` cleanup/**G**). Do not clean “whatever previous cases left.”
 6. Keep the script focused on external behavior. The runner discovers `[0-9]*.sh` automatically — no registry edit.
 7. Do not call `./park.sh`, `./teardown.sh`, or otherwise remove the Host / Durables.
 
-Non-case files in this directory (`lib.sh`, `run.sh`, this README) are not executed as cases.
+Non-case files in this directory (`lib.sh`, `run.sh`, `baseline.sh`, this README) are not executed as cases.
 
 ## Layout
 
 | Path | Role |
 |------|------|
 | `run.sh` | Suite runner (via `./test.sh acceptance`) |
-| `lib.sh` | Shared `pass` / `fail` / probes / SSH opts |
+| `baseline.sh` | Suite Deploy / diagnose helpers (ADR-0042) |
+| `lib.sh` | Shared `pass` / `fail` / probes / isolation track+cleanup |
 | `NN-*.sh` | Acceptance Tests (sort order = run order) |
 | `../lifecycle/` | Lifecycle Test suite |
 | `../unit/` | Unit Test suite runner |
