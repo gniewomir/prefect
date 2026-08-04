@@ -38,7 +38,7 @@ grep -Fq 'args=--env test' "${TMP}/teardown.args" \
   || fail "each Teardown must receive --env test"
 pass "Teardown baseline invoked once per case in a three-case loop"
 
-# Wrong suite confirm still aborts (suite start; complements ./test.sh soft path).
+# Wrong suite confirm still aborts (helper seam; ./test.sh path covered in suite_gates_test.sh).
 if ( printf 'teardown please\n' | lifecycle_confirm_suite_teardown >/dev/null 2>&1 ); then
   fail "non-exact teardown confirm must abort"
 fi

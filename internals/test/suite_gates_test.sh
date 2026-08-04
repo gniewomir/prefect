@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Seam: ADR-0042 suite gates via ./test.sh (issue #166 / #159) —
+# Seam: ADR-0042 suite gates via ./test.sh (issue #166 / #159 / #177) —
 # observable abort behavior, not Terraform internals.
-# Lifecycle non-test --env fail-closed needs no Host credentials.
-# Acceptance diagnose / Lifecycle teardown confirms reuse helper coverage in
-# acceptance/baseline_test.sh and lifecycle/lib/baseline_test.sh; here we
-# exercise the dispatcher → runner path where it aborts before Host work.
+# Lifecycle non-test --env and suite teardown confirm abort before credentials / Host.
+# Acceptance diagnose confirms abort before credentials. Helper phrase coverage also
+# lives in acceptance/baseline_test.sh and lifecycle/lib/baseline_test.sh.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -51,19 +50,12 @@ run_test_sh acceptance --env prod
   || fail "acceptance wrong slug: expected abort, got: ${OUT}"
 pass "acceptance --env prod with wrong diagnose slug aborts"
 
-# --- Lifecycle: wrong suite confirm aborts when the runner reaches the prompt ---
-# Requires provider credential + operator configuration (same as a real Lifecycle start).
-# Soft-skip when the suite stops earlier so Unit Tests stay Host-free by default.
+# --- Lifecycle: wrong suite confirm aborts before credentials / Host (#177) ---
 STDIN_LINES="yes"
 run_test_sh lifecycle
-if [[ "${OUT}" == *"aborted (expected exact 'teardown')"* ]]; then
-  [[ "${STATUS}" -ne 0 ]] || fail "lifecycle wrong teardown confirm: expected non-zero"
-  pass "lifecycle without exact teardown aborts when prompted"
-elif [[ "${OUT}" == *"Provider Credential"* || "${OUT}" == *"credential"* \
-  || "${OUT}" == *"Operator Configuration"* || "${OUT}" == *"PROPRAETOR_"* ]]; then
-  pass "lifecycle teardown-confirm gate skipped (no operator credentials in Unit seam)"
-else
-  fail "lifecycle wrong confirm: unexpected early failure: ${OUT}"
-fi
+[[ "${STATUS}" -ne 0 ]] || fail "lifecycle wrong teardown confirm: expected non-zero"
+[[ "${OUT}" == *"aborted (expected exact 'teardown')"* ]] \
+  || fail "lifecycle without exact teardown: expected abort before credentials, got: ${OUT}"
+pass "lifecycle without exact teardown aborts when prompted"
 
 echo "All suite gate checks passed."

@@ -4,7 +4,7 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
 
 **Entrypoint:** `./test.sh lifecycle` — see [docs/agents/testing.md](../../../docs/agents/testing.md) (ADR-0036). Suite baselines: [ADR-0042](../../../docs/adr/0042-suite-baselines-and-test-isolation.md).
 
-**Suite baseline (ADR-0042):** Stack **absent** (post-**Teardown**). Runner Teardown **before each case**. **test Environment only** (fail closed on any other `--env`). Suite start: type exact `teardown` once. Cases that need an Applied Stack **Apply** themselves. Slow by design.
+**Suite baseline (ADR-0042):** Stack **absent** (post-**Teardown**). Runner Teardown **before each case**. **test Environment only** (fail closed on any other `--env`). Suite start: after case inventory, type exact `teardown` once (before credential / Host work). Cases that need an Applied Stack **Apply** themselves. Slow by design.
 
 **Not Acceptance Tests.** Acceptance asserts a **Deployed** Host and must not Park or Teardown. See `../acceptance/README.md` and the glossary terms Acceptance Test / Lifecycle Test / Unit Test.
 
