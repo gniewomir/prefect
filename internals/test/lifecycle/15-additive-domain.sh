@@ -9,8 +9,8 @@
 # ./apply.sh or ./teardown.sh as needed.
 set -euo pipefail
 
-# shellcheck source=lib.sh
-source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
+# shellcheck source=lib/lib.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/lib.sh"
 
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh lifecycle)"
 [[ -d "${STACK_DIR}" ]] || fail "missing Stack dir ${STACK_DIR}"

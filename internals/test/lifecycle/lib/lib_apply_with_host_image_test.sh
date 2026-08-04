@@ -2,7 +2,7 @@
 # Seam: apply_with_host_image — TF_VAR_host_image for one Apply only (#64 / ADR-0037).
 set -euo pipefail
 
-REAL_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+REAL_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 CASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 export REPO_ROOT="${REAL_ROOT}"
 # shellcheck source=lib.sh

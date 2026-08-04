@@ -2,7 +2,7 @@
 # Seam: write_subtractive_domain_override (#63). No cloud access.
 set -euo pipefail
 
-REAL_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+REAL_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
@@ -28,7 +28,7 @@ printf '%s\n' '{
 }' >"${REPO_ROOT}/environments/test/domains.json"
 
 # shellcheck source=lib.sh
-source "${REAL_ROOT}/internals/test/lifecycle/lib.sh"
+source "${REAL_ROOT}/internals/test/lifecycle/lib/lib.sh"
 
 dropped="$(write_subtractive_domain_override)"
 [[ "${dropped}" == "alpha.example" ]] \

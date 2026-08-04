@@ -2,7 +2,7 @@
 # Seam: ensure_stack_applied — Apply when not Applied; reuse when Applied.
 set -euo pipefail
 
-REAL_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+REAL_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 CASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 export REPO_ROOT="${REAL_ROOT}"
 # shellcheck source=lib.sh
