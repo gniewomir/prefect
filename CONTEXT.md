@@ -89,7 +89,7 @@ A provider tag that selects Hosts for a policy such as a Firewall (public web fo
 _Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is not itself tagged)
 
 **Acceptance Test**:
-An executable check that the live Stack’s **Deployed** Host matches the intended contract (observable outcomes only — not Terraform internals). Suite baseline between cases is **Deployed** (runner re-converges via **Deploy**). Non-destructive to Stack lifecycle: must not Park or Teardown. Defaults to the **test** Environment (ADR-0019); non-**test** use is diagnostic and confirm-gated (ADR-0042).
+An executable check that the live Stack’s **Deployed** Host matches the intended contract (observable outcomes only — not Terraform internals). Suite baseline between cases is **Deployed** (runner re-converges via **Deploy**). Non-destructive to Stack lifecycle: must not Park or Teardown. Defaults to the **test** Environment (ADR-0019); non-**test** use is diagnostic and confirm-gated — Environment SoT stays at committed truth (ADR-0042).
 _Avoid_: Verify script, observability check, smoke test, integration test, Lifecycle Test, Unit Test (when you mean this concept)
 
 **Lifecycle Test**:
