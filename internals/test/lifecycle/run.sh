@@ -29,8 +29,11 @@ operator_dotenv_load "${REPO_ROOT}" || exit 1
 CLI_env=""
 CLI_selector=""
 cli_operator_parse CLI pos:selector:optional -- "$@" || exit 1
-environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
+# Fail closed before selecting a non-test workspace (ADR-0042 / #161).
+PLATFORM_ENV="$(environment_slug_for "${CLI_env}")" || exit 1
+export PLATFORM_ENV
 lifecycle_require_test_environment || exit 1
+environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
 if [[ -n "${CLI_selector}" ]]; then
   set -- "${CLI_selector}"
 else
