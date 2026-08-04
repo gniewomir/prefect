@@ -46,6 +46,7 @@ printf 'diagnose staging\n' | acceptance_confirm_diagnose >/dev/null \
 pass "diagnose slug must match active PLATFORM_ENV"
 
 # --- baseline Deployed: existing ensure.sh path ---
+umask 077
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/acceptance-baseline.XXXXXX")"
 trap 'rm -rf "${TMP}"' EXIT
 RECORD="${TMP}/ensure.record"

@@ -45,6 +45,7 @@ fi
 pass "empty confirm aborts"
 
 # --- baseline absent: existing teardown.sh with confirm piped ---
+umask 077
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/lifecycle-baseline.XXXXXX")"
 trap 'rm -rf "${TMP}"' EXIT
 RECORD="${TMP}/teardown.record"

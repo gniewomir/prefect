@@ -10,6 +10,7 @@ source "${CASE_DIR}/baseline.sh"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 
+umask 077
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/lifecycle-before-each.XXXXXX")"
 trap 'rm -rf "${TMP}"' EXIT
 
