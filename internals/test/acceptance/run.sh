@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Acceptance Test suite runner — Applied Stack external behavior after Apply (./apply.sh).
-# Builds fixture once, runs [0-9]*.sh as subprocesses in sort order (fail-fast).
+# Runs [0-9]*.sh as subprocesses in sort order (fail-fast).
 # Invoked via ./test.sh acceptance […] (ADR-0036).
+# Suite baseline (ADR-0042 / #162): Deploy via ensure.sh before each case; non-test
+# requires exact 'diagnose <slug>' once at suite start (test/default skips).
 # Requires: Provider Credential; Operator Configuration private path (and public when Apply runs).
 set -euo pipefail
 
@@ -10,6 +12,8 @@ STACK_DIR="${REPO_ROOT}/internals/terraform"
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib.sh
 source "${TEST_DIR}/lib.sh"
+# shellcheck source=baseline.sh
+source "${TEST_DIR}/baseline.sh"
 # shellcheck source=../run-buffered-case.sh
 source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
 # shellcheck source=internals/lib/cli.sh
@@ -32,6 +36,7 @@ CLI_env=""
 CLI_selector=""
 cli_operator_parse CLI pos:selector:optional -- "$@" || exit 1
 environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
+acceptance_confirm_diagnose || exit 1
 if [[ -n "${CLI_selector}" ]]; then
   set -- "${CLI_selector}"
 else
@@ -64,10 +69,6 @@ propraetor_ssh_forget_host "${IP}"
 
 echo "Checking Reserved IP ${IP} (Environment ${PLATFORM_ENV}) ..."
 
-# Deploy ladder to Deployed (Fabric → Mirror → Orphan Reap → Components → Workloads → Purge).
-# Idempotent; not Initial Host Provisioning and not Stack Apply — ADR-0041 / #158.
-"${REPO_ROOT}/internals/ensure.sh" --env "${PLATFORM_ENV}"
-
 ALL_CASES=()
 while IFS= read -r case_path; do
   [[ -n "${case_path}" ]] || continue
@@ -99,6 +100,10 @@ fi
 
 for case_path in "${CASES[@]}"; do
   label="$(basename "${case_path}")"
+  echo "Baseline: Deploy → Deployed before ${label}"
+  # Deploy ladder to Deployed (Fabric → Mirror → Orphan Reap → Components → Workloads → Purge).
+  # Idempotent; not Initial Host Provisioning and not Stack Apply — ADR-0041 / #158 / #162.
+  acceptance_baseline_deployed || fail "Acceptance baseline Deploy failed before: ${label}"
   run_buffered_case "${label}" "${case_path}" || fail "Acceptance Test failed: ${label}"
 done
 

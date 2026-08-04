@@ -42,11 +42,14 @@ grep -Eq 'apply\.sh|terraform[[:space:]]+apply' "${DEPLOY}" \
   && fail "deploy.sh must not invoke Stack Apply" || true
 pass "deploy.sh waits for IHP Done, runs ensure.sh, does not Apply"
 
-# Acceptance bring-up uses ensure.sh (not legacy fabric+components-only).
+# Acceptance suite baseline Deploy uses ensure.sh (not legacy fabric+components-only).
+BASELINE="${REPO_ROOT}/internals/test/acceptance/baseline.sh"
 RUNNER="${REPO_ROOT}/internals/test/acceptance/run.sh"
-grep -Fq 'internals/ensure.sh' "${RUNNER}" || fail "Acceptance runner must invoke ensure.sh"
+grep -Fq 'internals/ensure.sh' "${BASELINE}" || fail "Acceptance baseline must invoke ensure.sh"
+grep -Fq 'acceptance_baseline_deployed' "${RUNNER}" \
+  || fail "Acceptance runner must Deploy via acceptance_baseline_deployed before each case"
 grep -Fq 'ensure-fabric.sh' "${RUNNER}" && fail "Acceptance runner must not call ensure-fabric directly" || true
 grep -Fq 'ensure-components.sh' "${RUNNER}" && fail "Acceptance runner must not call ensure-components directly" || true
-pass "Acceptance bring-up uses ensure.sh"
+pass "Acceptance baseline Deploy uses ensure.sh before each case"
 
 echo "All ensure/deploy ladder checks passed."
