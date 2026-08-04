@@ -19,7 +19,7 @@ Suites (subdirectory of internals/test/):
   lifecycle    Park / Apply-after-Park / Teardown (destructive; opt-in)
   unit         Colocated *_test.sh under internals/ (no Applied Stack)
 
---verbose (or TEST_VERBOSE=1) streams each case live instead of quiet-on-pass.
+--verbose (or TEST_VERBOSE=1) streams each case slot live instead of quiet-on-pass.
 --env is only valid for acceptance and lifecycle (ADR-0019). Flags follow positionals; flag order is free (ADR-0039).
 See docs/agents/testing.md.
 EOF

@@ -89,9 +89,10 @@ lifecycle_confirm_suite_teardown || exit 1
 
 for case_path in "${CASES[@]}"; do
   label="$(basename "${case_path}")"
-  echo "Baseline: Teardown → Stack absent before ${label}"
-  lifecycle_baseline_stack_absent || fail "Lifecycle baseline Teardown failed before: ${label}"
-  run_buffered_case "${label}" "${case_path}" || fail "Lifecycle Test failed: ${label}"
+  # Teardown → Stack absent inside the buffered slot (ADR-0042 / #161 / #169).
+  run_buffered_case "${label}" "${case_path}" lifecycle_baseline_stack_absent \
+    "Baseline: Teardown → Stack absent before ${label}" \
+    || fail "Lifecycle Test failed: ${label}"
 done
 
 echo "All Lifecycle Tests passed."

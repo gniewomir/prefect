@@ -100,11 +100,10 @@ fi
 
 for case_path in "${CASES[@]}"; do
   label="$(basename "${case_path}")"
-  echo "Baseline: Deploy → Deployed before ${label}"
-  # Deploy ladder to Deployed (Fabric → Mirror → Orphan Reap → Components → Workloads → Purge).
-  # Idempotent; not Initial Host Provisioning and not Stack Apply — ADR-0041 / #158 / #162.
-  acceptance_baseline_deployed || fail "Acceptance baseline Deploy failed before: ${label}"
-  run_buffered_case "${label}" "${case_path}" || fail "Acceptance Test failed: ${label}"
+  # Deploy ladder to Deployed inside the buffered slot (ADR-0041 / #158 / #162 / #169).
+  run_buffered_case "${label}" "${case_path}" acceptance_baseline_deployed \
+    "Baseline: Deploy → Deployed before ${label}" \
+    || fail "Acceptance Test failed: ${label}"
 done
 
 echo "All Acceptance Tests passed."
