@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unit Test: run_buffered_case quiet-on-pass / dump-on-fail.
+# Unit Test: run_buffered_case quiet-on-pass / dump-on-fail (optional baseline slot).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -47,3 +47,81 @@ echo "${out}" | grep -Fq -- '--- verbose-pass ---' || fail "verbose pass missing
 echo "${out}" | grep -Fq -- 'pass-noise-should-be-hidden' \
   || fail "verbose pass should stream case output: ${out}"
 pass "TEST_VERBOSE=1 streams on pass"
+
+# Optional baseline: quiet on pass hides marker + baseline noise.
+BASELINE_RECORD="${TMP}/baseline.record"
+stub_baseline_ok() {
+  echo "baseline-ok" >>"${BASELINE_RECORD}"
+  echo "baseline-noise-should-be-hidden"
+}
+
+out="$(TEST_VERBOSE=0 run_buffered_case "slot-pass" "${PASS_CASE}" stub_baseline_ok \
+  "Baseline: stub before slot-pass" 2>&1)" || fail "slot pass should return 0"
+echo "${out}" | grep -Fq -- '--- slot-pass ---' || fail "slot pass missing header: ${out}"
+echo "${out}" | grep -Fq -- 'Baseline: stub before slot-pass' \
+  && fail "slot pass leaked baseline marker: ${out}"
+echo "${out}" | grep -Fq -- 'baseline-noise-should-be-hidden' \
+  && fail "slot pass leaked baseline noise: ${out}"
+echo "${out}" | grep -Fq -- 'pass-noise-should-be-hidden' \
+  && fail "slot pass leaked case noise: ${out}"
+grep -Fxq 'baseline-ok' "${BASELINE_RECORD}" || fail "baseline fn must run on slot pass"
+pass "quiet on pass hides baseline marker and noise"
+
+# Baseline failure dumps marker + baseline output; case must not run.
+CASE_RAN="${TMP}/case.ran"
+FAIL_IF_RAN="${TMP}/fail-if-ran.sh"
+cat >"${FAIL_IF_RAN}" <<EOF
+#!/usr/bin/env bash
+touch "${CASE_RAN}"
+exit 0
+EOF
+chmod +x "${FAIL_IF_RAN}"
+stub_baseline_fail() {
+  echo "baseline-boom"
+  return 1
+}
+set +e
+out="$(TEST_VERBOSE=0 run_buffered_case "slot-baseline-fail" "${FAIL_IF_RAN}" stub_baseline_fail \
+  "Baseline: stub before slot-baseline-fail" 2>&1)"
+rc=$?
+set -e
+[[ ${rc} -ne 0 ]] || fail "baseline fail should return non-zero"
+echo "${out}" | grep -Fq -- 'Baseline: stub before slot-baseline-fail' \
+  || fail "baseline fail dump missing marker: ${out}"
+echo "${out}" | grep -Fq -- 'baseline-boom' || fail "baseline fail dump missing noise: ${out}"
+[[ ! -e "${CASE_RAN}" ]] || fail "case must not run when baseline fails"
+pass "dump marker + baseline on baseline fail; skip case"
+
+# Case failure after successful baseline dumps marker + baseline + case.
+rm -f "${BASELINE_RECORD}"
+stub_baseline_before_case_fail() {
+  echo "baseline-ok" >>"${BASELINE_RECORD}"
+  echo "baseline-before-case-fail"
+}
+set +e
+out="$(TEST_VERBOSE=0 run_buffered_case "slot-case-fail" "${FAIL_CASE}" stub_baseline_before_case_fail \
+  "Baseline: stub before slot-case-fail" 2>&1)"
+rc=$?
+set -e
+[[ ${rc} -ne 0 ]] || fail "case fail after baseline should return non-zero"
+echo "${out}" | grep -Fq -- 'Baseline: stub before slot-case-fail' \
+  || fail "case fail dump missing marker: ${out}"
+echo "${out}" | grep -Fq -- 'baseline-before-case-fail' \
+  || fail "case fail dump missing baseline noise: ${out}"
+echo "${out}" | grep -Fq -- 'fail-noise-must-appear' \
+  || fail "case fail dump missing case noise: ${out}"
+grep -Fxq 'baseline-ok' "${BASELINE_RECORD}" || fail "baseline fn must run before failing case"
+pass "dump marker + baseline + case on case fail"
+
+# Verbose streams marker + baseline + case on pass.
+rm -f "${BASELINE_RECORD}"
+out="$(TEST_VERBOSE=1 run_buffered_case "slot-verbose" "${PASS_CASE}" stub_baseline_ok \
+  "Baseline: stub before slot-verbose" 2>&1)" \
+  || fail "verbose slot pass should return 0"
+echo "${out}" | grep -Fq -- 'Baseline: stub before slot-verbose' \
+  || fail "verbose slot should stream marker: ${out}"
+echo "${out}" | grep -Fq -- 'baseline-noise-should-be-hidden' \
+  || fail "verbose slot should stream baseline noise: ${out}"
+echo "${out}" | grep -Fq -- 'pass-noise-should-be-hidden' \
+  || fail "verbose slot should stream case output: ${out}"
+pass "TEST_VERBOSE=1 streams baseline marker and case"

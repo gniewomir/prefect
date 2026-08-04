@@ -20,7 +20,7 @@ From the repo root:
 
 `./test.sh` is a thin dispatcher: it validates the suite directory, then execs `internals/test/<suite>/run.sh` with the remaining args.
 
-By default, suite runners buffer each case’s stdout+stderr: they print `--- <name> ---` (and a spinner on a TTY) while the case runs, and dump the full log only when the case fails (`internals/test/run-buffered-case.sh`). With `--verbose` / `TEST_VERBOSE=1`, case output streams live. Setup / fixture output before the case loop always streams live.
+By default, suite runners buffer each **case slot** (stdout+stderr): they print `--- <name> ---` (and a spinner on a TTY) while the slot runs, and dump the full log only when it fails (`internals/test/run-buffered-case.sh`). For Acceptance/Lifecycle the slot includes the per-case suite baseline (Deploy / Teardown, with an in-slot `Baseline: …` marker) then the case script; Unit has no baseline. With `--verbose` / `TEST_VERBOSE=1`, the whole slot streams live. Suite preamble outside the case loop (confirms, checks, intro) always streams live.
 
 ## Suites
 
