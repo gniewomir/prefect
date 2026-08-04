@@ -246,17 +246,116 @@ acceptance_env_dir() {
   printf '%s/environments/%s\n' "${REPO_ROOT}" "${PLATFORM_ENV:-test}"
 }
 
+# Host Volume data/ root. Override ACCEPTANCE_HV_DATA_ROOT for Unit Tests (no live Host).
+acceptance_hv_data_root() {
+  printf '%s\n' "${ACCEPTANCE_HV_DATA_ROOT:-/var/lib/host-volume/data}"
+}
+
 ACCEPTANCE_WL_TRACKED=()
+ACCEPTANCE_SOT_TRACKED=()
+ACCEPTANCE_DATA_TRACKED=()
+
 acceptance_wl_track() {
   ACCEPTANCE_WL_TRACKED+=("$@")
 }
 
+# Paths relative to environments/<slug>/ to restore from git HEAD on cleanup (ADR-0042).
+acceptance_sot_track() {
+  ACCEPTANCE_SOT_TRACKED+=("$@")
+}
+
+# Paths relative to Host Volume data/ that the case created and that would survive
+# the next Deploy — case-owned cleanup + tracked G (ADR-0042).
+acceptance_data_track() {
+  local rel
+  for rel in "$@"; do
+    case "${rel}" in
+      "" | /*)
+        echo "FAIL: acceptance_data_track: path must be relative under data/ (got '${rel}')" >&2
+        return 1
+        ;;
+    esac
+    # Reject .. segments (undeclared escape outside data/).
+    case "/${rel}/" in
+      */../*)
+        echo "FAIL: acceptance_data_track: path must not contain '..' (got '${rel}')" >&2
+        return 1
+        ;;
+    esac
+    ACCEPTANCE_DATA_TRACKED+=("${rel}")
+  done
+}
+
+acceptance_data_path() {
+  local rel="${1:?acceptance_data_path: relative data/ path required}"
+  printf '%s/%s\n' "$(acceptance_hv_data_root)" "${rel}"
+}
+
+# True if the tracked Host data/ path exists (local override or via Host SSH).
+acceptance_data_exists() {
+  local rel="${1:?acceptance_data_exists: relative data/ path required}"
+  local full
+  full="$(acceptance_data_path "${rel}")"
+  if [[ -n "${ACCEPTANCE_HV_DATA_ROOT:-}" ]]; then
+    [[ -e "${full}" ]]
+    return
+  fi
+  host_ssh "test -e $(printf '%q' "${full}")"
+}
+
+acceptance_data_rm() {
+  local rel="${1:?acceptance_data_rm: relative data/ path required}"
+  local full
+  full="$(acceptance_data_path "${rel}")"
+  if [[ -n "${ACCEPTANCE_HV_DATA_ROOT:-}" ]]; then
+    rm -rf "${full}"
+    return
+  fi
+  host_ssh "rm -rf $(printf '%q' "${full}")"
+}
+
+# Tracked-G: every registered survive-Deploy data/ path must be gone.
+acceptance_data_assert_gone() {
+  local rel
+  for rel in "${ACCEPTANCE_DATA_TRACKED[@]+"${ACCEPTANCE_DATA_TRACKED[@]}"}"; do
+    if acceptance_data_exists "${rel}"; then
+      echo "FAIL: tracked Host Volume data/ path still present after cleanup: ${rel}" >&2
+      return 1
+    fi
+  done
+}
+
+acceptance_sot_restore() {
+  local rel env_slug env_path
+  env_slug="${PLATFORM_ENV:-test}"
+  [[ -n "${REPO_ROOT:-}" ]] || {
+    echo "FAIL: acceptance_sot_restore: REPO_ROOT required" >&2
+    return 1
+  }
+  for rel in "${ACCEPTANCE_SOT_TRACKED[@]+"${ACCEPTANCE_SOT_TRACKED[@]}"}"; do
+    env_path="environments/${env_slug}/${rel}"
+    git -C "${REPO_ROOT}" checkout HEAD -- "${env_path}"
+    # Drop untracked files under the restored path so the tree matches committed truth.
+    git -C "${REPO_ROOT}" clean -fd -- "${env_path}" >/dev/null
+  done
+}
+
+# Shared EXIT protocol: remove fixture Workloads, restore tracked SoT, clean + assert
+# tracked survive-Deploy data/ (ADR-0042 / #163).
 acceptance_wl_cleanup() {
-  local root name
+  local root name rel
   root="$(acceptance_env_dir)"
   for name in "${ACCEPTANCE_WL_TRACKED[@]+"${ACCEPTANCE_WL_TRACKED[@]}"}"; do
     rm -rf "${root:?}/${name}"
   done
+  acceptance_sot_restore
+  for rel in "${ACCEPTANCE_DATA_TRACKED[@]+"${ACCEPTANCE_DATA_TRACKED[@]}"}"; do
+    acceptance_data_rm "${rel}"
+  done
+  acceptance_data_assert_gone || return 1
+  ACCEPTANCE_WL_TRACKED=()
+  ACCEPTANCE_SOT_TRACKED=()
+  ACCEPTANCE_DATA_TRACKED=()
 }
 
 # Wait until a Platform User systemd unit reports ActiveState=active.
