@@ -255,12 +255,23 @@ ACCEPTANCE_WL_TRACKED=()
 ACCEPTANCE_SOT_TRACKED=()
 ACCEPTANCE_DATA_TRACKED=()
 
+# Environment fixtures / SoT mutation tracking is test-Environment only (ADR-0042 / #176).
+acceptance_require_test_env_for_sot_mutation() {
+  local env_slug="${PLATFORM_ENV:?acceptance_require_test_env_for_sot_mutation: PLATFORM_ENV required}"
+  if [[ "${env_slug}" != "test" ]]; then
+    echo "FAIL: Environment fixtures / SoT mutation tracking is test-Environment only (got PLATFORM_ENV='${env_slug}'; ADR-0042)" >&2
+    return 1
+  fi
+}
+
 acceptance_wl_track() {
+  acceptance_require_test_env_for_sot_mutation || return 1
   ACCEPTANCE_WL_TRACKED+=("$@")
 }
 
 # Paths relative to environments/<slug>/ to restore from git HEAD on cleanup (ADR-0042).
 acceptance_sot_track() {
+  acceptance_require_test_env_for_sot_mutation || return 1
   ACCEPTANCE_SOT_TRACKED+=("$@")
 }
 

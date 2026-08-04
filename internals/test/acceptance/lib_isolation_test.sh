@@ -61,6 +61,30 @@ rm -f "${ACCEPTANCE_HV_DATA_ROOT}/workloads/leaky/residue"
 acceptance_data_assert_gone
 pass "tracked data/ assert passes when path is gone"
 
+# --- non-test: track helpers fail closed (ADR-0042 / #176) ---
+reset_trackers
+export PLATFORM_ENV="prod"
+if ( acceptance_wl_track "should-not-track" >/dev/null 2>&1 ); then
+  fail "acceptance_wl_track must fail closed when PLATFORM_ENV≠test"
+fi
+[[ ${#ACCEPTANCE_WL_TRACKED[@]} -eq 0 ]] \
+  || fail "failed acceptance_wl_track must not append names"
+if ( acceptance_sot_track "committed-wl/manifest.json" >/dev/null 2>&1 ); then
+  fail "acceptance_sot_track must fail closed when PLATFORM_ENV≠test"
+fi
+[[ ${#ACCEPTANCE_SOT_TRACKED[@]} -eq 0 ]] \
+  || fail "failed acceptance_sot_track must not append paths"
+# Case-owned Host Volume data/ probes remain allowed on non-test.
+mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/components/edge"
+printf 'probe\n' >"${ACCEPTANCE_HV_DATA_ROOT}/components/edge/diagnose-probe"
+acceptance_data_track "components/edge/diagnose-probe" \
+  || fail "acceptance_data_track must remain allowed when PLATFORM_ENV≠test"
+acceptance_wl_cleanup
+[[ ! -e "${ACCEPTANCE_HV_DATA_ROOT}/components/edge/diagnose-probe" ]] \
+  || fail "non-test acceptance_data_track cleanup must still remove tracked path"
+pass "non-test track helpers fail closed; data_track still allowed"
+export PLATFORM_ENV="test"
+
 # --- fixture Workload dirs still removed (existing track protocol) ---
 reset_trackers
 ENV_DIR="${REPO_ROOT}/environments/test"

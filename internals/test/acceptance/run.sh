@@ -2,8 +2,9 @@
 # Acceptance Test suite runner — Applied Stack external behavior after Apply (./apply.sh).
 # Runs [0-9]*.sh as subprocesses in sort order (fail-fast).
 # Invoked via ./test.sh acceptance […] (ADR-0036).
-# Suite baseline (ADR-0042 / #162): Deploy via ensure.sh before each case; non-test
-# requires exact 'diagnose <slug>' once at suite start (test/default skips).
+# Suite baseline (ADR-0042 / #162 / #176): Deploy via ensure.sh before each case; non-test
+# requires exact 'diagnose <slug>' once at suite start (test/default skips); fixture-class
+# cases skipped (full suite) or refused (selector); Environment tree must match HEAD.
 # Requires: Provider Credential; Operator Configuration private path (and public when Apply runs).
 set -euo pipefail
 
@@ -80,6 +81,14 @@ done < <(find "${TEST_DIR}" -maxdepth 1 -type f -name '[0-9]*.sh' | LC_ALL=C sor
 CASES=()
 if [[ $# -eq 0 ]]; then
   CASES=("${ALL_CASES[@]}")
+  FILTERED_CASES=()
+  while IFS= read -r case_path; do
+    [[ -n "${case_path}" ]] || continue
+    FILTERED_CASES+=("${case_path}")
+  done < <(acceptance_filter_diagnose_cases "${CASES[@]}")
+  CASES=("${FILTERED_CASES[@]}")
+  [[ ${#CASES[@]} -gt 0 ]] \
+    || fail "no diagnose-runnable Acceptance Tests remain after skipping fixture-class cases"
 else
   SELECTOR="$1"
   for case_path in "${ALL_CASES[@]}"; do
@@ -96,6 +105,7 @@ else
     done
     fail "selector ${SELECTOR} matched multiple cases:${matched}"
   fi
+  acceptance_refuse_if_diagnose_fixture_selector "${CASES[0]}" || exit 1
 fi
 
 for case_path in "${CASES[@]}"; do

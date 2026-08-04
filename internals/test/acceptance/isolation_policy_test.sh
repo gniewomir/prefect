@@ -56,4 +56,25 @@ require_data_track "77-https-fixture-pem.sh" \
 require_data_track "83-domain-front-healthcheck.sh" \
   "components/edge/acme-www/.well-known/acme-challenge/"
 
+# --- diagnose-runnable cases must not write Environment SoT (ADR-0042 / #176) ---
+# Fixture-class = references acceptance_wl_track / acceptance_sot_track.
+# Non-fixture cases must not use acceptance_env_dir (Environment tree mutation seam).
+env_write_hits=""
+for case_path in "${CASE_DIR}"/[0-9]*.sh; do
+  base="$(basename "${case_path}")"
+  if grep -qE 'acceptance_wl_track|acceptance_sot_track' "${case_path}"; then
+    continue
+  fi
+  hits="$(grep -n 'acceptance_env_dir' "${case_path}" || true)"
+  if [[ -n "${hits}" ]]; then
+    env_write_hits+="${base}:
+${hits}
+"
+  fi
+done
+[[ -z "${env_write_hits}" ]] \
+  || fail "diagnose-runnable cases must not call acceptance_env_dir (fixture-class or redesign):
+${env_write_hits}"
+pass "diagnose-runnable cases do not call acceptance_env_dir"
+
 echo "All acceptance isolation policy checks passed."
