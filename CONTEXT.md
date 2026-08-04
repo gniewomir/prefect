@@ -89,15 +89,15 @@ A provider tag that selects Hosts for a policy such as a Firewall (public web fo
 _Avoid_: Firewall tag (ambiguous — the Firewall targets the Role Tag; it is not itself tagged)
 
 **Acceptance Test**:
-An executable check of Applied Stack external behavior (does the live Stack match the intended contract?). Requires an applied Stack (Host present) and asserts observable outcomes only — not Terraform internals or provider API shape. Non-destructive to Stack lifecycle: must not Park or Teardown. Follows the default-safe operator CLI Environment rule (ADR-0019).
+An executable check that the live Stack’s **Deployed** Host matches the intended contract (observable outcomes only — not Terraform internals). Suite baseline between cases is **Deployed** (runner re-converges via **Deploy**). Non-destructive to Stack lifecycle: must not Park or Teardown. Defaults to the **test** Environment (ADR-0019); non-**test** use is diagnostic and confirm-gated (ADR-0042).
 _Avoid_: Verify script, observability check, smoke test, integration test, Lifecycle Test, Unit Test (when you mean this concept)
 
 **Lifecycle Test**:
-An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Separate from Acceptance Tests and Unit Tests; opt-in; may leave the Stack Parked or empty. Follows the same default-safe operator CLI Environment rule as other entrypoints (ADR-0019) — defaults to **test**; other Environments only with explicit `--env`.
+An executable check of Stack lifecycle operations that deliberately remove or restore Stack presence (Park, Apply-after-Park, Teardown). Opt-in; **test Environment only**; suite baseline between cases is Stack absent (post-**Teardown**). Distinct from Acceptance Tests and Unit Tests (ADR-0042).
 _Avoid_: Acceptance Test, Unit Test, destroy test, integration test (when you mean this concept)
 
 **Unit Test**:
-An executable check of Propraetor library or helper behavior that does not require an Applied Stack (no live Host / provider lifecycle). Distinct from Acceptance Tests and Lifecycle Tests.
+An executable check of Propraetor library or helper behavior with no Applied Stack and no lasting side effects outside the test’s own temporary workspace. If the unit or test needs lasting side effects, it is not a Unit Test (Acceptance or redesign) (ADR-0042).
 _Avoid_: unit (bare), shell test, lib test, integration test, Acceptance Test, Lifecycle Test (when you mean this concept)
 
 **Apply**:

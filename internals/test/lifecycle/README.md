@@ -1,10 +1,12 @@
 # Lifecycle Tests
 
-Executable checks of Stack lifecycle operations that deliberately change Stack presence: **Park**, **Apply** after Park, and **Teardown**. Opt-in and destructive — may leave the Stack Parked or with empty State.
+Executable checks of Stack lifecycle operations that deliberately change Stack presence: **Park**, **Apply** after Park, and **Teardown**. Opt-in and destructive.
 
-**Entrypoint:** `./test.sh lifecycle` — see [docs/agents/testing.md](../../../docs/agents/testing.md) (ADR-0036).
+**Entrypoint:** `./test.sh lifecycle` — see [docs/agents/testing.md](../../../docs/agents/testing.md) (ADR-0036). Suite baselines: [ADR-0042](../../../docs/adr/0042-suite-baselines-and-test-isolation.md).
 
-**Not Acceptance Tests.** Acceptance asserts a live Applied Stack and must not Park or Teardown. See `../acceptance/README.md` and the glossary terms Acceptance Test / Lifecycle Test / Unit Test.
+**Suite baseline (ADR-0042):** Stack **absent** (post-**Teardown**). Runner Teardown **before each case**. **test Environment only** (fail closed on any other `--env`). Suite start: type exact `teardown` once. Cases that need an Applied Stack **Apply** themselves. Slow by design.
+
+**Not Acceptance Tests.** Acceptance asserts a **Deployed** Host and must not Park or Teardown. See `../acceptance/README.md` and the glossary terms Acceptance Test / Lifecycle Test / Unit Test.
 
 ## Status
 
@@ -41,17 +43,16 @@ Credentials must already be in the environment or root `.env` (`DIGITALOCEAN_TOK
 ```bash
 ./test.sh lifecycle                 # all Lifecycle Tests on the test Environment (default)
 ./test.sh lifecycle park-apply      # one slice (substring match on the filename)
-./test.sh lifecycle teardown        # Teardown wipe (prompts for exact 'teardown')
+./test.sh lifecycle teardown        # Teardown-focused case (suite still prompts 'teardown' once)
 ./test.sh lifecycle --env test      # same Environment as omitting --env (`default` also aliases)
-./test.sh lifecycle --env prod      # Lifecycle against another Environment (explicit)
 ./test.sh lifecycle park-apply --env test
 ```
 
-**Environment (ADR-0019):** same default-safe rule as Acceptance and other operator entrypoints — no `--env` → **test** (workspace `default`); `--env test` / `--env default` are aliases; any other slug requires explicit `--env <slug>`. Positionals first, then flags; flag order free (ADR-0039). The runner propagates the resolved Environment into nested `./park.sh` / `./apply.sh` / `./teardown.sh` so child calls cannot flip Environment.
+**Environment (ADR-0042):** Lifecycle is **test-only** — no `--env` or `--env test` / `--env default` only; any other slug fail closed. Positionals first, then flags; flag order free (ADR-0039). The runner propagates the resolved Environment into nested `./park.sh` / `./apply.sh` / `./teardown.sh` so child calls cannot flip Environment.
 
-Each case that needs an Applied Stack calls `ensure_stack_applied` first (Apply when fresh, empty, or Parked; no-op when already Applied). Suite order is not a substitute for that — including after `20-teardown.sh` leaves State empty.
+Each case that needs an Applied Stack calls `ensure_stack_applied` first (Apply when fresh, empty, or Parked; no-op when already Applied). Suite order is not a substitute — the runner baselines to Stack absent before each case.
 
-The runner asks for exact `teardown` before any Teardown case; the case also confirms into `./teardown.sh`. Do not wire this into CI that assumes a standing Applied Stack. After Teardown, leftover State is empty — `./apply.sh` again before `./test.sh acceptance`.
+The runner asks for exact `teardown` once at suite start (every invocation wipes Durables between cases). Nested `./teardown.sh` confirms may still apply. Do not wire this into CI that assumes a standing Applied Stack. After a suite, leftover State may be whatever the last case left until the next Lifecycle baseline or a manual `./apply.sh` before Acceptance.
 
 ## Add a case
 

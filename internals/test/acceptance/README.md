@@ -1,10 +1,19 @@
 # Acceptance Tests
 
-Executable checks of Applied Stack external behavior. Requires an applied Stack and Credentials. Assert observable outcomes only — not Terraform internals.
+Executable checks that the live Stack’s **Deployed** Host matches the intended contract. Requires an Applied Stack and Credentials. Assert observable outcomes only — not Terraform internals.
 
-**Entrypoint:** `./test.sh acceptance` — see [docs/agents/testing.md](../../../docs/agents/testing.md) (ADR-0036).
+**Entrypoint:** `./test.sh acceptance` — see [docs/agents/testing.md](../../../docs/agents/testing.md) (ADR-0036). Suite baselines: [ADR-0042](../../../docs/adr/0042-suite-baselines-and-test-isolation.md).
 
-**Non-destructive:** Acceptance Tests must not Park or Teardown. They may mutate Host-local / Workload fixture state (Routes, certs, Purge) on a live Host, but they leave Stack lifecycle intact (Host and Durables remain). Stack lifecycle (Park, Apply-after-Park, Teardown) is covered by Lifecycle Tests — see `../lifecycle/README.md`.
+**Non-destructive (Stack lifecycle):** must not Park or Teardown. Host-local mutation is allowed under ADR-0042 rules below. Stack lifecycle (Park, Apply-after-Park, Teardown) is Lifecycle Tests — see `../lifecycle/README.md`.
+
+## Suite baseline (ADR-0042)
+
+- Baseline between cases: **Deployed**.
+- Runner re-converges via **Deploy** (`./internals/ensure.sh` / `./deploy.sh`) **before each case**. Failed-case Host artifacts remain until the next baseline.
+- Cases restore Environment SoT / Intent to committed truth before exit (remove fixtures or leave Intent only when deliberately testing **trash** + Purge). Runner owns Host convergence.
+- **Host Volume `data/`:** do not destroy bytes except as expressed operator Intent (Environment absence / Intent **trash** → Orphan Reap / Purge via Deploy). Case-owned cleanup only for case-created durable residue that would **survive** the next Deploy; register those paths for tracked **G**. No peer-pollution cleanup.
+- **`test` only** for Environment fixtures / Intent flips that imply Host data loss.
+- Non-**test**: type exact `diagnose <slug>` (slug matches `--env`); no fixtures; Deploy still runs.
 
 ## Run
 
@@ -14,15 +23,13 @@ From the repo root:
 ./test.sh acceptance                 # all Acceptance Tests on the test Environment (default)
 ./test.sh acceptance 70-podman       # one slice (substring match on the filename)
 ./test.sh acceptance --env test      # same Environment as omitting --env (`default` also aliases here)
-./test.sh acceptance --env prod      # Acceptance against a non-test Applied Environment (explicit)
+./test.sh acceptance --env prod      # diagnostic; prompts for exact 'diagnose prod'
 ./test.sh acceptance 70-podman --env test
 ```
 
-**Environment (ADR-0019):** every operator entrypoint is safe by default — no `--env` selects the **test** Environment (Terraform workspace `default`). `--env test` and `--env default` are the same alias; any other slug selects that Environment’s workspace. Targeting prod (or any non-test Environment) always requires an explicit `--env <slug>`. Positionals first, then flags; flag order free (ADR-0039).
+**Environment (ADR-0019 / ADR-0042):** no `--env` → **test** (workspace `default`). `--env test` / `--env default` are aliases. Any other slug requires explicit `--env <slug>` and typed `diagnose <slug>`. Positionals first, then flags; flag order free (ADR-0039).
 
 Requires Provider Credential and Operator Configuration private key path (root `.env` or process environment — ADR-0038).
-
-Fabric → Mirror → Orphan Reap → Components → Workloads → Purge (Deploy ladder to **Deployed**): the runner invokes `./internals/ensure.sh` (same Environment) before cases — ADR-0041; not Initial Host Provisioning and not Stack Apply. Operator root entrypoint for the same ladder is `./deploy.sh`.
 
 ## Add a new Acceptance Test
 
@@ -30,8 +37,9 @@ Fabric → Mirror → Orphan Reap → Components → Workloads → Purge (Deploy
 2. Add `NN-short-name.sh` — one capability / contract slice per file.
 3. Start from `set -euo pipefail`, source `lib.sh`, and use `pass` / `fail`.
 4. Assume fixture env from the runner (`IP`, provider-observed `RESERVED_IP_JSON` / `HOST_JSON`) and use `do_api_get` for other provider outcomes.
-5. Keep the script focused on external behavior. The runner discovers `[0-9]*.sh` automatically — no registry edit.
-6. Do not call `./park.sh`, `./teardown.sh`, or otherwise remove the Host / Durables.
+5. Restore Environment SoT before exit; register any survive-Deploy `data/` creations for cleanup/**G**. Do not clean “whatever previous cases left.”
+6. Keep the script focused on external behavior. The runner discovers `[0-9]*.sh` automatically — no registry edit.
+7. Do not call `./park.sh`, `./teardown.sh`, or otherwise remove the Host / Durables.
 
 Non-case files in this directory (`lib.sh`, `run.sh`, this README) are not executed as cases.
 
