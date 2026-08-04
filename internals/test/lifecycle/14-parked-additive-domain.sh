@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Lifecycle Test: Parked Additive Domain happy path (ADR-0025 / #65).
+# Suite baseline: Stack absent (runner Teardown); this case Applies via ensure_stack_applied.
 # Case-owned Park → stage domains.override.json → one normal Apply with valid
 # Recreatable input → prior Durables unchanged, fixture Domain present,
 # Recreatables restored → empty re-Apply → Teardown with override → remove

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Lifecycle Test: Applied Additive Domain change is monotonic (ADR-0025 / #62).
+# Suite baseline: Stack absent (runner Teardown); this case Applies via ensure_stack_applied.
 # Writes an internal domains.override.json (derived from committed Domains), Applies,
 # asserts prior identities/memberships survive and the fixture Domain is present, then
 # Teardowns with override still present, removes the override, and re-Applies committed.

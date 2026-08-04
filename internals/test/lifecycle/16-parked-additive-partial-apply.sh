@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Lifecycle Test: Parked additive Domain + partial Apply recovery (ADR-0025 / #64).
+# Suite baseline: Stack absent (runner Teardown); this case Applies via ensure_stack_applied.
 # Case-owned Park → stage domains.override.json → Apply with invalid Host Image
 # (Recreatable fault after Durable convergence) → restore image → normal Apply →
 # empty re-Apply → Teardown with override → remove override → committed re-Apply.

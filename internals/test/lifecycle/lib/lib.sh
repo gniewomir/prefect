@@ -198,7 +198,10 @@ stack_reserved_ip() {
 }
 
 # Ensure the Stack is Applied before a case that needs Durable + Host presence.
-# Fresh / empty / Parked → ./apply.sh; already Applied → reuse Reserved IP.
+# Suite baseline is Stack absent (runner Teardown — ADR-0042); cases must call this
+# (or Apply explicitly) rather than relying on a prior case leaving Applied.
+# Fresh / empty / Parked → ./apply.sh; already Applied → reuse Reserved IP
+# (manual / mid-case reuse only — not a substitute for suite order).
 # Exports IP. Does not wait for SSH (callers that need it wait themselves).
 ensure_stack_applied() {
   local ip host_json
