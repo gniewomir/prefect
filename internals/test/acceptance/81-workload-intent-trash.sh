@@ -56,12 +56,8 @@ want_before="$(host_ssh \
 
 host_ssh bash -s <<REMOTE
 set -euo pipefail
-rm -rf /var/lib/host-volume/internals/workloads/${WL} /var/lib/host-volume/data/workloads/${WL} \
-  /var/lib/host-volume/internals/workloads/reclaim-intent /var/lib/host-volume/data/workloads/reclaim-intent
-rm -f /var/lib/host-volume/data/components/edge/routes/${WL}.conf \
-  /var/lib/host-volume/data/components/edge/routes/${WL}--* \
-  /var/lib/host-volume/data/components/edge/routes/reclaim-intent.conf \
-  /var/lib/host-volume/data/components/edge/routes/reclaim-intent--*
+rm -rf /var/lib/host-volume/internals/workloads/${WL} \
+  /var/lib/host-volume/internals/workloads/reclaim-intent
 rm -f /home/platform/.config/containers/systemd/${WL}.container \
   /home/platform/.config/containers/systemd/reclaim-intent.container
 REMOTE

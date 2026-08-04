@@ -64,10 +64,7 @@ want_before="$(host_ssh \
 host_ssh bash -s <<'REMOTE'
 set -euo pipefail
 for n in trash-a reclaim-b keep-me purge-me; do
-  rm -rf "/var/lib/host-volume/internals/workloads/${n}" \
-    "/var/lib/host-volume/data/workloads/${n}"
-  rm -f "/var/lib/host-volume/data/components/edge/routes/${n}.conf"
-  rm -f /var/lib/host-volume/data/components/edge/routes/"${n}"--*
+  rm -rf "/var/lib/host-volume/internals/workloads/${n}"
   rm -f "/home/platform/.config/containers/systemd/${n}.container"
 done
 REMOTE

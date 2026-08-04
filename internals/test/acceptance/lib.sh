@@ -428,34 +428,3 @@ ensure_edge_route_fulfillment() {
   [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_edge_route_fulfillment: REPO_ROOT required"
   "${REPO_ROOT}/internals/ensure-components.sh" --env "${PLATFORM_ENV:-test}"
 }
-
-# Drop peer Host Route SoT + Edge fulfillments for FQDN that also claim nginx
-# `location /` (exact root). Multiple Intent-run leftovers from prior Acceptance
-# cases otherwise make nginx emerg ("duplicate location /") and take Edge down —
-# Domain-front HTTPS then fails with curl code 000 / connection refused.
-# Exact-match locations (e.g. location = /probe) are left alone.
-# Requires: ambient verify Host-session (acceptance_host_session).
-acceptance_drop_peer_location_root_routes() {
-  local fqdn="${1:?acceptance_drop_peer_location_root_routes requires FQDN}"
-  local keep_wl="${2:?acceptance_drop_peer_location_root_routes requires keep Workload}"
-
-  host_ssh env "FQDN=${fqdn}" "KEEP_WL=${keep_wl}" bash -s <<'REMOTE'
-set -euo pipefail
-FQDN="${FQDN}"
-KEEP_WL="${KEEP_WL}"
-SOT_ROOT=/var/lib/host-volume/internals/workloads
-ROUTES_DIR=/var/lib/host-volume/data/components/edge/routes
-
-for wl_dir in "${SOT_ROOT}"/*; do
-  [[ -d "${wl_dir}" ]] || continue
-  wl="$(basename "${wl_dir}")"
-  [[ "${wl}" != "${KEEP_WL}" ]] || continue
-  sot="${wl_dir}/routes/${FQDN}.conf"
-  [[ -f "${sot}" ]] || continue
-  if grep -Eq '^[[:space:]]*location[[:space:]]+/[[:space:]]*\{' "${sot}"; then
-    rm -f "${sot}"
-    rm -f "${ROUTES_DIR}/${wl}--${FQDN}.conf"
-  fi
-done
-REMOTE
-}

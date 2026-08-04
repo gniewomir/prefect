@@ -42,8 +42,7 @@ EOF
 host_ssh bash -s <<'REMOTE'
 set -euo pipefail
 for n in keep-alive gone-soon; do
-  rm -rf "/var/lib/host-volume/internals/workloads/${n}" \
-    "/var/lib/host-volume/data/workloads/${n}"
+  rm -rf "/var/lib/host-volume/internals/workloads/${n}"
   rm -f "/home/platform/.config/containers/systemd/${n}.container"
   rm -rf "/home/platform/.config/containers/systemd/${n}.container.d"
 done

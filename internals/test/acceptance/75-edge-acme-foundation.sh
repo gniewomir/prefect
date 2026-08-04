@@ -14,6 +14,8 @@ ACME_WWW="${DATA_ROOT}/acme-www"
 WANT_LIST="${DATA_ROOT}/acme/want-list"
 TOKEN="edge-acme-foundation-probe"
 TOKEN_PATH="${ACME_WWW}/.well-known/acme-challenge/${TOKEN}"
+acceptance_data_track "components/edge/acme-www/.well-known/acme-challenge/edge-acme-foundation-probe"
+trap 'acceptance_wl_cleanup' EXIT
 
 # Host :443 is published by the Edge (listener present — TLS shells come later).
 # Retry: ensure-components may briefly bounce the Edge Pod.

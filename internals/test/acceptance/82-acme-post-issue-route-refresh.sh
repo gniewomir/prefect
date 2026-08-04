@@ -37,10 +37,7 @@ location = /acme-refresh-probe {
 EOF
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/data/components/edge/routes/${WL}.conf \
-          /var/lib/host-volume/data/components/edge/routes/${WL}--* \
-          /var/lib/host-volume/internals/workloads/${WL} \
-          /var/lib/host-volume/data/workloads/${WL}"
+  "rm -rf /var/lib/host-volume/internals/workloads/${WL}"
 
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 ensure_edge_route_fulfillment

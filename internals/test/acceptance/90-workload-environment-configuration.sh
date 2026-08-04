@@ -26,7 +26,7 @@ SECRET_UNUSED='envcfg-surplus-should-not-appear'
 host_cleanup_wl() {
   local name="$1"
   host_ssh \
-    "rm -rf /var/lib/host-volume/internals/workloads/${name} /var/lib/host-volume/data/workloads/${name} \
+    "rm -rf /var/lib/host-volume/internals/workloads/${name} \
             /home/platform/.config/platform/workloads/${name}; \
      rm -f /home/platform/.config/containers/systemd/${name}*.container; \
      rm -rf /home/platform/.config/containers/systemd/${name}*.container.d" \

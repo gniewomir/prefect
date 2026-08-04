@@ -65,9 +65,11 @@ front_after="$(host_ssh "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
 pass "re-ensure leaves complete PEMs and Domain-front drop-in untouched"
 
 # --- Tier A: /healthcheck over HTTPS (placeholder trust) ---
+umask 077
 HC_BODY_FILE="$(mktemp "${TMPDIR:-/tmp}/platform-hc-XXXXXX")"
 STAGING_OUT="$(mktemp "${TMPDIR:-/tmp}/platform-stg-XXXXXX")"
-trap 'rm -f "${HC_BODY_FILE}" "${STAGING_OUT}"' EXIT
+# Isolation cleanup registered before any survive-Deploy ACME probe write below.
+trap 'rm -f "${HC_BODY_FILE}" "${STAGING_OUT}"; acceptance_wl_cleanup' EXIT
 hc_code=""
 hc_ctype=""
 hc_body=""
@@ -135,6 +137,7 @@ fi
 
 # --- ACME HTTP-01 still works ---
 TOKEN="domain-front-acme-probe"
+acceptance_data_track "components/edge/acme-www/.well-known/acme-challenge/${TOKEN}"
 host_ssh bash -s <<REMOTE
 set -euo pipefail
 TOKEN_PATH=${DATA_ROOT}/acme-www/.well-known/acme-challenge/${TOKEN}
