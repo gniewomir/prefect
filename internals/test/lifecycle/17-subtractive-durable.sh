@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Lifecycle Test: subtractive Durable config fails closed (ADR-0025 / #63).
+# Suite baseline: Stack absent (runner Teardown); this case Applies via ensure_stack_applied.
 # Stages a narrower domains.override.json (drops lex-first committed apex), expects
 # normal Apply to fail with Terraform prevent_destroy, asserts Durables unchanged,
 # removes the override, and re-Applies committed Domains.

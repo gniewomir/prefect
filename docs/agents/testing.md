@@ -34,7 +34,7 @@ Peer-pollution cleanup is banned. Full policy: ADR-0042 / issue #159.
 
 ### Acceptance / Lifecycle cases
 
-Numeric-prefixed `NN-short-name.sh` under the suite directory; fail-fast; filename sort is order. Shared helpers (`lib.sh`, fixtures) live in the suite directory. Acceptance: cases restore Environment SoT before exit; runner Deploy restores Host. Lifecycle: cases Apply when they need a Stack; runner Teardown baselines between cases.
+Numeric-prefixed `NN-short-name.sh` under the suite directory; fail-fast; filename sort is order. Shared helpers live beside the suite (`acceptance/lib.sh`; Lifecycle under `lifecycle/lib/`). Acceptance: cases restore Environment SoT before exit; runner Deploy restores Host. Lifecycle: cases Apply when they need a Stack (`ensure_stack_applied`); runner Teardown baselines between cases — do not assume a standing Applied Stack in CI.
 
 ### Unit Tests
 

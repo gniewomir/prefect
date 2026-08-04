@@ -32,9 +32,9 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
   (case-owned Park → Teardown; Cloud Project, Reserved IP, Host Volume, Domain when
   configured). Applied→Teardown remains covered by additive-case cleanup (`14`/`15`/`16`).
 
-Domain Durable asserts run when Domains are in State (declare them in `environments/<cloud-slug>/domains.json`; cases Apply when the Stack is not already Applied). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs. The Additive Domain case requires a non-empty committed Domain assignment (base apex for `lifecycle-test.<apex>`).
+Domain Durable asserts run when Domains are in State (declare them in `environments/<cloud-slug>/domains.json`; each case Applies from the absent suite baseline via `ensure_stack_applied`). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs. The Additive Domain case requires a non-empty committed Domain assignment (base apex for `lifecycle-test.<apex>`).
 
-**Internal Domain override (maintainer / harness only):** if `environments/<slug>/domains.override.json` exists, production Domain loaders use it **instead of** `domains.json` (ADR-0021). Gitignored; not an operator flag. Additive Domain Lifecycle cases may write a derived override (committed map plus `lifecycle-test.<lexicographically-first-apex>`), run Apply/Teardown while it is present, then remove it before re-Apply of committed Domains only.
+**Internal Domain override (maintainer / harness only):** if `environments/<slug>/domains.override.json` exists, production Domain loaders use it **instead of** `domains.json` (ADR-0021). Gitignored; not an operator flag. The suite baseline removes any leftover override before each case. Additive Domain Lifecycle cases may write a derived override (committed map plus `lifecycle-test.<lexicographically-first-apex>`), run Apply/Teardown while it is present, then remove it before re-Apply of committed Domains only.
 
 ## Run
 
@@ -50,7 +50,7 @@ Credentials must already be in the environment or root `.env` (`DIGITALOCEAN_TOK
 
 **Environment (ADR-0042):** Lifecycle is **test-only** — no `--env` or `--env test` / `--env default` only; any other slug fail closed. Positionals first, then flags; flag order free (ADR-0039). The runner propagates the resolved Environment into nested `./park.sh` / `./apply.sh` / `./teardown.sh` so child calls cannot flip Environment.
 
-Each case that needs an Applied Stack calls `ensure_stack_applied` first (Apply when fresh, empty, or Parked; no-op when already Applied). Suite order is not a substitute — the runner baselines to Stack absent before each case.
+Each case that needs an Applied Stack calls `ensure_stack_applied` first (Apply from absent / fresh / empty / Parked; no-op only if already Applied mid-case or outside the runner). Suite order is not a substitute — the runner baselines to Stack absent before each case and clears `domains.override.json` residue.
 
 The runner asks for exact `teardown` once at suite start (every invocation wipes Durables between cases). Nested `./teardown.sh` confirms may still apply. Do not wire this into CI that assumes a standing Applied Stack. After a suite, leftover State may be whatever the last case left until the next Lifecycle baseline or a manual `./apply.sh` before Acceptance.
 

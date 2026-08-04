@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Seam: Lifecycle suite baseline helpers (ADR-0042 / #161) —
-# test-only Environment gate, suite teardown confirm, Teardown-before-each.
+# Seam: Lifecycle suite baseline helpers (ADR-0042 / #161 / #165) —
+# test-only Environment gate, suite teardown confirm, Teardown-before-each,
+# clear Domain override residue that survives Teardown.
 set -euo pipefail
 
 CASE_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -66,5 +67,19 @@ grep -Fxq 'teardown' "${RECORD}" || fail "baseline must invoke teardown.sh"
 grep -Fq 'args=--env test' "${RECORD}" \
   || fail "Teardown must receive --env \${PLATFORM_ENV}"
 pass "baseline invokes teardown.sh --env PLATFORM_ENV"
+
+# --- baseline clears Domain override residue (survives Teardown; must not leak cases) ---
+mkdir -p "${TMP}/environments/test"
+printf '%s\n' '{"leak.example":{"names":["@"]}}' \
+  >"${TMP}/environments/test/domains.override.json"
+: >"${RECORD}"
+lifecycle_baseline_stack_absent
+[[ ! -e "${TMP}/environments/test/domains.override.json" ]] \
+  || fail "baseline must remove domains.override.json before the case"
+pass "baseline clears domains.override.json"
+
+# Missing override is fine (idempotent).
+lifecycle_baseline_stack_absent
+pass "baseline tolerates missing domains.override.json"
 
 echo "All lifecycle baseline helper checks passed."

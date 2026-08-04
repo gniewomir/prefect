@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Lifecycle Test: stable Applied/Parked conditions + Park → Apply Durable round-trip.
+# Suite baseline: Stack absent (runner Teardown); this case Applies via ensure_stack_applied.
 # Proves repeating Apply/Park are no-ops, Durables keep identities across Park,
 # Recreatables restore via normal Apply (Adopt preflight allowed), and Host /
 # Reserved IP Cloud Project memberships match their lifecycle classes.
