@@ -8,4 +8,6 @@ Propraetor’s Host-side ladder is **Substrate** → **Fabric** → **Component*
 
 **Amended by ADR-0041:** **Deploy** runs **Mirror** (and **Orphan Reap**) before **Component Setup** so Edge gather sees Environment Workload SoT in one pass; Host Volume paths and ensure packaging follow ADR-0041.
 
+**Amended by ADR-0043:** **Deploy** runs Component Setup in two slots (`pre-workloads` then, after Workloads + Purge, `post-workloads`); Declaration fulfillment that depends on Workload identity is the post slot.
+
 **Status:** accepted (glossary updated; Host cutover complete — Edge Component Setup gathers Routes; ensure distinguishes Fabric Setup vs Component Setup).
