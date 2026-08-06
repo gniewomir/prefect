@@ -119,6 +119,74 @@ grep -Eq 'systemctl --user restart app\.service' "${QUADLET_LOG}" &&
   fail "Intent stop must not restart always-on container"
 pass "Intent run restarts and stop stops always-on container"
 
+# --- Intent run: pod-membered always-on container skips restart; pod is restarted ---
+reset
+printf '[Pod]\nPodName=demo\n' >"${QUADLETS_STAGE}/demo.pod"
+printf '[Container]\nImage=localhost/demo\nPod=demo.pod\n' >"${QUADLETS_STAGE}/demo-web.container"
+workload_units_apply "${WL_NAME}" run "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" ||
+  fail "apply Intent run should succeed for pod + member"
+grep -Eq 'systemctl --user restart demo-pod\.service' "${QUADLET_LOG}" ||
+  fail "Intent run must restart pod service"
+grep -Eq 'systemctl --user restart demo-web\.service' "${QUADLET_LOG}" &&
+  fail "Intent run must not restart pod-membered always-on container"
+grep -Eq 'systemctl --user --quiet is-active demo-pod\.service' "${QUADLET_LOG}" ||
+  fail "Intent run must assert pod is active"
+grep -Eq 'systemctl --user --quiet is-active demo-web\.service' "${QUADLET_LOG}" &&
+  fail "Intent run must not assert pod-membered container is active"
+pass "Intent run restarts pod not pod-membered always-on container"
+
+# --- Intent run: container-before-pod filename order still restarts pod only ---
+reset
+printf '[Container]\nImage=localhost/demo\nPod=demo.pod\n' >"${QUADLETS_STAGE}/demo-web.container"
+printf '[Pod]\nPodName=demo\n' >"${QUADLETS_STAGE}/demo.pod"
+workload_units_apply "${WL_NAME}" run "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" ||
+  fail "apply Intent run should succeed when container sorts before pod"
+grep -Eq 'systemctl --user restart demo-pod\.service' "${QUADLET_LOG}" ||
+  fail "Intent run must restart pod service regardless of filename order"
+grep -Eq 'systemctl --user restart demo-web\.service' "${QUADLET_LOG}" &&
+  fail "Intent run must not restart pod-membered container when it sorts before pod"
+pass "Intent run pod-centric apply is independent of filename order"
+
+# --- Intent stop: pod-membered always-on container skips stop; pod is stopped ---
+reset
+printf '[Pod]\nPodName=demo\n' >"${QUADLETS_STAGE}/demo.pod"
+printf '[Container]\nImage=localhost/demo\nPod=demo.pod\n' >"${QUADLETS_STAGE}/demo-web.container"
+workload_units_apply "${WL_NAME}" stop "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" ||
+  fail "apply Intent stop should succeed for pod + member"
+grep -Eq 'systemctl --user stop demo-pod\.service' "${QUADLET_LOG}" ||
+  fail "Intent stop must stop pod service"
+grep -Eq 'systemctl --user stop demo-web\.service' "${QUADLET_LOG}" &&
+  fail "Intent stop must not stop pod-membered always-on container"
+pass "Intent stop stops pod not pod-membered always-on container"
+
+# --- dangling Pod= fails closed ---
+reset
+printf '[Container]\nImage=localhost/demo\nPod=missing.pod\n' >"${QUADLETS_STAGE}/demo-web.container"
+if workload_units_apply "${WL_NAME}" run "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" 2>/dev/null; then
+  fail "expected fail-closed for dangling Pod="
+fi
+pass "dangling Pod= fails closed"
+
+# --- empty Pod= fails closed ---
+reset
+printf '[Container]\nImage=localhost/demo\nPod=\n' >"${QUADLETS_STAGE}/demo-web.container"
+if workload_units_apply "${WL_NAME}" run "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" 2>/dev/null; then
+  fail "expected fail-closed for empty Pod="
+fi
+pass "empty Pod= fails closed"
+
+# --- On-demand container with Pod= still Disarmed on Intent stop ---
+reset
+printf '[Pod]\nPodName=demo\n' >"${QUADLETS_STAGE}/demo.pod"
+printf '[Container]\nImage=localhost/demo\nPod=demo.pod\nStartWithPod=false\n' >"${QUADLETS_STAGE}/demo-batch.container"
+workload_units_apply "${WL_NAME}" stop "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" ||
+  fail "apply Intent stop should succeed for on-demand pod-membered job"
+grep -Eq 'systemctl --user stop demo-pod\.service' "${QUADLET_LOG}" ||
+  fail "Intent stop must stop pod for on-demand workload"
+grep -Eq 'systemctl --user stop demo-batch\.service' "${QUADLET_LOG}" ||
+  fail "Intent stop must still Disarm on-demand pod-membered job"
+pass "On-demand pod-membered job still Disarmed on Intent stop"
+
 # --- Intent trash matches stop for always-on (units retained until Purge) ---
 reset
 printf '[Container]\nImage=localhost/app\n' >"${QUADLETS_STAGE}/app.container"
