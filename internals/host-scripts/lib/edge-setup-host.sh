@@ -9,10 +9,11 @@
 #   USER_NAME, DATA_ROOT  — Host Volume Edge data root defaults apply when unset.
 # After begin: HOME_DIR / UNIT_DIR / SYSTEMD_USER_DIR via quadlet_user_session_begin.
 #
-# Args: component_tree  [staged_want_list_src]
+# Args: component_tree  [staged_want_list_src] [staged_acme_env_src]
 #   [--clear-fulfilled-routes] [--skip-gather]
 #   [--skip-front-door-bounce] [--skip-acme-bounce]
-# Staging pathname is an argument only at this seam (and edge_install_want_list).
+# Staging pathnames are arguments only at this seam (and edge_install_want_list /
+# edge_install_acme_env).
 # Mode flags (#180): clear fulfilled Routes; skip gather/load; skip front-door
 # reload/restart; skip ACME oneshot that reloads the door. Default (no flags) =
 # pre-ADR-0043 gather + bounce-when-needed + ACME oneshot.
@@ -23,6 +24,8 @@ _edge_setup_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_edge_setup_lib_dir}/quadlet-user-session.sh"
 # shellcheck source=edge-want-list-host.sh
 source "${_edge_setup_lib_dir}/edge-want-list-host.sh"
+# shellcheck source=edge-acme-env-host.sh
+source "${_edge_setup_lib_dir}/edge-acme-env-host.sh"
 # shellcheck source=edge-domain-fronts-host.sh
 source "${_edge_setup_lib_dir}/edge-domain-fronts-host.sh"
 # shellcheck source=edge-front-door-host.sh
@@ -33,7 +36,8 @@ source "${_edge_setup_lib_dir}/edge-routes-host.sh"
 source "${_edge_setup_lib_dir}/component-units-host.sh"
 
 # Deep Edge Setup success: Domains present + Edge units active + front door answers.
-# Args: component_tree  [staged_want_list_src] [--clear-fulfilled-routes] [--skip-gather]
+# Args: component_tree  [staged_want_list_src] [staged_acme_env_src]
+#       [--clear-fulfilled-routes] [--skip-gather]
 #       [--skip-front-door-bounce] [--skip-acme-bounce] [--validate-config]
 # Default (no mode flags) matches pre-ADR-0043: gather + bounce-when-needed + ACME oneshot.
 # Mode flags are Host-helper seams for pre/post-workloads composition (#180 / #181).
@@ -41,6 +45,7 @@ edge_setup() {
   local component_tree="${1:?edge_setup: component tree required}"
   shift
   local staged_want_list=""
+  local staged_acme_env=""
   local clear_fulfilled_routes=0
   local skip_gather=0
   local skip_front_door_bounce=0
@@ -49,6 +54,10 @@ edge_setup() {
 
   if [[ $# -gt 0 && "$1" != --* ]]; then
     staged_want_list="$1"
+    shift
+  fi
+  if [[ $# -gt 0 && "$1" != --* ]]; then
+    staged_acme_env="$1"
     shift
   fi
   while [[ $# -gt 0 ]]; do
@@ -74,12 +83,15 @@ edge_setup() {
   ACME_WWW="${DATA_ROOT}/acme-www"
   ACME_DIR="${DATA_ROOT}/acme"
   WANT_LIST="${ACME_DIR}/want-list"
+  ACME_ENV="${ACME_DIR}/environment"
 
   quadlet_user_session_begin
 
   mkdir -p "${ROUTES_DIR}" "${DOMAINS_DIR}" "${CERTS_DIR}" "${ACME_WWW}" "${ACME_DIR}"
-  # Staged by ensure-components; Edge owns Host want-list path (ADR-0023 / #131).
+  # Staged by ensure-components; Edge owns Host want-list + ACME env paths
+  # (ADR-0023 / ADR-0045 / #131).
   edge_install_want_list "${staged_want_list}"
+  edge_install_acme_env "${staged_acme_env}"
 
   component_units_install "${component_tree}"
   chmod a+x "${component_tree}/acme-run.sh"
@@ -198,6 +210,7 @@ edge_setup() {
 edge_setup_pre_workloads() {
   local component_tree="${1:?edge_setup_pre_workloads: component tree required}"
   local staged_want_list="${2:-}"
+  local staged_acme_env="${3:-}"
 
   USER_NAME="${USER_NAME:-platform}"
   DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/edge}"
@@ -209,10 +222,10 @@ edge_setup_pre_workloads() {
   quadlet_user_session_begin
 
   if quadlet_user systemctl --user --quiet is-active edge-pod.service; then
-    edge_setup "${component_tree}" "${staged_want_list}" \
+    edge_setup "${component_tree}" "${staged_want_list}" "${staged_acme_env}" \
       --skip-gather --skip-front-door-bounce --skip-acme-bounce
   else
-    edge_setup "${component_tree}" "${staged_want_list}" \
+    edge_setup "${component_tree}" "${staged_want_list}" "${staged_acme_env}" \
       --clear-fulfilled-routes --skip-gather
   fi
 }
@@ -221,5 +234,6 @@ edge_setup_pre_workloads() {
 edge_setup_post_workloads() {
   local component_tree="${1:?edge_setup_post_workloads: component tree required}"
   local staged_want_list="${2:-}"
-  edge_setup "${component_tree}" "${staged_want_list}" --validate-config
+  local staged_acme_env="${3:-}"
+  edge_setup "${component_tree}" "${staged_want_list}" "${staged_acme_env}" --validate-config
 }

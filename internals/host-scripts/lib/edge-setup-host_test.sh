@@ -165,6 +165,11 @@ WANT_LIST="${DATA_ROOT}/acme/want-list"
 grep -Fxq 'alpha.example.test' "${WANT_LIST}" || fail "want-list missing alpha.example.test"
 grep -Fxq 'beta.example.test' "${WANT_LIST}" || fail "want-list missing beta.example.test"
 
+ACME_ENV_FILE="${DATA_ROOT}/acme/environment"
+[[ -f "${ACME_ENV_FILE}" ]] || fail "expected Host ACME EnvironmentFile after Setup"
+grep -Fxq 'EDGE_ACME_DIRECTORY=staging' "${ACME_ENV_FILE}" \
+  || fail "missing staged ACME env must plant staging default"
+
 [[ -f "${DATA_ROOT}/domains/alpha.example.test.conf" ]] \
   || fail "expected Domain front for alpha.example.test"
 [[ -f "${DATA_ROOT}/domains/beta.example.test.conf" ]] \
@@ -184,6 +189,17 @@ grep -Fq 'enable --now edge-acme.timer' "${STATE}/systemctl.calls" \
 grep -Fq 'restart edge-acme.service' "${STATE}/systemctl.calls" \
   || fail "expected ACME oneshot restart"
 pass "edge_setup succeeds: Domains present, units active path, front door answers"
+
+# --- staged ACME env installs into Host EnvironmentFile (ADR-0045) ---
+STAGE_ACME="${TMP}/staged-acme.env"
+printf '%s\n' 'EDGE_ACME_DIRECTORY=production' 'EDGE_ACME_EMAIL=ops@example.com' >"${STAGE_ACME}"
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+export CURL_SUCCEED_AFTER=1
+edge_setup "${TREE}" "${STAGE}" "${STAGE_ACME}" || fail "edge_setup with staged ACME env should succeed"
+grep -Fxq 'EDGE_ACME_DIRECTORY=production' "${ACME_ENV_FILE}" || fail "staged DIRECTORY not installed"
+grep -Fxq 'EDGE_ACME_EMAIL=ops@example.com' "${ACME_ENV_FILE}" || fail "staged EMAIL not installed"
+pass "edge_setup installs staged ACME EnvironmentFile"
 
 # --- gathers Intent-run Route Declarations from Workload SoT (ADR-0040) ---
 : >"${STATE}/curl_count"
@@ -244,24 +260,28 @@ pass "edge_setup fails closed when front door never answers"
 # --- staging pathname is Setup-seam only (not every helper's public interface) ---
 for helper in \
   edge-want-list-host.sh \
+  edge-acme-env-host.sh \
   edge-domain-fronts-host.sh \
   edge-front-door-host.sh \
   edge-routes-host.sh; do
   path="${REPO_ROOT}/internals/host-scripts/lib/${helper}"
   [[ -f "${path}" ]] || fail "missing ${helper}"
-  # Helpers must not require a staged want-list path argument in their public surface.
-  if grep -E 'staged_want_list|/tmp/platform-acme-want-list' "${path}" >/dev/null; then
+  # Helpers must not require a staged want-list / ACME-env path argument in their public surface.
+  if grep -E 'staged_want_list|staged_acme_env|/tmp/platform-acme-want-list|/tmp/platform-acme\.env' "${path}" >/dev/null; then
     fail "${helper} must not thread staging pathname as public interface"
   fi
 done
-# edge_install_want_list keeps a staged_path arg (install seam); reader does not.
+# edge_install_want_list / edge_install_acme_env keep a staged_path arg (install seam).
 grep -Eq '^edge_install_want_list\(\)' \
   "${REPO_ROOT}/internals/host-scripts/lib/edge-want-list-host.sh" \
   || fail "edge_install_want_list should remain the install seam"
+grep -Eq '^edge_install_acme_env\(\)' \
+  "${REPO_ROOT}/internals/host-scripts/lib/edge-acme-env-host.sh" \
+  || fail "edge_install_acme_env should remain the install seam"
 grep -Eq '^edge_want_list_fqdns\(\)' \
   "${REPO_ROOT}/internals/host-scripts/lib/edge-want-list-host.sh" \
   || fail "shared FQDN reader must remain for Route/ACME gating"
-pass "staging pathname stays at Setup/install seam; helpers keep ambient WANT_LIST"
+pass "staging pathname stays at Setup/install seam; helpers keep ambient WANT_LIST/ACME_ENV"
 
 # --- thin slot scripts call deep edge_setup_* (not a caller checklist) ---
 PRE="${REPO_ROOT}/internals/components/edge/pre-workloads.sh"
@@ -276,11 +296,15 @@ grep -Fq 'edge_setup_pre_workloads' "${PRE}" \
   || fail "pre-workloads.sh must call edge_setup_pre_workloads"
 grep -Fq 'edge_setup_post_workloads' "${POST}" \
   || fail "post-workloads.sh must call edge_setup_post_workloads"
-for step in edge_install_want_list edge_plant_placeholder_pems edge_reconcile_domain_fronts edge_gather_workload_routes edge_wait_front_door; do
+for step in edge_install_want_list edge_install_acme_env edge_plant_placeholder_pems edge_reconcile_domain_fronts edge_gather_workload_routes edge_wait_front_door; do
   if grep -Eq "${step}" "${PRE}" "${POST}"; then
     fail "slot scripts must not expose ${step} as a caller checklist"
   fi
 done
+grep -Fq '/tmp/platform-acme.env' "${PRE}" \
+  || fail "pre-workloads must hand off staged ACME EnvironmentFile"
+grep -Fq '/tmp/platform-acme.env' "${POST}" \
+  || fail "post-workloads must hand off staged ACME EnvironmentFile"
 pass "Edge slot scripts are thin: ambient + edge_setup_pre/post_workloads only"
 
 # --- pre-workloads cold: clear Routes, start, ACME; no gather from SoT ---

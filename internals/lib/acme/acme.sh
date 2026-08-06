@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Environment ACME configuration helpers (ADR-0045).
+# Sourced by ensure-components. Requires REPO_ROOT (call-time).
+#
+# Committed file: environments/<slug>/acme.json
+#   { "directory": "production"|"staging", "email": "<contact>" }
+# Missing file → staging directory, no email line (Host derives contact).
+
+# Print absolute path to acme.json for an Environment cloud slug.
+# Prints nothing and exits 0 when the file is absent.
+acme_config_path() {
+  local slug="${1-}"
+  if [[ -z "${slug}" ]]; then
+    echo "FAIL: acme_config_path requires an Environment cloud slug" >&2
+    return 1
+  fi
+  if [[ -z "${REPO_ROOT-}" ]]; then
+    echo "FAIL: acme_config_path requires REPO_ROOT" >&2
+    return 1
+  fi
+  local path="${REPO_ROOT}/environments/${slug}/acme.json"
+  if [[ -f "${path}" ]]; then
+    printf '%s\n' "${path}"
+  fi
+  return 0
+}
+
+# Print Edge ACME EnvironmentFile dotenv for an Environment cloud slug.
+# Missing acme.json → EDGE_ACME_DIRECTORY=staging only.
+# Present → require directory + email; emit both keys. Fail closed on bad shape.
+acme_config_dotenv_for() {
+  local slug="${1-}"
+  if [[ -z "${slug}" ]]; then
+    echo "FAIL: acme_config_dotenv_for requires an Environment cloud slug" >&2
+    return 1
+  fi
+  if [[ -z "${REPO_ROOT-}" ]]; then
+    echo "FAIL: acme_config_dotenv_for requires REPO_ROOT" >&2
+    return 1
+  fi
+  local path
+  path="$(acme_config_path "${slug}")" || return 1
+  if [[ -z "${path}" ]]; then
+    printf 'EDGE_ACME_DIRECTORY=staging\n'
+    return 0
+  fi
+  python3 - "${path}" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    raw = json.load(f)
+if not isinstance(raw, dict):
+    raise SystemExit(f"ACME config must be an object: {path}")
+
+directory = raw.get("directory")
+if directory not in ("production", "staging"):
+    raise SystemExit(
+        f"ACME config 'directory' must be 'production' or 'staging' in {path}"
+    )
+
+email = raw.get("email")
+if not isinstance(email, str) or not email.strip():
+    raise SystemExit(f"ACME config requires a non-empty 'email' in {path}")
+email = email.strip()
+if any(ch.isspace() for ch in email) or "=" in email:
+    raise SystemExit(f"ACME config 'email' is not a simple contact address in {path}")
+
+print(f"EDGE_ACME_DIRECTORY={directory}")
+print(f"EDGE_ACME_EMAIL={email}")
+PY
+}

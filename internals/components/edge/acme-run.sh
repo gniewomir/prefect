@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Edge ACME on-demand runner (systemd user oneshot).
 # Empty want-list → success with no CA contact.
-# Non-empty → HTTP-01 via lego (staging by default), write PEMs, reload Edge (no Route projection).
+# EDGE_ACME_DIRECTORY / EDGE_ACME_EMAIL come from the Host ACME EnvironmentFile
+# (environments/<slug>/acme.json via ensure-components — ADR-0045).
 # EDGE_ACME_ISSUE=0 skips CA contact (Acceptance / fixture) but still reloads Edge when names exist.
-# EDGE_ACME_DIRECTORY=production opts into the Let's Encrypt production directory.
+# Missing EDGE_ACME_DIRECTORY defaults to staging; production is Environment acme.json opt-in.
 set -euo pipefail
 
 DATA_ROOT=/var/lib/host-volume/data/components/edge
@@ -19,6 +20,8 @@ USER_NAME="${PLATFORM_USER:-platform}"
 source /var/lib/host-volume/internals/host-scripts/lib/quadlet-user-session.sh
 # shellcheck source=../../host-scripts/lib/edge-want-list-host.sh
 source /var/lib/host-volume/internals/host-scripts/lib/edge-want-list-host.sh
+# shellcheck source=../../host-scripts/lib/edge-acme-issue-host.sh
+source /var/lib/host-volume/internals/host-scripts/lib/edge-acme-issue-host.sh
 # shellcheck source=../../host-scripts/lib/edge-front-door-host.sh
 source /var/lib/host-volume/internals/host-scripts/lib/edge-front-door-host.sh
 
@@ -71,6 +74,7 @@ issue_one() {
   local host="$1"
   local email="${EDGE_ACME_EMAIL:-}"
   local server
+  local -a force_args=()
   server="$(acme_server)"
   # Let's Encrypt rejects .invalid and example.com contacts; default from the name's apex.
   if [[ -z "${email}" ]]; then
@@ -79,6 +83,13 @@ issue_one() {
     else
       email="acme@${host}"
     fi
+  fi
+
+  # Staging↔production cutover: lego skips renew when the cert is still "fresh"
+  # (--renew-days 30), so force re-issue when the installed LE PEM is the wrong CA.
+  if acme_installed_pem_wrong_ca "${host}"; then
+    echo "edge-acme: ${host} LE PEM CA mismatches EDGE_ACME_DIRECTORY=${EDGE_ACME_DIRECTORY:-staging}; forcing re-issue" >&2
+    force_args=(--renew-force)
   fi
 
   # lego v5: flags are command options; `run` issues and renews (no separate renew).
@@ -92,7 +103,8 @@ issue_one() {
     --domains "${host}" \
     --http \
     --http.webroot "${ACME_WWW}" \
-    --renew-days 30; then
+    --renew-days 30 \
+    "${force_args[@]}"; then
     echo "edge-acme: CA issue/renew failed for ${host} (leaving existing PEMs untouched)" >&2
     return 1
   fi
