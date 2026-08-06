@@ -156,4 +156,12 @@ edge_gather_workload_routes "${WL_ROOT}"
   || fail "unchanged gather inputs must set EDGE_ROUTES_CHANGED=0 (noop)"
 pass "gather is a noop when inputs are unchanged"
 
+# --- clear fulfilled Routes empties ROUTES_DIR (Domain fronts are elsewhere) ---
+printf '%s\n' '# a' >"${ROUTES_DIR}/wl--alpha.example.test.conf"
+printf '%s\n' '# legacy' >"${ROUTES_DIR}/legacy.conf"
+edge_clear_fulfilled_routes
+[[ -z "$(find "${ROUTES_DIR}" -maxdepth 1 -type f 2>/dev/null)" ]] \
+  || fail "edge_clear_fulfilled_routes must remove all files under ROUTES_DIR"
+pass "edge_clear_fulfilled_routes clears fulfilled Workload Routes under Edge data"
+
 echo "All Edge Route helper checks passed."

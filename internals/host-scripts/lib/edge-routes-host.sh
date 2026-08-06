@@ -26,6 +26,18 @@ edge_remove_workload_installed_routes() {
   fi
 }
 
+# Clear all fulfilled Workload Routes under Edge data (ROUTES_DIR). Domain fronts stay
+# under DOMAINS_DIR — this only touches Route fulfillment installs (ADR-0043 cold pre).
+edge_clear_fulfilled_routes() {
+  local f
+
+  mkdir -p "${ROUTES_DIR}"
+  while IFS= read -r f; do
+    [[ -n "${f}" ]] || continue
+    rm -f "${f}"
+  done < <(find "${ROUTES_DIR}" -maxdepth 1 -type f 2>/dev/null)
+}
+
 # True if exact FQDN (Route basename without .conf) is on the Host want-list.
 _edge_route_fqdn_on_want_list() {
   local fqdn="$1"
