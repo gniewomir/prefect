@@ -16,7 +16,7 @@ before="$(host_ssh \
   "cat /var/lib/host-volume/data/components/edge/acme/last-run 2>/dev/null || echo none")"
 sleep 2
 
-"${REPO_ROOT}/internals/ensure-components.sh" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
 
 want="$(host_ssh "cat /var/lib/host-volume/data/components/edge/acme/want-list")"
 if [[ -n "${EXPECTED}" ]]; then

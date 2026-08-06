@@ -435,9 +435,9 @@ acceptance_assert_container_env_absent() {
   fail "container ${cname} process env: expected ${key} absent, got '${got}'"
 }
 
-# Re-run Component Setup so Edge gathers Route Declarations into interior (ADR-0040).
+# Re-run Component Setup post-workloads so Edge gathers Route Declarations (ADR-0043).
 # Workload Setup / Purge sync SoT only; fulfillment refreshes on Edge Component Setup.
 ensure_edge_route_fulfillment() {
   [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_edge_route_fulfillment: REPO_ROOT required"
-  "${REPO_ROOT}/internals/ensure-components.sh" --env "${PLATFORM_ENV:-test}"
+  "${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
 }

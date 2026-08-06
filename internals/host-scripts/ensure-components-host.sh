@@ -1,14 +1,28 @@
 #!/usr/bin/env bash
 # Host-local half of ensure-components. Invoked after Host delivery unpacks the stage.
 # Installs staged Component trees onto the Host Volume, places the staged ACME want-list
-# at the Edge-owned handoff path, ships host-scripts, then applies Component Setup
-# (ADR-0040 / ADR-0010 / ADR-0041 / ADR-0023 / #155). Does not install Fabric.
+# at the Edge-owned handoff path, ships host-scripts, then applies one Component Setup
+# slot (pre-workloads | post-workloads) — ADR-0043 / ADR-0040 / ADR-0010 / ADR-0041 / #181.
+# Does not install Fabric. No combined "full" mode.
 # Usage:
-#   ensure-components-host.sh <platform-user> [--component <name>]...
+#   ensure-components-host.sh <platform-user> <pre-workloads|post-workloads> [--component <name>]...
 set -euo pipefail
 
 USER_NAME="${1:?ensure-components-host requires Platform User}"
 shift
+SLOT="${1:-}"
+[[ -n "${SLOT}" ]] || {
+  echo "ensure-components-host: Setup slot required (pre-workloads|post-workloads)" >&2
+  exit 1
+}
+shift
+case "${SLOT}" in
+  pre-workloads | post-workloads) ;;
+  *)
+    echo "ensure-components-host: unknown Setup slot '${SLOT}' (want pre-workloads|post-workloads)" >&2
+    exit 1
+    ;;
+esac
 
 COMPONENTS=()
 while [[ $# -gt 0 ]]; do
@@ -41,6 +55,7 @@ COMPONENTS_ROOT="${INTERNALS_ROOT}/components"
 HOST_SCRIPTS_ROOT="${INTERNALS_ROOT}/host-scripts"
 WANT_STAGE="${HERE}/platform-acme-want-list"
 WANT_HANDOFF=/tmp/platform-acme-want-list
+SETUP_SCRIPT="${SLOT}.sh"
 # shellcheck source=lib/sync-tree-host.sh
 source "${HERE}/lib/sync-tree-host.sh"
 
@@ -74,12 +89,20 @@ install_component_tree() {
     echo "ensure-components: staged Component tree missing: ${name}" >&2
     exit 1
   }
-  [[ -f "${HERE}/${name}/setup.sh" ]] || {
-    echo "ensure-components: staged Component Setup missing: ${name}/setup.sh" >&2
+  [[ -f "${HERE}/${name}/pre-workloads.sh" ]] || {
+    echo "ensure-components: staged Component Setup missing: ${name}/pre-workloads.sh" >&2
+    exit 1
+  }
+  [[ -f "${HERE}/${name}/post-workloads.sh" ]] || {
+    echo "ensure-components: staged Component Setup missing: ${name}/post-workloads.sh" >&2
     exit 1
   }
   sync_tree_inplace "${HERE}/${name}" "${COMPONENTS_ROOT}/${name}"
-  chmod a+x "${COMPONENTS_ROOT}/${name}/setup.sh"
+  chmod a+x \
+    "${COMPONENTS_ROOT}/${name}/pre-workloads.sh" \
+    "${COMPONENTS_ROOT}/${name}/post-workloads.sh"
+  # Hard cut (ADR-0018 / ADR-0043): retire monolithic setup.sh if still present on volume.
+  rm -f "${COMPONENTS_ROOT}/${name}/setup.sh"
 }
 
 for name in "${COMPONENTS[@]}"; do
@@ -96,6 +119,10 @@ chown -R "${USER_NAME}:${USER_NAME}" "${INTERNALS_ROOT}" "${DATA_ROOT}"
 }
 
 for name in "${COMPONENTS[@]}"; do
-  echo "Running Component Setup: ${name}" >&2
-  PLATFORM_USER="${USER_NAME}" "${COMPONENTS_ROOT}/${name}/setup.sh"
+  [[ -f "${COMPONENTS_ROOT}/${name}/${SETUP_SCRIPT}" ]] || {
+    echo "ensure-components: Component Setup missing: ${name}/${SETUP_SCRIPT}" >&2
+    exit 1
+  }
+  echo "Running Component Setup: ${name} (${SLOT})" >&2
+  PLATFORM_USER="${USER_NAME}" "${COMPONENTS_ROOT}/${name}/${SETUP_SCRIPT}"
 done

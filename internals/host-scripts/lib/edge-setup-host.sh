@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deep Edge Component Setup (ADR-0023 / ADR-0028 / ADR-0040 / #137 / #180).
-# Sourced by Edge setup.sh. Success meaning: Domains present, Edge units active,
+# Sourced by Edge pre-workloads.sh / post-workloads.sh. Success meaning: Domains present, Edge units active,
 # front door answers, Intent-run Route Declarations fulfilled (unless --skip-gather).
 # Want-list install, placeholders, Domain fronts, Route gather, oneshot, and wait are
 # implementation behind this interface — not a caller checklist.
@@ -34,10 +34,9 @@ source "${_edge_setup_lib_dir}/component-units-host.sh"
 
 # Deep Edge Setup success: Domains present + Edge units active + front door answers.
 # Args: component_tree  [staged_want_list_src] [--clear-fulfilled-routes] [--skip-gather]
-#       [--skip-front-door-bounce] [--skip-acme-bounce]
+#       [--skip-front-door-bounce] [--skip-acme-bounce] [--validate-config]
 # Default (no mode flags) matches pre-ADR-0043: gather + bounce-when-needed + ACME oneshot.
-# Mode flags are Host-helper seams for later pre/post-workloads composition (#180) — not
-# ensure-components argv.
+# Mode flags are Host-helper seams for pre/post-workloads composition (#180 / #181).
 edge_setup() {
   local component_tree="${1:?edge_setup: component tree required}"
   shift
@@ -46,6 +45,7 @@ edge_setup() {
   local skip_gather=0
   local skip_front_door_bounce=0
   local skip_acme_bounce=0
+  local validate_config=0
 
   if [[ $# -gt 0 && "$1" != --* ]]; then
     staged_want_list="$1"
@@ -57,6 +57,7 @@ edge_setup() {
       --skip-gather) skip_gather=1 ;;
       --skip-front-door-bounce) skip_front_door_bounce=1 ;;
       --skip-acme-bounce) skip_acme_bounce=1 ;;
+      --validate-config) validate_config=1 ;;
       *)
         echo "edge_setup: unknown argument: $1" >&2
         return 1
@@ -101,6 +102,11 @@ edge_setup() {
   else
     edge_gather_workload_routes "${WORKLOADS_ROOT}" || return 1
     routes_changed="${EDGE_ROUTES_CHANGED:-0}"
+  fi
+
+  # post-workloads: validate before reload/start so bad config cannot bounce a live door.
+  if [[ "${validate_config}" == "1" ]]; then
+    edge_validate_nginx_config || return 1
   fi
 
   chown -R "${USER_NAME}:${USER_NAME}" \
@@ -185,4 +191,35 @@ edge_setup() {
     quadlet_user systemctl --user status edge-pod.service edge-nginx.service edge-acme.service --no-pager >&2 || true
     return 1
   fi
+}
+
+# Component Setup pre-workloads (ADR-0043): cold clears Routes + start + ACME;
+# warm reconciles platform face without bouncing the front door (including ACME).
+edge_setup_pre_workloads() {
+  local component_tree="${1:?edge_setup_pre_workloads: component tree required}"
+  local staged_want_list="${2:-}"
+
+  USER_NAME="${USER_NAME:-platform}"
+  DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/edge}"
+  # Session begin so is-active probes the same user context Setup will use.
+  if ! declare -F quadlet_user >/dev/null 2>&1; then
+    # shellcheck source=quadlet-user-session.sh
+    source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/quadlet-user-session.sh"
+  fi
+  quadlet_user_session_begin
+
+  if quadlet_user systemctl --user --quiet is-active edge-pod.service; then
+    edge_setup "${component_tree}" "${staged_want_list}" \
+      --skip-gather --skip-front-door-bounce --skip-acme-bounce
+  else
+    edge_setup "${component_tree}" "${staged_want_list}" \
+      --clear-fulfilled-routes --skip-gather
+  fi
+}
+
+# Component Setup post-workloads (ADR-0043): gather → validate → reload|start → ACME.
+edge_setup_post_workloads() {
+  local component_tree="${1:?edge_setup_post_workloads: component tree required}"
+  local staged_want_list="${2:-}"
+  edge_setup "${component_tree}" "${staged_want_list}" --validate-config
 }
