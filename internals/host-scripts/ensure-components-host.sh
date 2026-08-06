@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Host-local half of ensure-components. Invoked after Host delivery unpacks the stage.
 # Installs staged Component trees onto the Host Volume, places the staged ACME want-list
-# at the Edge-owned handoff path, ships host-scripts, then applies one Component Setup
-# slot (pre-workloads | post-workloads) — ADR-0043 / ADR-0040 / ADR-0010 / ADR-0041 / #181.
+# and ACME EnvironmentFile at the Edge-owned handoff paths, ships host-scripts, then applies
+# one Component Setup slot (pre-workloads | post-workloads) — ADR-0043 / ADR-0040 / ADR-0010 /
+# ADR-0041 / ADR-0045 / #181.
 # Does not install Fabric. No combined "full" mode.
 # Usage:
 #   ensure-components-host.sh <platform-user> <pre-workloads|post-workloads> [--component <name>]...
@@ -55,6 +56,8 @@ COMPONENTS_ROOT="${INTERNALS_ROOT}/components"
 HOST_SCRIPTS_ROOT="${INTERNALS_ROOT}/host-scripts"
 WANT_STAGE="${HERE}/platform-acme-want-list"
 WANT_HANDOFF=/tmp/platform-acme-want-list
+ACME_ENV_STAGE="${HERE}/platform-acme.env"
+ACME_ENV_HANDOFF=/tmp/platform-acme.env
 SETUP_SCRIPT="${SLOT}.sh"
 # shellcheck source=lib/sync-tree-host.sh
 source "${HERE}/lib/sync-tree-host.sh"
@@ -63,8 +66,13 @@ source "${HERE}/lib/sync-tree-host.sh"
   echo "ensure-components: staged ACME FQDN list missing at ${WANT_STAGE}" >&2
   exit 1
 }
+[[ -f "${ACME_ENV_STAGE}" ]] || {
+  echo "ensure-components: staged ACME EnvironmentFile missing at ${ACME_ENV_STAGE}" >&2
+  exit 1
+}
 cp "${WANT_STAGE}" "${WANT_HANDOFF}"
-trap 'rm -f "${WANT_HANDOFF}"' EXIT
+cp "${ACME_ENV_STAGE}" "${ACME_ENV_HANDOFF}"
+trap 'rm -f "${WANT_HANDOFF}" "${ACME_ENV_HANDOFF}"' EXIT
 
 # Hard cut (ADR-0018 / ADR-0041): retire components/ + components_data/.
 rm -rf "${HV_ROOT:?}/components" "${HV_ROOT:?}/components_data"
@@ -112,9 +120,13 @@ done
 # Mount root stays root-owned; everything under it is Platform User–owned.
 chown -R "${USER_NAME}:${USER_NAME}" "${INTERNALS_ROOT}" "${DATA_ROOT}"
 
-# Fail closed if Domain FQDN handoff is missing before Edge Component Setup.
+# Fail closed if Domain FQDN / ACME env handoffs are missing before Edge Component Setup.
 [[ -f "${WANT_HANDOFF}" ]] || {
   echo "ensure-components: staged ACME FQDN list missing at ${WANT_HANDOFF}" >&2
+  exit 1
+}
+[[ -f "${ACME_ENV_HANDOFF}" ]] || {
+  echo "ensure-components: staged ACME EnvironmentFile missing at ${ACME_ENV_HANDOFF}" >&2
   exit 1
 }
 

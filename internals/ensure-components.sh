@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Ensure Components on the Host after Initial Host Provisioning.
-# Waits for IHP Done (Host is Substrate), ships Component source, host-scripts, and the
-# ACME want-list via Host delivery, then runs one Component Setup slot
-# (pre-workloads | post-workloads). Idempotent — re-run freely. Does not run Fabric Setup
-# (see ensure-fabric.sh). No combined "full" mode — Deploy (or the caller) runs both slots
-# in order when Components must be fully correct (ADR-0043 / #181).
+# Waits for IHP Done (Host is Substrate), ships Component source, host-scripts, the
+# ACME want-list, and ACME EnvironmentFile via Host delivery, then runs one Component
+# Setup slot (pre-workloads | post-workloads). Idempotent — re-run freely. Does not run
+# Fabric Setup (see ensure-fabric.sh). No combined "full" mode — Deploy (or the caller)
+# runs both slots in order when Components must be fully correct (ADR-0043 / #181).
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/ensure-components.sh <pre-workloads|post-workloads> [--env <slug>]
 # Optional: PLATFORM_USER=platform
@@ -22,6 +22,8 @@ source "${REPO_ROOT}/internals/lib/cli.sh"
 source "${REPO_ROOT}/internals/lib/environment/environment.sh"
 # shellcheck source=lib/domains/domains.sh
 source "${REPO_ROOT}/internals/lib/domains/domains.sh"
+# shellcheck source=lib/acme/acme.sh
+source "${REPO_ROOT}/internals/lib/acme/acme.sh"
 # shellcheck source=lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
 # shellcheck source=lib/host-delivery.sh
@@ -89,9 +91,10 @@ host_wait_until_ihp_done "${IHP_DONE}" "${USER_NAME}"
 STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-components-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT
 
-# Domain-derived ACME want-list (ADR-0023): stage FQDNs into the delivery payload;
-# Host half places the Edge handoff path; Edge Component Setup installs the Host want-list.
+# Domain-derived ACME want-list (ADR-0023) + Environment ACME config (ADR-0045):
+# stage into the delivery payload; Host half places Edge handoff paths; Edge Setup installs.
 domains_acme_fqdns_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme-want-list"
+acme_config_dotenv_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme.env"
 
 cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"
 cp "${HOST_SCRIPT}" "${STAGE}/ensure-components-host.sh"

@@ -25,11 +25,13 @@ mkdir -p "${HV}" "${TMP}/lib"
 cp "${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh" "${TMP}/lib/sync-tree-host.sh"
 printf '# ensure unit stub lib\n' >"${TMP}/lib/stub.sh"
 printf '%s\n' 'alpha.example.test' >"${TMP}/platform-acme-want-list"
+printf '%s\n' 'EDGE_ACME_DIRECTORY=staging' >"${TMP}/platform-acme.env"
 
 # Runnable copy with Host Volume + handoff paths redirected into TMP.
 sed \
   -e "s|/var/lib/host-volume|${HV}|g" \
   -e "s|/tmp/platform-acme-want-list|${TMP}/want-handoff|g" \
+  -e "s|/tmp/platform-acme.env|${TMP}/acme-env-handoff|g" \
   "${HOST_SCRIPT}" >"${TMP}/ensure-run.sh"
 chmod +x "${TMP}/ensure-run.sh"
 
@@ -116,6 +118,16 @@ fi
 [[ ! -e "${HV}/components" ]] || fail "retired components/ must not exist after ensure"
 [[ ! -e "${HV}/components_data" ]] || fail "retired components_data/ must not exist after ensure"
 pass "ensure-components pre-workloads installs Components and runs only that slot"
+
+# --- missing staged ACME EnvironmentFile fails closed ---
+mv "${TMP}/platform-acme.env" "${TMP}/platform-acme.env.bak"
+if bash "${TMP}/ensure-run.sh" "${USER_NAME}" pre-workloads --component edge 2>"${TMP}/stderr-acme-env"; then
+  fail "missing platform-acme.env must fail closed"
+fi
+grep -Eqi 'ACME EnvironmentFile|platform-acme\.env' "${TMP}/stderr-acme-env" \
+  || fail "missing ACME env rejection unclear: $(cat "${TMP}/stderr-acme-env")"
+mv "${TMP}/platform-acme.env.bak" "${TMP}/platform-acme.env"
+pass "missing staged ACME EnvironmentFile fails closed"
 
 # --- post-workloads runs the post script only ---
 : >"${TMP}/setup.order"

@@ -5,6 +5,7 @@ Committed, Environment-scoped intent ([ADR-0033](../docs/adr/0033-environment-fi
 ```text
 environments/<cloud-slug>/domains.json
 environments/<cloud-slug>/domains.override.json   # internal; gitignored (ADR-0021)
+environments/<cloud-slug>/acme.json               # Edge ACME directory + contact (ADR-0045)
 environments/<cloud-slug>/.env                    # Environment Configuration; gitignored (ADR-0035)
 environments/<cloud-slug>/.env.example            # committed key-name teaching; Setup never reads it
 environments/<cloud-slug>/.ssh/known_hosts        # Host-session TOFU; gitignored (lib/ssh.sh)
@@ -18,8 +19,11 @@ environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-
 - **Cloud slug** — `test` (not Terraform workspace `default`), `prod`, `example`, … Same slug as Host naming (`propraetor-test-…`).
 - **Missing `domains.json`** — that Environment has zero Domains.
 - **`domains.override.json`** — if present, replaces `domains.json` for all Domain-assignment readers. Not an operator surface; Lifecycle Tests only. See ADR-0021 / `internals/test/lifecycle/README.md`.
+- **`acme.json`** — Let’s Encrypt directory (`production` | `staging`) and contact `email` for Edge ACME. Missing → staging, Host-derived contact. See [ADR-0045](../docs/adr/0045-environment-acme-config.md).
 
 JSON shape for Domains: map of apex FQDN → `{ "names": ["@", "www", …] }` (at least one label; each A → that Environment’s Reserved IP).
+
+JSON shape for ACME: `{ "directory": "production"|"staging", "email": "<contact>" }`.
 
 ## Environment Configuration
 

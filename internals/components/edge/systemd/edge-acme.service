@@ -6,6 +6,8 @@ After=edge-pod.service
 Type=oneshot
 # lego per-name bound wait is 120s; allow multi-name want-lists + Edge reload.
 TimeoutStartSec=900
+# Environment ACME config staged by ensure-components (ADR-0045).
+EnvironmentFile=/var/lib/host-volume/data/components/edge/acme/environment
 ExecStart=/var/lib/host-volume/internals/components/edge/acme-run.sh
 
 [Install]
