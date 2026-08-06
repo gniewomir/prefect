@@ -90,6 +90,50 @@ grep -Fq -- '--no-random-sleep' "${ACME_RUN}" \
 if grep -Fq -- '--renew-force' "${ACME_RUN}"; then
   fail "acme-run must not use --renew-force (clear + fresh issue instead)"
 fi
+grep -Fq 'install_pems_from_lego' "${ACME_RUN}" \
+  || fail "acme-run must install PEMs via install_pems_from_lego"
+if grep -Eq '^install_pems_from_lego\(\)' "${ACME_RUN}"; then
+  fail "install_pems_from_lego must live in edge-acme-issue-host.sh (not acme-run)"
+fi
 pass "acme-run wires wrong-CA → clear + --no-random-sleep"
+
+pem_block() {
+  printf '%s\n' "-----BEGIN CERTIFICATE-----" "$1" "-----END CERTIFICATE-----"
+}
+
+# lego v5: multi-cert .crt already has the chain; .issuer.crt must not be appended.
+{
+  pem_block leaf
+  pem_block ye2
+  pem_block root_ye
+  pem_block x2
+} >"${ACME_DIR}/certificates/${HOST}.crt"
+{
+  pem_block ye2
+  pem_block root_ye
+  pem_block x2
+} >"${ACME_DIR}/certificates/${HOST}.issuer.crt"
+printf 'key\n' >"${ACME_DIR}/certificates/${HOST}.key"
+rm -rf "${CERTS_DIR}/${HOST}"
+install_pems_from_lego "${HOST}" || fail "install_pems_from_lego should succeed (multi-cert)"
+full_count="$(grep -c 'BEGIN CERTIFICATE' "${CERTS_DIR}/${HOST}/fullchain.pem")"
+[[ "${full_count}" -eq 4 ]] \
+  || fail "multi-cert .crt + issuer → fullchain must be 4 certs (got ${full_count}, not crt+issuer=7)"
+[[ "$(cat "${CERTS_DIR}/${HOST}/privkey.pem")" == "key" ]] || fail "privkey must be copied"
+pass "multi-cert .crt is fullchain source of truth (no issuer concat)"
+
+# Leaf-only .crt + issuer → concatenate (older lego shape).
+pem_block leaf >"${ACME_DIR}/certificates/${HOST}.crt"
+{
+  pem_block intermediate
+  pem_block rootish
+} >"${ACME_DIR}/certificates/${HOST}.issuer.crt"
+printf 'key2\n' >"${ACME_DIR}/certificates/${HOST}.key"
+rm -rf "${CERTS_DIR}/${HOST}"
+install_pems_from_lego "${HOST}" || fail "install_pems_from_lego should succeed (leaf-only)"
+full_count="$(grep -c 'BEGIN CERTIFICATE' "${CERTS_DIR}/${HOST}/fullchain.pem")"
+[[ "${full_count}" -eq 3 ]] \
+  || fail "leaf-only .crt + issuer → fullchain must be 3 certs (got ${full_count})"
+pass "leaf-only .crt still concatenates issuer"
 
 echo "All edge-acme-issue-host offline tests passed."

@@ -52,24 +52,6 @@ acme_server() {
   esac
 }
 
-install_pems_from_lego() {
-  local host="$1"
-  local crt="${ACME_DIR}/certificates/${host}.crt"
-  local issuer="${ACME_DIR}/certificates/${host}.issuer.crt"
-  local key="${ACME_DIR}/certificates/${host}.key"
-  local dest="${CERTS_DIR}/${host}"
-  [[ -f "${crt}" && -f "${key}" ]] || return 1
-  mkdir -p "${dest}"
-  if [[ -f "${issuer}" ]]; then
-    cat "${crt}" "${issuer}" >"${dest}/fullchain.pem"
-  else
-    cp "${crt}" "${dest}/fullchain.pem"
-  fi
-  cp "${key}" "${dest}/privkey.pem"
-  chmod 0644 "${dest}/fullchain.pem"
-  chmod 0600 "${dest}/privkey.pem"
-}
-
 issue_one() {
   local host="$1"
   local email="${EDGE_ACME_EMAIL:-}"
