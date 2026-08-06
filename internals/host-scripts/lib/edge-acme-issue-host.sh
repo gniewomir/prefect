@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Host ACME issue helpers: detect installed PEM vs configured CA directory (ADR-0045).
-# Sourced by acme-run. Expects: CERTS_DIR. Reads EDGE_ACME_DIRECTORY (default staging).
+# Sourced by acme-run. Expects: CERTS_DIR, ACME_DIR. Reads EDGE_ACME_DIRECTORY (default staging).
 
 # Return 0 when Host fullchain for host is a Let's Encrypt cert from the wrong
 # directory relative to EDGE_ACME_DIRECTORY (staging↔production cutover).
@@ -24,4 +24,20 @@ acme_installed_pem_wrong_ca() {
       return 0
       ;;
   esac
+}
+
+# Remove lego on-disk material for one FQDN so the next `lego run` issues fresh
+# against the configured CA (staging↔production cutover). Do not touch Host PEMs;
+# install_pems_from_lego replaces them only after a successful issue.
+acme_clear_lego_certificate() {
+  local host="${1-}"
+  local dir="${ACME_DIR:-}/certificates"
+  [[ -n "${host}" && -n "${ACME_DIR:-}" ]] || return 1
+  [[ -d "${dir}" ]] || return 0
+  rm -f \
+    "${dir}/${host}.crt" \
+    "${dir}/${host}.issuer.crt" \
+    "${dir}/${host}.key" \
+    "${dir}/${host}.json" \
+    "${dir}/${host}.pfx"
 }

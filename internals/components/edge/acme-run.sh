@@ -74,7 +74,6 @@ issue_one() {
   local host="$1"
   local email="${EDGE_ACME_EMAIL:-}"
   local server
-  local -a force_args=()
   server="$(acme_server)"
   # Let's Encrypt rejects .invalid and example.com contacts; default from the name's apex.
   if [[ -z "${email}" ]]; then
@@ -85,15 +84,18 @@ issue_one() {
     fi
   fi
 
-  # Staging↔production cutover: lego skips renew when the cert is still "fresh"
-  # (--renew-days 30), so force re-issue when the installed LE PEM is the wrong CA.
+  # Staging↔production cutover: lego would "renew" the wrong-CA leaf with a
+  # multi-minute random sleep (and ARI against the wrong issuer). Drop lego's
+  # stored cert so `run` issues fresh against the configured directory.
   if acme_installed_pem_wrong_ca "${host}"; then
-    echo "edge-acme: ${host} LE PEM CA mismatches EDGE_ACME_DIRECTORY=${EDGE_ACME_DIRECTORY:-staging}; forcing re-issue" >&2
-    force_args=(--renew-force)
+    echo "edge-acme: ${host} LE PEM CA mismatches EDGE_ACME_DIRECTORY=${EDGE_ACME_DIRECTORY:-staging}; clearing lego cert for fresh issue" >&2
+    acme_clear_lego_certificate "${host}" || true
   fi
 
   # lego v5: flags are command options; `run` issues and renews (no separate renew).
   # Bound CA wait so a mispointed DNS name cannot stall the oneshot forever.
+  # --no-random-sleep: Setup blocks on this oneshot; lego's renewal jitter can be
+  # minutes and trips the timeout while looking like a Deploy hang.
   # Do not bind :80/:443 — webroot only (Edge serves challenges).
   if ! timeout 120 "${LEGO_BIN}" run \
     --path "${ACME_DIR}" \
@@ -104,7 +106,7 @@ issue_one() {
     --http \
     --http.webroot "${ACME_WWW}" \
     --renew-days 30 \
-    "${force_args[@]}"; then
+    --no-random-sleep; then
     echo "edge-acme: CA issue/renew failed for ${host} (leaving existing PEMs untouched)" >&2
     return 1
   fi
