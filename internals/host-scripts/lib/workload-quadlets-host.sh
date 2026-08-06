@@ -10,11 +10,11 @@
 # shellcheck source=unit-consumers-host.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/unit-consumers-host.sh"
 
-# True when unit file has Key=value (comments and surrounding whitespace ignored).
-workload_unit_file_key_equals() {
+# Read unit file Key=value (comments and surrounding whitespace ignored).
+# On match, prints the value to stdout.
+workload_unit_file_key_value() {
   local file="$1"
   local key="$2"
-  local want="$3"
   local line k v
   [[ -f "${file}" ]] || return 1
   while IFS= read -r line || [[ -n "${line}" ]]; do
@@ -28,11 +28,22 @@ workload_unit_file_key_equals() {
     k="${k%"${k##*[![:space:]]}"}"
     v="${v#"${v%%[![:space:]]*}"}"
     v="${v%"${v##*[![:space:]]}"}"
-    if [[ "${k}" == "${key}" && "${v}" == "${want}" ]]; then
+    if [[ "${k}" == "${key}" ]]; then
+      printf '%s\n' "${v}"
       return 0
     fi
   done <"${file}"
   return 1
+}
+
+# True when unit file has Key=value (comments and surrounding whitespace ignored).
+workload_unit_file_key_equals() {
+  local file="$1"
+  local key="$2"
+  local want="$3"
+  local got
+  got="$(workload_unit_file_key_value "${file}" "${key}")" || return 1
+  [[ "${got}" == "${want}" ]]
 }
 
 # Map a Quadlet unit filename to its generated user systemd unit (empty if none).
@@ -112,6 +123,48 @@ workload_unit_kind() {
     printf '\n'
     ;;
   esac
+}
+
+# True when a Quadlet container file sets non-empty Pod= (pod membership authorship).
+workload_quadlet_container_has_pod_ref() {
+  local file="$1"
+  local pod_ref
+  pod_ref="$(workload_unit_file_key_value "${file}" "Pod")" || return 1
+  [[ -n "${pod_ref}" ]]
+}
+
+# Fail closed when any quadlets/*.container Pod= names a missing or invalid target.
+# Args: wl_name
+workload_quadlet_validate_pod_refs() {
+  local wl_name="$1"
+  local sot_dir="${WORKLOADS_ROOT}/${wl_name}/quadlets"
+  local base file pod_ref ext
+  [[ -d "${sot_dir}" ]] || return 0
+  while IFS= read -r base; do
+    [[ -n "${base}" ]] || continue
+    [[ "${base##*.}" == container ]] || continue
+    file="${sot_dir}/${base}"
+    if ! workload_unit_file_key_value "${file}" "Pod" >/dev/null; then
+      continue
+    fi
+    pod_ref="$(workload_unit_file_key_value "${file}" "Pod")"
+    if [[ -z "${pod_ref}" ]]; then
+      echo "workload quadlet ${base}: Pod must name a .pod or .kube unit in quadlets" >&2
+      return 1
+    fi
+    ext="${pod_ref##*.}"
+    case "${ext}" in
+    pod | kube) ;;
+    *)
+      echo "workload quadlet ${base}: Pod=${pod_ref} must reference a .pod or .kube unit" >&2
+      return 1
+      ;;
+    esac
+    if [[ ! -f "${sot_dir}/${pod_ref}" ]]; then
+      echo "workload quadlet ${base}: Pod=${pod_ref} missing from quadlets" >&2
+      return 1
+    fi
+  done < <(workload_quadlet_sot_basenames "${sot_dir}")
 }
 
 # List regular non-hidden basenames in a SoT directory (may be missing).
@@ -272,6 +325,12 @@ workload_unit_apply_basename_intent() {
   esac
   [[ -n "${svc}" ]] || return 0
 
+  # Always-on pod members: pod graph owns restart/stop; Setup drives the pod only.
+  if [[ "${kind}" == "always-on" && "${consumer}" == "quadlets" && "${base##*.}" == "container" ]] &&
+    workload_quadlet_container_has_pod_ref "${file}"; then
+    return 0
+  fi
+
   quadlet_user systemctl --user reset-failed "${svc}" 2>/dev/null || true
 
   if [[ "${intent}" == "run" ]]; then
@@ -338,6 +397,8 @@ workload_unit_apply_intent() {
   local -a always_args=()
   local -a ondemand_args=()
   local i
+
+  workload_quadlet_validate_pod_refs "${wl_name}" || return 1
 
   for consumer in quadlets systemd; do
     sot="${WORKLOADS_ROOT}/${wl_name}/${consumer}"
