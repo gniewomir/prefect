@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Ensure Components on the Host after Initial Host Provisioning.
 # Waits for IHP Done (Host is Substrate), ships Component source, host-scripts, and the
-# ACME want-list via Host delivery, then runs Component Setup (Edge). Idempotent —
-# re-run freely. Does not run Fabric Setup (see ensure-fabric.sh). ADR-0040 / ADR-0041 / #155.
+# ACME want-list via Host delivery, then runs one Component Setup slot
+# (pre-workloads | post-workloads). Idempotent — re-run freely. Does not run Fabric Setup
+# (see ensure-fabric.sh). No combined "full" mode — Deploy (or the caller) runs both slots
+# in order when Components must be fully correct (ADR-0043 / #181).
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
-# Usage: ./internals/ensure-components.sh [--env <slug>]
+# Usage: ./internals/ensure-components.sh <pre-workloads|post-workloads> [--env <slug>]
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
 set -euo pipefail
@@ -35,7 +37,18 @@ operator_dotenv_load "${REPO_ROOT}" || exit 1
 operator_configuration_require private || exit 1
 
 CLI_env=""
-cli_operator_parse CLI -- "$@" || exit 1
+CLI_slot=""
+cli_operator_parse CLI pos:slot:required -- "$@" || {
+  echo "Usage: $0 <pre-workloads|post-workloads> [--env <slug>]" >&2
+  exit 1
+}
+case "${CLI_slot}" in
+  pre-workloads | post-workloads) ;;
+  *)
+    echo "ensure-components: unknown Setup slot '${CLI_slot}' (want pre-workloads|post-workloads)" >&2
+    exit 1
+    ;;
+esac
 environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
@@ -60,8 +73,12 @@ for name in "${COMPONENTS[@]}"; do
     echo "Component tree missing: internals/components/${name}" >&2
     exit 1
   }
-  [[ -f "${REPO_ROOT}/internals/components/${name}/setup.sh" ]] || {
-    echo "Component Setup missing: internals/components/${name}/setup.sh" >&2
+  [[ -f "${REPO_ROOT}/internals/components/${name}/pre-workloads.sh" ]] || {
+    echo "Component Setup missing: internals/components/${name}/pre-workloads.sh" >&2
+    exit 1
+  }
+  [[ -f "${REPO_ROOT}/internals/components/${name}/post-workloads.sh" ]] || {
+    echo "Component Setup missing: internals/components/${name}/post-workloads.sh" >&2
     exit 1
   }
 done
@@ -83,10 +100,10 @@ for name in "${COMPONENTS[@]}"; do
 done
 
 REMOTE_ROOT="/tmp/platform-ensure-components"
-remote_cmd="bash ${REMOTE_ROOT}/ensure-components-host.sh ${USER_NAME}"
+remote_cmd="bash ${REMOTE_ROOT}/ensure-components-host.sh ${USER_NAME} ${CLI_slot}"
 for name in "${COMPONENTS[@]}"; do
   remote_cmd+=" --component ${name}"
 done
 host_delivery_run "${STAGE}" "${REMOTE_ROOT}" "${remote_cmd}"
 
-echo "Components ensured for Platform User '${USER_NAME}' on ${IP}."
+echo "Components ensured (${CLI_slot}) for Platform User '${USER_NAME}' on ${IP}."

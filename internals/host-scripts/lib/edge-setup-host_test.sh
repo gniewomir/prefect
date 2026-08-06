@@ -105,6 +105,16 @@ chmod +x "${TMP}/bin/runuser"
 export PATH="${TMP}/bin:${PATH}"
 export STUB_STATE="${STATE}"
 
+# Offline: never invoke live podman nginx -t.
+edge_validate_nginx_config() {
+  printf '%s\n' "validate" >>"${STUB_STATE}/validate.calls"
+  if [[ "${EDGE_VALIDATE_FAIL:-0}" == "1" ]]; then
+    echo "edge_validate_nginx_config: nginx -t failed" >&2
+    return 1
+  fi
+  return 0
+}
+
 # Session begin without a real Platform User account: point unit dirs at TMP.
 quadlet_user_session_begin() {
   HOME_DIR="${TMP}/home"
@@ -253,20 +263,126 @@ grep -Eq '^edge_want_list_fqdns\(\)' \
   || fail "shared FQDN reader must remain for Route/ACME gating"
 pass "staging pathname stays at Setup/install seam; helpers keep ambient WANT_LIST"
 
-# --- thin setup.sh calls deep edge_setup (not a caller checklist) ---
-SETUP="${REPO_ROOT}/internals/components/edge/setup.sh"
-[[ -f "${SETUP}" ]] || fail "missing setup.sh"
-grep -Fq 'edge-setup-host.sh' "${SETUP}" \
-  || fail "setup.sh must source edge-setup-host.sh"
-grep -Eq 'edge_setup ' "${SETUP}" \
-  || fail "setup.sh must call edge_setup"
-# Implementation steps must not remain as a public checklist in setup.sh.
+# --- thin slot scripts call deep edge_setup_* (not a caller checklist) ---
+PRE="${REPO_ROOT}/internals/components/edge/pre-workloads.sh"
+POST="${REPO_ROOT}/internals/components/edge/post-workloads.sh"
+[[ -f "${PRE}" ]] || fail "missing pre-workloads.sh"
+[[ -f "${POST}" ]] || fail "missing post-workloads.sh"
+[[ ! -e "${REPO_ROOT}/internals/components/edge/setup.sh" ]] \
+  || fail "monolithic setup.sh must be removed (ADR-0018 / ADR-0043)"
+grep -Fq 'edge-setup-host.sh' "${PRE}" \
+  || fail "pre-workloads.sh must source edge-setup-host.sh"
+grep -Fq 'edge_setup_pre_workloads' "${PRE}" \
+  || fail "pre-workloads.sh must call edge_setup_pre_workloads"
+grep -Fq 'edge_setup_post_workloads' "${POST}" \
+  || fail "post-workloads.sh must call edge_setup_post_workloads"
 for step in edge_install_want_list edge_plant_placeholder_pems edge_reconcile_domain_fronts edge_gather_workload_routes edge_wait_front_door; do
-  if grep -Eq "${step}" "${SETUP}"; then
-    fail "setup.sh must not expose ${step} as a caller checklist (lives in edge_setup)"
+  if grep -Eq "${step}" "${PRE}" "${POST}"; then
+    fail "slot scripts must not expose ${step} as a caller checklist"
   fi
 done
-pass "setup.sh is thin: ambient + edge_setup only"
+pass "Edge slot scripts are thin: ambient + edge_setup_pre/post_workloads only"
+
+# --- pre-workloads cold: clear Routes, start, ACME; no gather from SoT ---
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+rm -f "${STATE}/edge-pod-started"
+export CURL_SUCCEED_AFTER=1
+DATA_ROOT="${TMP}/edge-data-pre-cold"
+WORKLOADS_ROOT="${TMP}/workloads-pre-cold"
+mkdir -p "${DATA_ROOT}/acme/bin" "${DATA_ROOT}/routes" \
+  "${WORKLOADS_ROOT}/welcome/routes"
+cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
+printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
+printf '%s\n' 'location /welcome { return 200 "w"; }' \
+  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+printf '%s\n' 'location /stale { return 200 "s"; }' \
+  >"${DATA_ROOT}/routes/welcome--alpha.example.test.conf"
+edge_setup_pre_workloads "${TREE}" "${STAGE}" \
+  || fail "edge_setup_pre_workloads cold should succeed"
+[[ ! -f "${DATA_ROOT}/routes/welcome--alpha.example.test.conf" ]] \
+  || fail "cold pre-workloads must clear fulfilled Workload Routes"
+[[ -z "$(find "${DATA_ROOT}/routes" -maxdepth 1 -type f 2>/dev/null)" ]] \
+  || fail "cold pre-workloads must not gather Workload SoT Routes"
+grep -Fq 'restart edge-pod.service' "${STATE}/systemctl.calls" \
+  || fail "cold pre-workloads must start/bounce edge-pod"
+grep -Fq 'restart edge-acme.service' "${STATE}/systemctl.calls" \
+  || fail "cold pre-workloads must run ACME oneshot"
+pass "edge_setup_pre_workloads cold: clear Routes, start, ACME; no gather"
+
+# --- pre-workloads warm: no gather, no front-door bounce, no ACME bounce ---
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+export CURL_SUCCEED_AFTER=1
+DATA_ROOT="${TMP}/edge-data-pre-warm"
+WORKLOADS_ROOT="${TMP}/workloads-pre-warm"
+mkdir -p "${DATA_ROOT}/acme/bin" "${DATA_ROOT}/routes" \
+  "${WORKLOADS_ROOT}/welcome/routes"
+cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
+printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
+printf '%s\n' 'location /from-sot { return 200 "sot"; }' \
+  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+printf '%s\n' 'location /live { return 200 "live"; }' \
+  >"${DATA_ROOT}/routes/welcome--alpha.example.test.conf"
+: >"${STATE}/edge-pod-started"
+edge_setup_pre_workloads "${TREE}" "${STAGE}" \
+  || fail "edge_setup_pre_workloads warm should succeed"
+grep -Fq 'location /live' "${DATA_ROOT}/routes/welcome--alpha.example.test.conf" \
+  || fail "warm pre-workloads must preserve live Routes"
+if grep -Fq 'restart edge-pod.service' "${STATE}/systemctl.calls"; then
+  fail "warm pre-workloads must not bounce edge-pod"
+fi
+if grep -Fq 'restart edge-acme.service' "${STATE}/systemctl.calls"; then
+  fail "warm pre-workloads must not run ACME oneshot that bounces the door"
+fi
+pass "edge_setup_pre_workloads warm: no gather, no front-door/ACME bounce"
+
+# --- post-workloads: gather, validate, bounce when needed, ACME ---
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+: >"${STATE}/validate.calls"
+rm -f "${STATE}/edge-pod-started"
+export CURL_SUCCEED_AFTER=1
+export EDGE_VALIDATE_FAIL=0
+DATA_ROOT="${TMP}/edge-data-post"
+WORKLOADS_ROOT="${TMP}/workloads-post"
+mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}/welcome/routes"
+cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
+printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
+printf '%s\n' 'location /post { return 200 "p"; }' \
+  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+edge_setup_post_workloads "${TREE}" "${STAGE}" \
+  || fail "edge_setup_post_workloads should succeed"
+[[ -f "${DATA_ROOT}/routes/welcome--alpha.example.test.conf" ]] \
+  || fail "post-workloads must gather Intent-run Routes"
+grep -Fq 'validate' "${STATE}/validate.calls" \
+  || fail "post-workloads must validate nginx config before bounce"
+grep -Fq 'restart edge-pod.service' "${STATE}/systemctl.calls" \
+  || fail "post-workloads must start/reload edge-pod when down or Routes changed"
+grep -Fq 'restart edge-acme.service' "${STATE}/systemctl.calls" \
+  || fail "post-workloads must run ACME oneshot"
+pass "edge_setup_post_workloads gathers, validates, starts, runs ACME"
+
+# --- post-workloads fails closed when validate rejects config ---
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+export EDGE_VALIDATE_FAIL=1
+DATA_ROOT="${TMP}/edge-data-post-bad"
+WORKLOADS_ROOT="${TMP}/workloads-post-bad"
+mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}/welcome/routes"
+cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
+printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
+printf '%s\n' 'location /bad { return 200 "b"; }' \
+  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+: >"${STATE}/edge-pod-started"
+if edge_setup_post_workloads "${TREE}" "${STAGE}" 2>"${STATE}/post-bad.err"; then
+  fail "post-workloads must fail closed when nginx -t fails"
+fi
+if grep -Fq 'restart edge-pod.service' "${STATE}/systemctl.calls"; then
+  fail "failed validate must not bounce edge-pod"
+fi
+export EDGE_VALIDATE_FAIL=0
+pass "edge_setup_post_workloads fails closed on invalid config"
 
 # --- mode: clear fulfilled Workload Routes (Domain fronts stay) ---
 # Intent-run SoT would re-fulfill on gather; clear + skip-gather must leave Routes empty.

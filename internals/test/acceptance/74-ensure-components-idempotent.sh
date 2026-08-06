@@ -7,7 +7,7 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 require_ip
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh acceptance)"
 
-"${REPO_ROOT}/internals/ensure-components.sh" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
 
 expected=404
 if ! actual="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 15 "http://${IP}/")"; then

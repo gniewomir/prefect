@@ -47,3 +47,37 @@ edge_reload_front_door() {
     }
   fi
 }
+
+# Fail closed on invalid nginx config before reload/start (ADR-0043 post-workloads).
+# When Edge is not running, skip live -t — start fails closed on bad config.
+# When running, nginx -t inside the Quadlet container (systemd-edge-nginx).
+edge_validate_nginx_config() {
+  local user="${USER_NAME:-platform}"
+  local runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u "${user}" 2>/dev/null || id -u)}"
+  local -a syscmd
+
+  if [[ "$(id -un)" == "${user}" ]]; then
+    syscmd=(env "XDG_RUNTIME_DIR=${runtime}" systemctl --user)
+  elif declare -F quadlet_user >/dev/null 2>&1; then
+    syscmd=(quadlet_user systemctl --user)
+  else
+    return 0
+  fi
+
+  if ! "${syscmd[@]}" --quiet is-active edge-pod.service; then
+    return 0
+  fi
+
+  if [[ "$(id -un)" == "${user}" ]]; then
+    if ! env "XDG_RUNTIME_DIR=${runtime}" bash -c 'cd "$HOME" && podman exec systemd-edge-nginx nginx -t'; then
+      echo "edge_validate_nginx_config: nginx -t failed" >&2
+      return 1
+    fi
+  elif declare -F quadlet_user >/dev/null 2>&1; then
+    if ! quadlet_user bash -c 'cd "$HOME" && podman exec systemd-edge-nginx nginx -t'; then
+      echo "edge_validate_nginx_config: nginx -t failed" >&2
+      return 1
+    fi
+  fi
+  return 0
+}

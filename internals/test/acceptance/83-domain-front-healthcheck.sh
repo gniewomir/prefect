@@ -36,7 +36,7 @@ DNS_READY="$(printf '%s\n' "${SELECT_OUT}" | awk '{print $2}')"
 [[ "${DNS_READY}" == "ready" || "${DNS_READY}" == "not-ready" ]] \
   || fail "unexpected DNS-ready flag '${DNS_READY}'"
 
-"${REPO_ROOT}/internals/ensure-components.sh" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-components.sh" pre-workloads --env "${PLATFORM_ENV:-test}"
 
 # --- Host layout: Domain front + placeholder PEMs ---
 host_ssh "test ! -e '${DOMAINS_HOST}/00-empty.conf'" \
@@ -55,7 +55,7 @@ pass "Domain front and placeholder PEMs present for ${FQDN}"
 full_before="$(host_ssh "sha256sum '${CERTS_HOST}/${FQDN}/fullchain.pem'")"
 key_before="$(host_ssh "sha256sum '${CERTS_HOST}/${FQDN}/privkey.pem'")"
 front_before="$(host_ssh "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
-"${REPO_ROOT}/internals/ensure-components.sh" --env "${PLATFORM_ENV:-test}"
+"${REPO_ROOT}/internals/ensure-components.sh" pre-workloads --env "${PLATFORM_ENV:-test}"
 full_after="$(host_ssh "sha256sum '${CERTS_HOST}/${FQDN}/fullchain.pem'")"
 key_after="$(host_ssh "sha256sum '${CERTS_HOST}/${FQDN}/privkey.pem'")"
 front_after="$(host_ssh "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
