@@ -268,4 +268,124 @@ for step in edge_install_want_list edge_plant_placeholder_pems edge_reconcile_do
 done
 pass "setup.sh is thin: ambient + edge_setup only"
 
+# --- mode: clear fulfilled Workload Routes (Domain fronts stay) ---
+# Intent-run SoT would re-fulfill on gather; clear + skip-gather must leave Routes empty.
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+export CURL_SUCCEED_AFTER=1
+export EDGE_FRONT_DOOR_WAIT_ATTEMPTS=5
+export EDGE_FRONT_DOOR_WAIT_SLEEP=0
+DATA_ROOT="${TMP}/edge-data-clear"
+WORKLOADS_ROOT="${TMP}/workloads-clear"
+mkdir -p "${DATA_ROOT}/acme/bin" "${DATA_ROOT}/routes" "${DATA_ROOT}/domains" \
+  "${WORKLOADS_ROOT}/welcome/routes"
+cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
+printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
+printf '%s\n' 'location /welcome { return 200 "w"; }' \
+  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+printf '%s\n' 'location /stale { return 200 "s"; }' \
+  >"${DATA_ROOT}/routes/welcome--alpha.example.test.conf"
+printf '%s\n' '# prior domain front' >"${DATA_ROOT}/domains/alpha.example.test.conf"
+: >"${STATE}/edge-pod-started"
+edge_setup "${TREE}" "${STAGE}" --clear-fulfilled-routes --skip-gather \
+  || fail "edge_setup --clear-fulfilled-routes --skip-gather should succeed"
+[[ ! -f "${DATA_ROOT}/routes/welcome--alpha.example.test.conf" ]] \
+  || fail "clear-fulfilled-routes must remove fulfilled Workload Routes under Edge data"
+[[ -z "$(find "${DATA_ROOT}/routes" -maxdepth 1 -type f 2>/dev/null)" ]] \
+  || fail "clear + skip-gather must not re-fulfill from Workload SoT"
+[[ -f "${DATA_ROOT}/domains/alpha.example.test.conf" ]] \
+  || fail "clear-fulfilled-routes must leave Domain fronts in place"
+pass "edge_setup --clear-fulfilled-routes clears fulfilled Routes; Domain fronts stay"
+
+# --- mode: skip-gather leaves live fulfilled Routes untouched ---
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+export CURL_SUCCEED_AFTER=1
+DATA_ROOT="${TMP}/edge-data-skip-gather"
+WORKLOADS_ROOT="${TMP}/workloads-skip-gather"
+mkdir -p "${DATA_ROOT}/acme/bin" "${DATA_ROOT}/routes" \
+  "${WORKLOADS_ROOT}/welcome/routes"
+cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
+printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
+printf '%s\n' 'location /from-sot { return 200 "sot"; }' \
+  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+printf '%s\n' 'location /live { return 200 "live"; }' \
+  >"${DATA_ROOT}/routes/welcome--alpha.example.test.conf"
+: >"${STATE}/edge-pod-started"
+edge_setup "${TREE}" "${STAGE}" --skip-gather \
+  || fail "edge_setup --skip-gather should succeed"
+grep -Fq 'location /live' "${DATA_ROOT}/routes/welcome--alpha.example.test.conf" \
+  || fail "skip-gather must preserve live fulfilled Route bytes"
+if grep -Fq 'location /from-sot' "${DATA_ROOT}/routes/welcome--alpha.example.test.conf"; then
+  fail "skip-gather must not load Workload SoT Routes into Edge interior"
+fi
+pass "edge_setup --skip-gather preserves live Routes; does not load SoT"
+
+# --- mode: skip-front-door-bounce does not reload/restart Edge when Routes change ---
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+rm -f "${STATE}/edge-pod-started"
+export CURL_SUCCEED_AFTER=1
+DATA_ROOT="${TMP}/edge-data-skip-bounce"
+WORKLOADS_ROOT="${TMP}/workloads-skip-bounce"
+mkdir -p "${DATA_ROOT}/acme/bin" "${DATA_ROOT}/routes" \
+  "${WORKLOADS_ROOT}/welcome/routes"
+cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
+printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
+printf '%s\n' 'location /new { return 200 "n"; }' \
+  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+# Pod already healthy (warm path); gather will change Routes → default would bounce.
+: >"${STATE}/edge-pod-started"
+edge_setup "${TREE}" "${STAGE}" --skip-front-door-bounce \
+  || fail "edge_setup --skip-front-door-bounce should succeed"
+[[ -f "${DATA_ROOT}/routes/welcome--alpha.example.test.conf" ]] \
+  || fail "skip-front-door-bounce still gathers Routes into Edge data"
+if grep -Fq 'restart edge-pod.service' "${STATE}/systemctl.calls"; then
+  fail "skip-front-door-bounce must not restart edge-pod when Routes change"
+fi
+grep -Fq 'restart edge-acme.service' "${STATE}/systemctl.calls" \
+  || fail "skip-front-door-bounce alone must still run ACME oneshot (use --skip-acme-bounce to gate that)"
+pass "edge_setup --skip-front-door-bounce skips pod reload/restart"
+
+# --- mode: skip-acme-bounce does not restart ACME oneshot (door stay) ---
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+export CURL_SUCCEED_AFTER=1
+DATA_ROOT="${TMP}/edge-data-skip-acme"
+WORKLOADS_ROOT="${TMP}/workloads-skip-acme"
+mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}"
+cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
+: >"${STATE}/edge-pod-started"
+edge_setup "${TREE}" "${STAGE}" --skip-gather --skip-front-door-bounce --skip-acme-bounce \
+  || fail "edge_setup --skip-acme-bounce should succeed"
+if grep -Fq 'restart edge-acme.service' "${STATE}/systemctl.calls"; then
+  fail "skip-acme-bounce must not restart edge-acme oneshot (ACME reloads the front door)"
+fi
+grep -Fq 'enable --now edge-acme.timer' "${STATE}/systemctl.calls" \
+  || fail "skip-acme-bounce must still arm the ACME timer"
+grep -Fq 'is-active edge-pod.service' "${STATE}/systemctl.calls" \
+  || fail "warm skip modes must still assert edge-pod is active"
+pass "edge_setup --skip-acme-bounce skips ACME oneshot that would bounce the door"
+
+# --- default path (no mode flags) still gathers, bounces when needed, runs ACME ---
+: >"${STATE}/curl_count"
+: >"${STATE}/systemctl.calls"
+rm -f "${STATE}/edge-pod-started"
+export CURL_SUCCEED_AFTER=1
+DATA_ROOT="${TMP}/edge-data-default"
+WORKLOADS_ROOT="${TMP}/workloads-default"
+mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}/welcome/routes"
+cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
+printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
+printf '%s\n' 'location /default { return 200 "d"; }' \
+  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+edge_setup "${TREE}" "${STAGE}" || fail "default edge_setup should succeed"
+[[ -f "${DATA_ROOT}/routes/welcome--alpha.example.test.conf" ]] \
+  || fail "default edge_setup must gather Intent-run Routes"
+grep -Fq 'restart edge-pod.service' "${STATE}/systemctl.calls" \
+  || fail "default cold edge_setup must bounce/start edge-pod"
+grep -Fq 'restart edge-acme.service' "${STATE}/systemctl.calls" \
+  || fail "default edge_setup must restart ACME oneshot"
+pass "default edge_setup path unchanged: gather + bounce + ACME"
+
 echo "All edge-setup-host offline tests passed."

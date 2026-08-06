@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
-# Deep Edge Component Setup (ADR-0023 / ADR-0028 / ADR-0040 / #137).
+# Deep Edge Component Setup (ADR-0023 / ADR-0028 / ADR-0040 / #137 / #180).
 # Sourced by Edge setup.sh. Success meaning: Domains present, Edge units active,
-# front door answers, Intent-run Route Declarations fulfilled. Want-list install,
-# placeholders, Domain fronts, Route gather, oneshot, and wait are implementation
-# behind this interface — not a caller checklist.
+# front door answers, Intent-run Route Declarations fulfilled (unless --skip-gather).
+# Want-list install, placeholders, Domain fronts, Route gather, oneshot, and wait are
+# implementation behind this interface — not a caller checklist.
 #
 # Ambient (optional overrides for offline tests):
 #   USER_NAME, DATA_ROOT  — Host Volume Edge data root defaults apply when unset.
 # After begin: HOME_DIR / UNIT_DIR / SYSTEMD_USER_DIR via quadlet_user_session_begin.
 #
-# Args: component_tree  staged_want_list_src
+# Args: component_tree  [staged_want_list_src]
+#   [--clear-fulfilled-routes] [--skip-gather]
+#   [--skip-front-door-bounce] [--skip-acme-bounce]
 # Staging pathname is an argument only at this seam (and edge_install_want_list).
+# Mode flags (#180): clear fulfilled Routes; skip gather/load; skip front-door
+# reload/restart; skip ACME oneshot that reloads the door. Default (no flags) =
+# pre-ADR-0043 gather + bounce-when-needed + ACME oneshot.
 # Returns 0 only when Domain presence is reconciled and front door answers.
 
 _edge_setup_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,10 +33,37 @@ source "${_edge_setup_lib_dir}/edge-routes-host.sh"
 source "${_edge_setup_lib_dir}/component-units-host.sh"
 
 # Deep Edge Setup success: Domains present + Edge units active + front door answers.
-# Args: component_tree  staged_want_list_src
+# Args: component_tree  [staged_want_list_src] [--clear-fulfilled-routes] [--skip-gather]
+#       [--skip-front-door-bounce] [--skip-acme-bounce]
+# Default (no mode flags) matches pre-ADR-0043: gather + bounce-when-needed + ACME oneshot.
+# Mode flags are Host-helper seams for later pre/post-workloads composition (#180) — not
+# ensure-components argv.
 edge_setup() {
   local component_tree="${1:?edge_setup: component tree required}"
-  local staged_want_list="${2:-}"
+  shift
+  local staged_want_list=""
+  local clear_fulfilled_routes=0
+  local skip_gather=0
+  local skip_front_door_bounce=0
+  local skip_acme_bounce=0
+
+  if [[ $# -gt 0 && "$1" != --* ]]; then
+    staged_want_list="$1"
+    shift
+  fi
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --clear-fulfilled-routes) clear_fulfilled_routes=1 ;;
+      --skip-gather) skip_gather=1 ;;
+      --skip-front-door-bounce) skip_front_door_bounce=1 ;;
+      --skip-acme-bounce) skip_acme_bounce=1 ;;
+      *)
+        echo "edge_setup: unknown argument: $1" >&2
+        return 1
+        ;;
+    esac
+    shift
+  done
 
   USER_NAME="${USER_NAME:-platform}"
   DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/edge}"
@@ -56,11 +88,20 @@ edge_setup() {
   edge_plant_placeholder_pems
   edge_reconcile_domain_fronts
 
+  if [[ "${clear_fulfilled_routes}" == "1" ]]; then
+    edge_clear_fulfilled_routes
+  fi
+
   # Route Declarations: gather Intent-run SoT into Edge interior (ADR-0040 / ADR-0041).
   # Workload Setup/Purge do not write Edge routes; refresh by re-running Edge Setup.
   WORKLOADS_ROOT="${WORKLOADS_ROOT:-/var/lib/host-volume/internals/workloads}"
-  edge_gather_workload_routes "${WORKLOADS_ROOT}" || return 1
-  local routes_changed="${EDGE_ROUTES_CHANGED:-0}"
+  local routes_changed=0
+  if [[ "${skip_gather}" == "1" ]]; then
+    EDGE_ROUTES_CHANGED=0
+  else
+    edge_gather_workload_routes "${WORKLOADS_ROOT}" || return 1
+    routes_changed="${EDGE_ROUTES_CHANGED:-0}"
+  fi
 
   chown -R "${USER_NAME}:${USER_NAME}" \
     "${HOME_DIR}/.config" \
@@ -110,12 +151,15 @@ edge_setup() {
   quadlet_user systemctl --user reset-failed edge-pod.service edge-nginx.service edge-acme.service 2>/dev/null || true
   # Bounce Edge Pod when Route fulfillment changed, or when Edge is not yet active
   # (first bring-up). Unchanged gather → skip pod restart (Route fulfillment noop).
-  # ACME oneshot still always restarts below (ADR-0015 / ADR-0023).
+  # --skip-front-door-bounce gates reload/restart (warm pre-workloads; ADR-0043 / #180).
+  # Default oneshot still restarts below unless --skip-acme-bounce (ADR-0015 / ADR-0023).
   local bounce_pod=0
-  if [[ "${routes_changed}" == "1" ]]; then
-    bounce_pod=1
-  elif ! quadlet_user systemctl --user --quiet is-active edge-pod.service; then
-    bounce_pod=1
+  if [[ "${skip_front_door_bounce}" != "1" ]]; then
+    if [[ "${routes_changed}" == "1" ]]; then
+      bounce_pod=1
+    elif ! quadlet_user systemctl --user --quiet is-active edge-pod.service; then
+      bounce_pod=1
+    fi
   fi
   if [[ "${bounce_pod}" == "1" ]]; then
     # Quadlet: edge.pod → edge-pod.service (pulls Service Network + edge-nginx).
@@ -126,12 +170,15 @@ edge_setup() {
   # On-demand ACME capability: timer armed even with an empty want-list (ADR-0015).
   quadlet_user systemctl --user enable --now edge-acme.timer
   quadlet_user systemctl --user --quiet is-active edge-acme.timer
-  # Always trigger oneshot after want-list install (ADR-0015 / ADR-0023). Block until
+  # Default: trigger oneshot after want-list install (ADR-0015 / ADR-0023). Block until
   # it finishes: acme-run reloads the Edge front door at the end, so returning early
   # races Acceptance/operator HTTP on :80/:443. CA/DNS failures still soft-succeed
   # (oneshot exit 0 — ADR-0012 / ADR-0015). restart (not start): re-ensure must
   # re-run oneshot even if a prior oneshot is still active.
-  quadlet_user systemctl --user restart edge-acme.service
+  # --skip-acme-bounce: arm timer only — oneshot would reload the front door.
+  if [[ "${skip_acme_bounce}" != "1" ]]; then
+    quadlet_user systemctl --user restart edge-acme.service
+  fi
 
   # Shared front-door wait (post-ACME reload / empty want-list / image pull + nginx) — #134.
   if ! edge_wait_front_door; then
