@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Offline tests: ACME PEM vs configured directory mismatch → force re-issue (ADR-0045).
+# Offline tests: ACME PEM vs configured directory mismatch → fresh issue (ADR-0045).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -13,9 +13,10 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/edge-acme-issue.XXXXXX")"
 trap 'rm -rf "${TMP}"' EXIT
 
 CERTS_DIR="${TMP}/certs"
+ACME_DIR="${TMP}/acme"
 HOST="example.test"
 PEM_DIR="${CERTS_DIR}/${HOST}"
-mkdir -p "${PEM_DIR}"
+mkdir -p "${PEM_DIR}" "${ACME_DIR}/certificates"
 
 make_issuer_pem() {
   local issuer_cn="$1"
@@ -59,8 +60,6 @@ fi
 pass "production PEM vs production → ok"
 
 # Placeholder / non-LE issuer → not treated as wrong-CA (normal issue replaces it).
-make_issuer_pem "placeholder.example.test" "${PEM_DIR}/fullchain.pem"
-# Fix issuer O to not be Let's Encrypt
 openssl req -x509 -newkey rsa:2048 -nodes \
   -keyout "${TMP}/key.pem" -out "${PEM_DIR}/fullchain.pem" -days 1 \
   -subj "/CN=${HOST}" >/dev/null 2>&1
@@ -70,12 +69,27 @@ if acme_installed_pem_wrong_ca "${HOST}"; then
 fi
 pass "placeholder PEM is not wrong-CA"
 
-# acme-run must force renew on wrong-CA.
+# clear lego cert removes host material, leaves other names.
+printf 'crt\n' >"${ACME_DIR}/certificates/${HOST}.crt"
+printf 'key\n' >"${ACME_DIR}/certificates/${HOST}.key"
+printf 'other\n' >"${ACME_DIR}/certificates/other.example.test.crt"
+acme_clear_lego_certificate "${HOST}" || fail "clear should succeed"
+[[ ! -f "${ACME_DIR}/certificates/${HOST}.crt" ]] || fail "host crt must be removed"
+[[ ! -f "${ACME_DIR}/certificates/${HOST}.key" ]] || fail "host key must be removed"
+[[ -f "${ACME_DIR}/certificates/other.example.test.crt" ]] || fail "other cert must remain"
+pass "acme_clear_lego_certificate removes only that host"
+
+# acme-run: wrong-CA clears lego cert + no random sleep (not renew-force).
 ACME_RUN="${REPO_ROOT}/internals/components/edge/acme-run.sh"
 grep -Fq 'acme_installed_pem_wrong_ca' "${ACME_RUN}" \
   || fail "acme-run must consult wrong-CA helper"
-grep -Fq -- '--renew-force' "${ACME_RUN}" \
-  || fail "acme-run must pass --renew-force when CA mismatches"
-pass "acme-run wires wrong-CA → --renew-force"
+grep -Fq 'acme_clear_lego_certificate' "${ACME_RUN}" \
+  || fail "acme-run must clear lego cert on wrong-CA"
+grep -Fq -- '--no-random-sleep' "${ACME_RUN}" \
+  || fail "acme-run must disable lego renewal random sleep (Setup wait)"
+if grep -Fq -- '--renew-force' "${ACME_RUN}"; then
+  fail "acme-run must not use --renew-force (clear + fresh issue instead)"
+fi
+pass "acme-run wires wrong-CA → clear + --no-random-sleep"
 
 echo "All edge-acme-issue-host offline tests passed."
