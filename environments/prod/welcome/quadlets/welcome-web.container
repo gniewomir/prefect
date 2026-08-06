@@ -1,0 +1,15 @@
+[Unit]
+Description=Propraetor welcome page
+
+[Container]
+Image=docker.io/library/nginx:alpine
+ContainerName=welcome-web
+Pod=welcome.pod
+Volume=/var/lib/host-volume/internals/workloads/welcome/www:/usr/share/nginx/html:ro
+Volume=/var/lib/host-volume/data/workloads/welcome:/var/lib/workload:rw
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

@@ -92,6 +92,13 @@ while IFS= read -r wl_name; do
       cp "${f}" "${dest}/systemd/$(basename "${f}")"
     done
   fi
+  if [[ -d "${src}/www" ]]; then
+    mkdir -p "${dest}/www"
+    for f in "${src}/www"/*; do
+      [[ -f "${f}" ]] || continue
+      cp "${f}" "${dest}/www/$(basename "${f}")"
+    done
+  fi
   mirrored=$((mirrored + 1))
 done < <(environment_discover_workloads "${ENV_DIR}")
 

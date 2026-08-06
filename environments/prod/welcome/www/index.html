@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Propraetor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Figtree:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['Fraunces', 'Georgia', 'serif'],
+              sans: ['Figtree', 'system-ui', 'sans-serif'],
+            },
+            colors: {
+              ink: '#14201b',
+              mist: '#e8efe9',
+              pine: '#2f6b4f',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background:
+          radial-gradient(1200px 600px at 12% -10%, rgba(47, 107, 79, 0.18), transparent 55%),
+          radial-gradient(900px 500px at 100% 0%, rgba(20, 32, 27, 0.08), transparent 50%),
+          linear-gradient(165deg, #f4f7f4 0%, #dde6df 48%, #cfdcd3 100%);
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .rise {
+        animation: rise 0.7s ease-out both;
+      }
+      .rise-delay {
+        animation-delay: 0.12s;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen text-ink antialiased">
+    <main class="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-6 py-16 sm:px-8">
+      <p class="rise font-display text-5xl font-bold tracking-tight text-ink sm:text-6xl">
+        Propraetor
+      </p>
+      <p class="rise rise-delay mt-8 max-w-xl font-sans text-lg leading-relaxed text-ink/80 sm:text-xl">
+        Propraetor owns reusable Hosts and a thin Workload contract so a solo
+        operator can ship many small projects, experiments, and MVPs without
+        repeating platform work, paying for managed infrastructure too early, or
+        becoming dependent on a PaaS that is costly to leave.
+      </p>
+      <div class="rise rise-delay mt-10 h-px w-16 bg-pine/50" aria-hidden="true"></div>
+    </main>
+  </body>
+</html>
