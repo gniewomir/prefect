@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Host ACME issue helpers: detect installed PEM vs configured CA directory (ADR-0045).
+# Host ACME issue helpers: wrong-CA cutover detection and lego → Host PEM install (ADR-0045).
 # Sourced by acme-run. Expects: CERTS_DIR, ACME_DIR. Reads EDGE_ACME_DIRECTORY (default staging).
 
 # Return 0 when Host fullchain for host is a Let's Encrypt cert from the wrong
@@ -40,4 +40,30 @@ acme_clear_lego_certificate() {
     "${dir}/${host}.key" \
     "${dir}/${host}.json" \
     "${dir}/${host}.pfx"
+}
+
+# Copy lego certificate material into Host Edge PEM paths nginx consumes.
+# lego v5 writes a full chain in .crt; .issuer.crt is intermediates already
+# included there — concatenating would duplicate. Leaf-only .crt (older lego)
+# still appends .issuer.crt when present.
+install_pems_from_lego() {
+  local host="$1"
+  local crt="${ACME_DIR}/certificates/${host}.crt"
+  local issuer="${ACME_DIR}/certificates/${host}.issuer.crt"
+  local key="${ACME_DIR}/certificates/${host}.key"
+  local dest="${CERTS_DIR}/${host}"
+  local crt_count
+  [[ -f "${crt}" && -f "${key}" ]] || return 1
+  mkdir -p "${dest}"
+  crt_count="$(grep -c 'BEGIN CERTIFICATE' "${crt}" || true)"
+  if [[ "${crt_count}" -gt 1 ]]; then
+    cp "${crt}" "${dest}/fullchain.pem"
+  elif [[ -f "${issuer}" ]]; then
+    cat "${crt}" "${issuer}" >"${dest}/fullchain.pem"
+  else
+    cp "${crt}" "${dest}/fullchain.pem"
+  fi
+  cp "${key}" "${dest}/privkey.pem"
+  chmod 0644 "${dest}/fullchain.pem"
+  chmod 0600 "${dest}/privkey.pem"
 }
