@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Offline tests: Platform User session helpers must not inherit root XDG_RUNTIME_DIR.
-# Repro: root SSH often has XDG_RUNTIME_DIR=/run/user/0; passing that to platform
-# yields "Failed to connect to user scope bus … Operation not permitted".
+# Offline tests: Platform User session helpers must not inherit root session env.
+# Repro 1: root SSH XDG_RUNTIME_DIR=/run/user/0 → systemctl --user Operation not permitted.
+# Repro 2: root DBUS_SESSION_BUS_ADDRESS=…/run/user/0/bus → podman/crun cgroup Permission denied
+#          (nginx -t via podman exec during post-workloads validate).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -35,7 +36,7 @@ printf 'platform:x:1000:1000::%s:/bin/bash\n' "${TMP}/home"
 EOF
 chmod +x "${TMP}/bin/getent"
 
-# Capture XDG_RUNTIME_DIR that quadlet_user passes through env.
+# Capture env assignments that quadlet_user passes through env.
 cat >"${TMP}/bin/runuser" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -61,8 +62,9 @@ chmod +x "${TMP}/bin/runuser"
 export PATH="${TMP}/bin:${PATH}"
 USER_NAME=platform
 
-# Simulate root SSH session exporting root's runtime dir (the live prod failure mode).
+# Simulate root SSH session exporting root's runtime + session bus (live prod failure).
 export XDG_RUNTIME_DIR=/run/user/0
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/0/bus
 
 quadlet_user_session_begin
 [[ "${XDG_RUNTIME_DIR}" == "/run/user/1000" ]] \
@@ -78,12 +80,17 @@ if echo "${got}" | grep -Fq 'XDG_RUNTIME_DIR=/run/user/0'; then
 fi
 pass "quadlet_user does not inherit root XDG_RUNTIME_DIR"
 
+echo "${got}" | grep -Fxq 'DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus' \
+  || fail "quadlet_user must pass Platform User DBUS session bus, got: ${got}"
+if echo "${got}" | grep -Fq 'DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/0/bus'; then
+  fail "quadlet_user must not pass root DBUS_SESSION_BUS_ADDRESS"
+fi
+pass "quadlet_user does not inherit root DBUS_SESSION_BUS_ADDRESS"
+
 # edge_setup_pre_workloads must ensure session before is-active (source contract).
 PRE_FN="${REPO_ROOT}/internals/host-scripts/lib/edge-setup-host.sh"
 grep -A20 '^edge_setup_pre_workloads()' "${PRE_FN}" | grep -Fq 'quadlet_user_session_begin' \
   || fail "pre-workloads must call quadlet_user_session_begin before is-active"
-# After begin, XDG must already be platform-scoped — covered above; also require
-# that begin is the documented exporter (not only reload).
 grep -Eq 'export XDG_RUNTIME_DIR=' "${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh" \
   || fail "session helper must export XDG_RUNTIME_DIR"
 pass "pre-workloads / begin contract covers bus before is-active"

@@ -28,10 +28,11 @@ edge_wait_front_door() {
 edge_reload_front_door() {
   local user="${USER_NAME:-platform}"
   local runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u "${user}" 2>/dev/null || id -u)}"
+  local dbus="unix:path=${runtime}/bus"
   local -a cmd
 
   if [[ "$(id -un)" == "${user}" ]]; then
-    cmd=(env "XDG_RUNTIME_DIR=${runtime}" systemctl --user)
+    cmd=(env "XDG_RUNTIME_DIR=${runtime}" "DBUS_SESSION_BUS_ADDRESS=${dbus}" systemctl --user)
   elif declare -F quadlet_user >/dev/null 2>&1; then
     cmd=(quadlet_user systemctl --user)
   else
@@ -54,10 +55,11 @@ edge_reload_front_door() {
 edge_validate_nginx_config() {
   local user="${USER_NAME:-platform}"
   local runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u "${user}" 2>/dev/null || id -u)}"
+  local dbus="unix:path=${runtime}/bus"
   local -a syscmd
 
   if [[ "$(id -un)" == "${user}" ]]; then
-    syscmd=(env "XDG_RUNTIME_DIR=${runtime}" systemctl --user)
+    syscmd=(env "XDG_RUNTIME_DIR=${runtime}" "DBUS_SESSION_BUS_ADDRESS=${dbus}" systemctl --user)
   elif declare -F quadlet_user >/dev/null 2>&1; then
     syscmd=(quadlet_user systemctl --user)
   else
@@ -69,7 +71,8 @@ edge_validate_nginx_config() {
   fi
 
   if [[ "$(id -un)" == "${user}" ]]; then
-    if ! env "XDG_RUNTIME_DIR=${runtime}" bash -c 'cd "$HOME" && podman exec systemd-edge-nginx nginx -t'; then
+    if ! env "XDG_RUNTIME_DIR=${runtime}" "DBUS_SESSION_BUS_ADDRESS=${dbus}" \
+      bash -c 'cd "$HOME" && podman exec systemd-edge-nginx nginx -t'; then
       echo "edge_validate_nginx_config: nginx -t failed" >&2
       return 1
     fi
